@@ -4,7 +4,6 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Target, Plus, CheckCircle2, Clock, Pause, ChevronRight, Loader2, Calendar } from "lucide-react";
-import DailyQuote from "@/components/home/DailyQuote";
 
 const CATEGORY_COLORS = {
   learning: "bg-blue-100 text-blue-700",
@@ -117,11 +116,6 @@ export default function Goals() {
              ))}
            </div>
          )}
-
-         {/* Daily Quote at Bottom */}
-         <div className="mt-12 pt-8 border-t border-gray-100">
-           <DailyQuote theme="minimalist" />
-         </div>
         </div>
         </div>
   );
