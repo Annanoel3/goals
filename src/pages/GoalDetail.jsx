@@ -7,6 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Loader2, Calendar, CheckCircle2, Clock, AlertCircle, Plus, Trash2, ChevronDown, ChevronUp, Upload, X, History } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import StepDetailsModal from "@/components/goals/StepDetailsModal";
 
 export default function GoalDetail() {
   const { id } = useParams();
@@ -16,7 +17,8 @@ export default function GoalDetail() {
   const [steps, setSteps] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedPhases, setExpandedPhases] = useState({});
-  const [expandedSteps, setExpandedSteps] = useState({});
+  const [selectedStep, setSelectedStep] = useState(null);
+  const [isStepModalOpen, setIsStepModalOpen] = useState(false);
 
   useEffect(() => { loadData(); }, [id]);
 
@@ -125,10 +127,19 @@ export default function GoalDetail() {
           )}
         </div>
 
-        {/* Steps */}
+        {/* Steps - Month/Week Hierarchy */}
          <div className="space-y-3">
            {Object.entries(stepsByPhase).map(([phase, phaseSteps]) => {
              const isPhaseOpen = expandedPhases[phase];
+             // Group steps by week within each month
+             const stepsByWeek = {};
+             phaseSteps.forEach(s => {
+               // Extract week info from phase if available (e.g., "Month 1" or "Month 1 - Week 1")
+               const weekKey = s.phase?.includes("Week") ? s.phase : "Week 1";
+               if (!stepsByWeek[weekKey]) stepsByWeek[weekKey] = [];
+               stepsByWeek[weekKey].push(s);
+             });
+
              return (
                <div key={phase}>
                  <button
@@ -143,29 +154,62 @@ export default function GoalDetail() {
                    <span className="text-xs text-gray-400">{phaseSteps.filter(s => s.status === 'completed').length}/{phaseSteps.length}</span>
                  </button>
                  {isPhaseOpen && (
-                   <div className="mt-2 ml-4 space-y-2 border-l-2 border-gray-100 pl-0">
-                     {phaseSteps.map(step => (
-                       <StepCard 
-                         key={step.id} 
-                         step={step} 
-                         onToggle={() => toggleStepStatus(step)}
-                         isExpanded={expandedSteps[step.id]}
-                         onExpandChange={(expanded) => setExpandedSteps(prev => ({ ...prev, [step.id]: expanded }))}
-                         onUpdate={loadData}
-                         toast={toast}
-                       />
+                   <div className="mt-2 ml-4 space-y-3 border-l-2 border-gray-100 pl-4">
+                     {Object.entries(stepsByWeek).map(([week, weekSteps]) => (
+                       <div key={week} className="space-y-2">
+                         <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide px-2">{week}</div>
+                         <div className="space-y-2">
+                           {weekSteps.map(step => (
+                             <button
+                               key={step.id}
+                               onClick={() => {
+                                 setSelectedStep(step);
+                                 setIsStepModalOpen(true);
+                               }}
+                               className={`w-full text-left p-3 rounded-lg border transition-all ${
+                                 step.status === 'completed'
+                                   ? 'bg-green-50 border-green-100'
+                                   : 'bg-white border-gray-100 hover:border-violet-300'
+                               }`}
+                             >
+                               <div className="flex items-start gap-3">
+                                 <div className="flex-shrink-0 mt-0.5">
+                                   <Checkbox
+                                     checked={step.status === 'completed'}
+                                     onChange={(e) => {
+                                       e.stopPropagation();
+                                       toggleStepStatus(step);
+                                     }}
+                                     className="mt-0.5"
+                                   />
+                                 </div>
+                                 <div className="flex-1 min-w-0">
+                                   <h4 className={`font-medium text-sm ${step.status === 'completed' ? 'line-through text-gray-400' : 'text-gray-900'}`}>
+                                     {step.title}
+                                   </h4>
+                                   {step.description && (
+                                     <p className={`text-xs mt-1 line-clamp-2 ${step.status === 'completed' ? 'text-gray-400' : 'text-gray-500'}`}>
+                                       {step.description}
+                                     </p>
+                                   )}
+                                 </div>
+                               </div>
+                             </button>
+                           ))}
+                         </div>
+                       </div>
                      ))}
                    </div>
                  )}
                </div>
              );
            })}
-          {steps.length === 0 && (
-            <Card className="bg-gray-50 border-gray-200">
-              <CardContent className="p-6 text-center text-gray-400">No steps yet. Check back when the plan is created.</CardContent>
-            </Card>
-          )}
-        </div>
+           {steps.length === 0 && (
+             <Card className="bg-gray-50 border-gray-200">
+               <CardContent className="p-6 text-center text-gray-400">No steps yet. Check back when the plan is created.</CardContent>
+             </Card>
+           )}
+         </div>
 
         {/* Completion History */}
          {steps.some(s => s.completed_at) && (
@@ -200,175 +244,14 @@ export default function GoalDetail() {
              <p className="text-sm text-amber-800">{goal.notes}</p>
            </div>
          )}
-        </div>
-        </div>
-        );
-        }
-
-function StepCard({ step, onToggle, isExpanded, onExpandChange, onUpdate, toast }) {
-  const [notes, setNotes] = useState(step.notes || '');
-  const [pictures, setPictures] = useState(step.pictures || []);
-  const [isSaving, setIsSaving] = useState(false);
-
-  const priorityColors = {
-    critical: 'bg-red-100 text-red-700',
-    high: 'bg-orange-100 text-orange-700',
-    medium: 'bg-blue-100 text-blue-700',
-    low: 'bg-gray-100 text-gray-700',
-  };
-
-  const statusConfig = {
-    completed: { icon: CheckCircle2, color: 'text-green-600' },
-    in_progress: { icon: Clock, color: 'text-blue-600' },
-    pending: { icon: Clock, color: 'text-gray-400' },
-    skipped: { icon: AlertCircle, color: 'text-gray-400' },
-  };
-
-  const StatusIcon = statusConfig[step.status]?.icon || Clock;
-
-  const handleSaveChanges = async () => {
-    setIsSaving(true);
-    try {
-      await base44.entities.GoalStep.update(step.id, { notes, pictures });
-      toast({ title: "Step updated!" });
-      onUpdate?.();
-    } catch (err) {
-      toast({ title: "Error saving changes", variant: "destructive" });
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleUploadImage = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    try {
-      const res = await base44.integrations.Core.UploadFile({ file });
-      setPictures(prev => [...prev, res.file_url]);
-    } catch (err) {
-      toast({ title: "Failed to upload image", variant: "destructive" });
-    }
-  };
-
-  const removeImage = (url) => {
-    setPictures(prev => prev.filter(p => p !== url));
-  };
-
-  return (
-    <div>
-      <button
-        onClick={() => {
-          if (!isExpanded) {
-            onExpandChange(true);
-          } else {
-            onExpandChange(false);
-          }
-        }}
-        className={`w-full text-left p-3 rounded-lg border transition-all ${
-          step.status === 'completed'
-            ? 'bg-green-50 border-green-100'
-            : 'bg-white border-gray-100 hover:border-gray-200'
-        }`}
-      >
-        <div className="flex items-start gap-3">
-          <div className="flex-shrink-0 mt-0.5">
-            <Checkbox
-              checked={step.status === 'completed'}
-              onChange={(e) => {
-                e.stopPropagation();
-                onToggle?.();
-              }}
-              className="mt-0.5"
-            />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <h4 className={`font-medium text-sm ${step.status === 'completed' ? 'line-through text-gray-400' : 'text-gray-900'}`}>
-                {step.title}
-              </h4>
-              {isExpanded && <ChevronUp className="w-4 h-4 text-gray-400 flex-shrink-0" />}
-            </div>
-            {step.description && (
-              <p className={`text-xs mt-1 leading-relaxed ${step.status === 'completed' ? 'text-gray-400' : 'text-gray-500'}`}>
-                {step.description}
-              </p>
-            )}
-            <div className="flex flex-wrap items-center gap-1.5 mt-2">
-              {step.priority && (
-                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full capitalize ${priorityColors[step.priority] || priorityColors.medium}`}>
-                  {step.priority}
-                </span>
-              )}
-              {step.due_date && (
-                <span className="text-xs text-gray-400 flex items-center gap-1">
-                  <Calendar className="w-3 h-3" /> {new Date(step.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                </span>
-              )}
-            </div>
-          </div>
-          <StatusIcon className={`w-4 h-4 ${statusConfig[step.status]?.color} flex-shrink-0 mt-1`} />
-        </div>
-      </button>
-
-      {isExpanded && (
-        <div className="mt-2 p-4 bg-gray-50 rounded-lg space-y-4 border border-gray-100">
-          {/* Notes Section */}
-          <div>
-            <label className="text-xs font-semibold text-gray-700 block mb-2">Notes</label>
-            <Textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Add notes or details about this step..."
-              className="min-h-[80px] text-sm resize-none"
-            />
-          </div>
-
-          {/* Photos Section */}
-          <div>
-            <label className="text-xs font-semibold text-gray-700 block mb-2">Photos</label>
-            <div className="space-y-2">
-              {pictures.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {pictures.map((pic, idx) => (
-                    <div key={idx} className="relative group">
-                      <img src={pic} alt="Step" className="w-16 h-16 rounded-lg object-cover border border-gray-200" />
-                      <button
-                        onClick={() => removeImage(pic)}
-                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <label className="flex items-center justify-center gap-2 px-3 py-2 border-2 border-dashed border-gray-300 rounded-lg hover:border-violet-400 hover:bg-violet-50 cursor-pointer transition-all">
-                <Upload className="w-4 h-4 text-gray-400" />
-                <span className="text-sm text-gray-600">Add photo</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleUploadImage}
-                  className="hidden"
-                />
-              </label>
-            </div>
-          </div>
-
-          {/* Save Button */}
-          <div className="flex justify-end pt-2">
-            <Button
-              onClick={handleSaveChanges}
-              disabled={isSaving}
-              size="sm"
-              className="bg-violet-600 hover:bg-violet-700 text-white"
-            >
-              {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-              Save Changes
-            </Button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
+        {/* Step Details Modal */}
+        <StepDetailsModal
+          step={selectedStep}
+          isOpen={isStepModalOpen}
+          onClose={() => setIsStepModalOpen(false)}
+          onUpdate={loadData}
+        />
+         </div>
+         </div>
+         );
+         }

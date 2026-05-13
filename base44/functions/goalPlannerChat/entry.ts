@@ -46,19 +46,46 @@ Return JSON (no markdown) in EXACTLY this structure. IMPORTANT: Create AT LEAST 
       "phase": "e.g. Month 1, Week 1 (use phases like Month 1, Month 2, etc.)",
       "priority": "low|medium|high|critical",
       "due_date": "YYYY-MM-DD (spread across the timeline, realistic pacing)",
-      "order_index": 0
+      "order_index": 0,
+      "step_resources": [
+        {
+          "type": "video|book|article|tool|course|website|other",
+          "title": "exact name of resource",
+          "url": "direct link if available",
+          "description": "how to use this resource for this step",
+          "specific_details": "specific sections/times/pages/instructions (e.g., 'watch 2:30-5:45', 'read pages 45-52', 'use filter XYZ')"
+        }
+      ],
+      "success_criteria": [
+        "measurable indicator (e.g., 'Can play scales at 60 bpm with correct form')",
+        "another criterion"
+      ],
+      "tips_and_guidance": "specific advice, common pitfalls, best practices for this step"
     }
   ]
 }
 
-CRITICAL: Generate 15-20+ steps PER PHASE/MILESTONE, not just a handful total. Make the plan deeply detailed and actionable.`
+CRITICAL: 
+1. Generate 15-20+ steps PER PHASE/MILESTONE, not just a handful total. Make the plan deeply detailed and actionable.
+2. FOR EVERY STEP, include step_resources with specific links and guidance (videos, books, articles, tools, websites)
+3. FOR EVERY STEP, include measurable success_criteria so users know exactly when they've completed it
+4. FOR EVERY STEP, include tips_and_guidance with specific advice and common pitfalls to avoid
+5. This removes all excuses — users have everything they need to execute.`
           }
         ],
         response_format: { type: "json_object" }
       });
 
       const plan = JSON.parse(extractionResponse.choices[0].message.content);
-      
+
+      // Ensure all steps have required fields
+      plan.steps = (plan.steps || []).map(step => ({
+        ...step,
+        step_resources: step.step_resources || [],
+        success_criteria: step.success_criteria || [],
+        tips_and_guidance: step.tips_and_guidance || ""
+      }));
+
       // Extract preferred time from conversation for health goals
       let preferredTime = null;
       if (plan.category === 'health') {
@@ -143,7 +170,10 @@ Only include fields that actually changed. today = ${today}`
             priority: step.priority || "medium",
             due_date: step.due_date || "",
             order_index: step.order_index ?? 999,
-            status: "pending"
+            status: "pending",
+            step_resources: step.step_resources || [],
+            success_criteria: step.success_criteria || [],
+            tips_and_guidance: step.tips_and_guidance || ""
           });
         }
       }

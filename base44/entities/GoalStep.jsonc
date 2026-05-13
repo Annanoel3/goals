@@ -64,6 +64,69 @@
     "notes": {
       "type": "string",
       "description": "Notes specific to this step"
+    },
+    "step_resources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "video",
+              "book",
+              "article",
+              "tool",
+              "course",
+              "website",
+              "other"
+            ],
+            "description": "Type of resource"
+          },
+          "title": {
+            "type": "string",
+            "description": "Name of the resource"
+          },
+          "url": {
+            "type": "string",
+            "description": "Link to the resource"
+          },
+          "description": {
+            "type": "string",
+            "description": "Brief description or how to use it"
+          },
+          "specific_details": {
+            "type": "string",
+            "description": "Specific sections, times, pages, etc. (e.g., 'watch 2:30-5:45', 'read pages 45-52')"
+          }
+        },
+        "required": [
+          "type",
+          "title"
+        ]
+      },
+      "default": [],
+      "description": "Resources needed for this specific step"
+    },
+    "success_criteria": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Measurable indicators of completion (e.g., 'Can play scales at 60 bpm')"
+    },
+    "tips_and_guidance": {
+      "type": "string",
+      "description": "Specific advice, best practices, or common pitfalls to avoid"
+    },
+    "pictures": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Array of image URLs attached to this step",
+      "default": []
     }
   },
   "required": [
