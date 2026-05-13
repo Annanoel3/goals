@@ -4,6 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Target, Plus, CheckCircle2, Clock, Pause, ChevronRight, Loader2, Calendar } from "lucide-react";
+import DailyQuote from "@/components/home/DailyQuote";
 
 const CATEGORY_COLORS = {
   learning: "bg-blue-100 text-blue-700",
@@ -97,27 +98,32 @@ export default function Goals() {
         </div>
 
         {/* Goals List */}
-        {loading ? (
-          <div className="flex justify-center py-16">
-            <Loader2 className="w-7 h-7 animate-spin text-violet-500" />
-          </div>
-        ) : filteredGoals.length === 0 ? (
-          <EmptyState activeTab={activeTab} onNewGoal={() => navigate("/Planner")} />
-        ) : (
-          <div className="space-y-3">
-            {filteredGoals.map(goal => (
-              <GoalCard
-                key={goal.id}
-                goal={goal}
-                progress={getGoalProgress(goal.id)}
-                stepCount={getStepCount(goal.id)}
-                onClick={() => navigate(`/goal/${goal.id}`)}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
+         {loading ? (
+           <div className="flex justify-center py-16">
+             <Loader2 className="w-7 h-7 animate-spin text-violet-500" />
+           </div>
+         ) : filteredGoals.length === 0 ? (
+           <EmptyState activeTab={activeTab} onNewGoal={() => navigate("/Planner")} />
+         ) : (
+           <div className="space-y-3">
+             {filteredGoals.map(goal => (
+               <GoalCard
+                 key={goal.id}
+                 goal={goal}
+                 progress={getGoalProgress(goal.id)}
+                 stepCount={getStepCount(goal.id)}
+                 onClick={() => navigate(`/goal/${goal.id}`)}
+               />
+             ))}
+           </div>
+         )}
+
+         {/* Daily Quote at Bottom */}
+         <div className="mt-12 pt-8 border-t border-gray-100">
+           <DailyQuote theme="minimalist" />
+         </div>
+        </div>
+        </div>
   );
 }
 
