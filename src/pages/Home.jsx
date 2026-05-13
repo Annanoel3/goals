@@ -1,285 +1,194 @@
 import React, { useState, useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import WelcomeCard from "../components/home/WelcomeCard";
+import { Button } from "@/components/ui/button";
+import { Plus, Sparkles, Target, ArrowRight, CheckCircle2, Clock } from "lucide-react";
+import { Link } from "react-router-dom";
 import DailyQuote from "../components/home/DailyQuote";
-import QuickActions from "../components/home/QuickActions";
-import TodaysTasks from "../components/home/TodaysTasks";
-import EndOfDayReview from "../components/home/EndOfDayReview";
-import MotivationCoach from "../components/home/MotivationCoach";
-import TaskDetailsModal from "../components/tasks/TaskDetailsModal";
-import MomentumCelebration from "../components/shared/MomentumCelebration";
 
 export default function Home() {
-  const [tasks, setTasks] = useState([]);
   const [user, setUser] = useState(null);
+  const [goals, setGoals] = useState([]);
+  const [recentSteps, setRecentSteps] = useState([]);
   const [theme, setTheme] = useState(() => localStorage.getItem('adhd_theme') || 'minimalist');
-  const [showEndOfDayReview, setShowEndOfDayReview] = useState(false);
-  const [selectedTask, setSelectedTask] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const location = useLocation();
   const navigate = useNavigate();
-  const specialMode = localStorage.getItem('special_mode') || 'normal'; // v2
-
-  // Helper function to get local date string using toLocaleDateString
-  const getLocalDateString = (date) => {
-    return new Date(date).toLocaleDateString('en-CA'); // returns YYYY-MM-DD in local time
-  };
 
   useEffect(() => {
     loadData();
-    checkEndOfDayReview();
     const interval = setInterval(() => {
-      const newTheme = localStorage.getItem('adhd_theme') || 'minimalist';
-      setTheme(newTheme);
-    }, 100);
+      setTheme(localStorage.getItem('adhd_theme') || 'minimalist');
+    }, 500);
     return () => clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
-    if (location.state?.reload) {
-      loadData();
-      navigate(location.pathname, { replace: true, state: {} });
-    }
-  }, [location.state, navigate, location.pathname]);
-
-  // CRITICAL FIX: Refresh tasks every 30 seconds to pick up reminder updates from cron
-  useEffect(() => {
-    const refreshInterval = setInterval(() => {
-      console.log('🔄 [HOME] Auto-refreshing tasks to update reminder times...');
-      loadData();
-    }, 30000); // Every 30 seconds
-
-    return () => clearInterval(refreshInterval);
-  }, []);
-
-  // CRITICAL FIX: Refresh tasks when page becomes visible
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        console.log('👁️ [HOME] Page visible - refreshing tasks...');
-        loadData();
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
 
   const loadData = async () => {
     try {
-      console.log('📥 [HOME] Loading data...');
       const currentUser = await base44.auth.me();
       setUser(currentUser);
-      console.log('👤 [HOME] User loaded:', currentUser?.email);
-    } catch (error) {
-      console.error("Error loading user:", error);
-      console.log("User not logged in");
-    }
-    
+    } catch {}
+
     try {
-      console.log('📋 [HOME] Fetching tasks...');
-      const allTasks = await base44.entities.Task.list('-updated_date');
-      console.log('✅ [HOME] Tasks fetched:', allTasks.length);
-      
-      // Log some task details
-      if (allTasks.length > 0) {
-        const completed = allTasks.filter(t => t.status === 'completed');
-        console.log('✅ [HOME] Completed tasks:', completed.length);
-        
-        // Show first 3 completed tasks with dates
-        if (completed.length > 0) {
-          console.log('📅 [HOME] Sample completed:', completed.slice(0, 3).map(t => ({
-            title: t.title.substring(0, 30),
-            completed_at: t.completed_at,
-            date_local: t.completed_at ? getLocalDateString(new Date(t.completed_at)) : 'no date'
-          })));
-        }
-      }
-      
-      setTasks(allTasks);
-    } catch (error) {
-      console.error('❌ [HOME] Error loading tasks:', error);
-    }
+      const allGoals = await base44.entities.Goal.filter({ status: 'active' }, '-updated_date', 5);
+      setGoals(allGoals);
+
+      // Load recent pending steps across all goals
+      const stepPromises = allGoals.slice(0, 3).map(g =>
+        base44.entities.GoalStep.filter({ goal_id: g.id, status: 'pending' }, 'order_index', 3)
+      );
+      const stepGroups = await Promise.all(stepPromises);
+      const flat = stepGroups.flat().slice(0, 4);
+      setRecentSteps(flat.map(s => ({
+        ...s,
+        goalTitle: allGoals.find(g => g.id === s.goal_id)?.title || ''
+      })));
+    } catch {}
   };
 
-  const checkEndOfDayReview = () => {
-    const lastReview = localStorage.getItem('last_eod_review');
-    const today = new Date().toISOString().split('T')[0];
-    const hour = new Date().getHours();
-    
-    if (hour >= 19 && lastReview !== today) {
-      setTimeout(() => {
-        setShowEndOfDayReview(true);
-      }, 5000);
-    }
+  const getGreeting = () => {
+    const h = new Date().getHours();
+    if (h < 12) return "Good morning";
+    if (h < 18) return "Good afternoon";
+    return "Good evening";
   };
 
-  const handleTaskComplete = async (task) => {
-    // CRITICAL FIX: Store local date/time, not UTC
-    const now = new Date();
-    const localISOString = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString();
-    
-    console.log('✅ [COMPLETE] Marking task complete with local time:', localISOString);
-    
-    // Cancel all scheduled reminders when task is completed
-    if (task.onesignal_notification_ids && task.onesignal_notification_ids.length > 0) {
-      try {
-        console.log('🔕 [COMPLETE] Cancelling reminders:', task.onesignal_notification_ids);
-        const { cancelScheduledReminder } = await import('../components/utils/reminderScheduler');
-        await cancelScheduledReminder(task.onesignal_notification_ids);
-        console.log('✅ [COMPLETE] Successfully cancelled reminders');
-      } catch (error) {
-        console.error("❌ [COMPLETE] Failed to cancel reminders:", error);
-      }
-    } else {
-      console.log('ℹ️ [COMPLETE] No reminders to cancel for this task');
-    }
-    
-    // Optimistically update UI
-    setTasks(prevTasks => 
-      prevTasks.map(t => 
-        t.id === task.id 
-          ? { ...t, status: 'completed', completed_at: localISOString, onesignal_notification_ids: [] }
-          : t
-      )
-    );
-
-    // Update in background
-    try {
-      await base44.entities.Task.update(task.id, { 
-        status: 'completed',
-        completed_at: localISOString,
-        onesignal_notification_ids: []
-      });
-    } catch (error) {
-      console.error("Failed to complete task:", error);
-      // Revert on error
-      loadData();
-    }
-  };
-
-  const handleTaskUpdate = async (updatedTask) => {
-    // Optimistically update the task in state
-    setTasks(prevTasks => 
-      prevTasks.map(t => 
-        t.id === updatedTask.id ? { ...t, ...updatedTask } : t
-      )
-    );
-    
-    // If the selected task is being viewed, update it too
-    if (selectedTask && selectedTask.id === updatedTask.id) {
-      setSelectedTask({ ...selectedTask, ...updatedTask });
-    }
-  };
-
-  const handleViewDetails = (task) => {
-    setSelectedTask(task);
-    setIsModalOpen(true);
-  };
-
-  const handleReviewDismiss = () => {
-    const today = new Date().toISOString().split('T')[0];
-    localStorage.setItem('last_eod_review', today);
-    setShowEndOfDayReview(false);
-  };
-
-  // FIXED: Filter out subtasks from today's completed count
-  const todayCompleted = tasks.filter(t => {
-    if (t.status !== 'completed' || !t.completed_at || t.parent_task_id) return false;
-    const today = getLocalDateString(new Date());
-    const completedDate = getLocalDateString(new Date(t.completed_at));
-    return completedDate === today;
-  });
-
-  const activeTasks = tasks.filter(t => t.status === 'active' && !t.parent_task_id);
-
-  // Debug logging
-  useEffect(() => {
-    console.log('🔍 [HOME DEBUG] ========== TASK COUNT DEBUG ==========');
-    console.log('🔍 [HOME DEBUG] Total tasks loaded:', tasks.length);
-    console.log('🔍 [HOME DEBUG] Active tasks (all):', tasks.filter(t => t.status === 'active').length);
-    console.log('🔍 [HOME DEBUG] Active PARENT tasks:', activeTasks.length);
-    console.log('🔍 [HOME DEBUG] Active SUBTASKS:', tasks.filter(t => t.status === 'active' && t.parent_task_id).length);
-    console.log('🔍 [HOME DEBUG] Completed tasks (all):', tasks.filter(t => t.status === 'completed').length);
-    console.log('🔍 [HOME DEBUG] Completed today (parent only):', todayCompleted.length);
-    
-    // Show all active parent tasks
-    const activeParents = tasks.filter(t => t.status === 'active' && !t.parent_task_id);
-    console.log('🔍 [HOME DEBUG] Active parent tasks list:');
-    activeParents.forEach((t, i) => {
-      console.log(`  ${i+1}. "${t.title}" (id: ${t.id})`);
-    });
-    
-    const today = getLocalDateString(new Date());
-    console.log('🔍 [HOME DEBUG] Today date:', today);
-    console.log('🔍 [HOME DEBUG] =====================================');
-  }, [tasks, todayCompleted, activeTasks]);
+  const isDark = theme === 'dark';
 
   return (
-    <div className={`min-h-screen p-4 md:p-8 w-full ${
-      theme === 'spicybrains' 
-        ? 'bg-gradient-to-br from-green-300 via-blue-300 to-purple-300' 
-        : ''
-    }`} style={{
-      paddingBottom: 'max(8rem, calc(8rem + env(safe-area-inset-bottom)))'
-    }}>
-      <div className="max-w-7xl mx-auto">
-        <MomentumCelebration 
-          completedCount={todayCompleted.length}
-          remainingCount={activeTasks.length}
-          theme={theme}
-        />
+    <div className={`min-h-screen ${isDark ? 'bg-gray-950' : 'bg-gray-50'}`}
+      style={{ paddingBottom: 'max(6rem, calc(6rem + env(safe-area-inset-bottom)))' }}>
 
-        <div className="space-y-6">
-          <WelcomeCard userName={user?.full_name} theme={theme} specialMode={specialMode} />
-          
-          <QuickActions theme={theme} specialMode={specialMode} />
-          
-          <div className="grid lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2">
-              <TodaysTasks 
-                tasks={tasks} 
-                theme={theme}
-                onTaskAction={handleTaskComplete}
-                onViewDetails={handleViewDetails}
-                specialMode={specialMode}
-              />
-            </div>
-            
-            <div>
-              <DailyQuote theme={theme} />
-            </div>
+      {/* Hero greeting */}
+      <div className={`px-6 pt-8 pb-6 ${isDark ? 'bg-gray-900' : 'bg-white'} border-b ${isDark ? 'border-gray-800' : 'border-gray-100'}`}>
+        <div className="max-w-2xl mx-auto">
+          <p className={`text-sm font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+            {getGreeting()}{user?.full_name ? `, ${user.full_name.split(' ')[0]}` : ''}
+          </p>
+          <h1 className={`text-3xl font-bold tracking-tight mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            What are you working<br />toward today?
+          </h1>
+
+          <div className="flex gap-3">
+            <Button
+              onClick={() => navigate('/Planner')}
+              className="flex-1 bg-violet-600 hover:bg-violet-700 text-white rounded-2xl h-12 text-base font-semibold shadow-lg shadow-violet-200"
+            >
+              <Sparkles className="w-4 h-4 mr-2" />
+              Plan a New Goal
+            </Button>
+            <Button
+              onClick={() => navigate('/Goals')}
+              variant="outline"
+              className={`rounded-2xl h-12 px-5 ${isDark ? 'border-gray-700 text-gray-200 hover:bg-gray-800' : 'border-gray-200 text-gray-700'}`}
+            >
+              <Target className="w-4 h-4 mr-1" />
+              My Goals
+            </Button>
           </div>
         </div>
+      </div>
 
-        <EndOfDayReview
-          isOpen={showEndOfDayReview}
-          onClose={handleReviewDismiss}
-          theme={theme}
-        />
+      <div className="max-w-2xl mx-auto px-6 py-6 space-y-6">
 
-        <MotivationCoach theme={theme} />
+        {/* Daily quote */}
+        <DailyQuote theme={theme} />
 
-        <TaskDetailsModal
-          task={selectedTask}
-          isOpen={isModalOpen}
-          onClose={() => {
-            setIsModalOpen(false);
-            setSelectedTask(null);
-          }}
-          onUpdate={handleTaskUpdate}
-          onDelete={() => {
-            // Remove deleted task from state
-            if (selectedTask) {
-              setTasks(prevTasks => prevTasks.filter(t => t.id !== selectedTask.id));
-            }
-            setIsModalOpen(false);
-            setSelectedTask(null);
-          }}
-          theme={theme}
-        />
+        {/* Active goals */}
+        {goals.length > 0 && (
+          <section>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Active Goals</h2>
+              <Link to="/Goals" className="text-sm text-violet-600 font-medium flex items-center gap-1 hover:text-violet-700">
+                See all <ArrowRight className="w-3 h-3" />
+              </Link>
+            </div>
+            <div className="space-y-3">
+              {goals.map(goal => (
+                <GoalCard key={goal.id} goal={goal} isDark={isDark} onClick={() => navigate(`/goal/${goal.id}`)} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Empty state */}
+        {goals.length === 0 && (
+          <div className={`rounded-3xl p-8 text-center ${isDark ? 'bg-gray-900 border border-gray-800' : 'bg-white border border-gray-100'} shadow-sm`}>
+            <div className="w-16 h-16 rounded-2xl bg-violet-100 flex items-center justify-center mx-auto mb-4">
+              <Target className="w-8 h-8 text-violet-600" />
+            </div>
+            <h3 className={`text-xl font-bold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>No goals yet</h3>
+            <p className={`text-sm mb-6 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+              Tell the AI your goal and it'll build a plan for you.
+            </p>
+            <Button
+              onClick={() => navigate('/Planner')}
+              className="bg-violet-600 hover:bg-violet-700 text-white rounded-2xl px-6"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Create Your First Goal
+            </Button>
+          </div>
+        )}
+
+        {/* Next steps */}
+        {recentSteps.length > 0 && (
+          <section>
+            <h2 className={`text-lg font-bold mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>Up Next</h2>
+            <div className={`rounded-2xl overflow-hidden divide-y ${isDark ? 'bg-gray-900 border border-gray-800 divide-gray-800' : 'bg-white border border-gray-100 divide-gray-50'} shadow-sm`}>
+              {recentSteps.map(step => (
+                <div key={step.id} className="flex items-center gap-3 px-4 py-3">
+                  <div className={`w-7 h-7 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${isDark ? 'border-gray-600' : 'border-gray-200'}`}>
+                    <Clock className={`w-3 h-3 ${isDark ? 'text-gray-500' : 'text-gray-400'}`} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm font-medium truncate ${isDark ? 'text-gray-100' : 'text-gray-800'}`}>{step.title}</p>
+                    <p className={`text-xs truncate ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{step.goalTitle}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
       </div>
     </div>
+  );
+}
+
+function GoalCard({ goal, isDark, onClick }) {
+  const categoryColors = {
+    learning: 'bg-blue-100 text-blue-700',
+    health: 'bg-green-100 text-green-700',
+    career: 'bg-amber-100 text-amber-700',
+    finance: 'bg-emerald-100 text-emerald-700',
+    relationships: 'bg-pink-100 text-pink-700',
+    personal: 'bg-violet-100 text-violet-700',
+    creative: 'bg-orange-100 text-orange-700',
+    other: 'bg-gray-100 text-gray-600',
+  };
+
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full text-left rounded-2xl p-4 border transition-all hover:shadow-md ${
+        isDark ? 'bg-gray-900 border-gray-800 hover:border-gray-700' : 'bg-white border-gray-100 hover:border-violet-100'
+      }`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${categoryColors[goal.category] || categoryColors.other}`}>
+              {goal.category}
+            </span>
+            {goal.timeline && (
+              <span className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{goal.timeline}</span>
+            )}
+          </div>
+          <h3 className={`font-semibold text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>{goal.title}</h3>
+          {goal.plan_summary && (
+            <p className={`text-xs mt-1 line-clamp-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{goal.plan_summary}</p>
+          )}
+        </div>
+        <ArrowRight className={`w-4 h-4 flex-shrink-0 mt-1 ${isDark ? 'text-gray-600' : 'text-gray-300'}`} />
+      </div>
+    </button>
   );
 }

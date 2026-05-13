@@ -97,7 +97,6 @@ function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
   });
   const [showEnergyCheckIn, setShowEnergyCheckIn] = useState(false);
   const [energyCheckInTitle, setEnergyCheckInTitle] = useState('');
-  const [communityOpen, setCommunityOpen] = useState(false);
   const [accountabilityNotifications, setAccountabilityNotifications] = useState(0);
   const getDateBasedMode = () => {
     const now = new Date();
@@ -358,9 +357,6 @@ function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
     createPageUrl("Progress"),
     createPageUrl("SupportSpace"),
     createPageUrl("ParkingLot"),
-    createPageUrl("Accountability"),
-    createPageUrl("Chat"),
-    createPageUrl("FocusRooms"),
     createPageUrl("ProfileSettings"),
   ];
 
@@ -388,7 +384,7 @@ function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
       icon: TrendingUp,
     },
     {
-      title: "Support Space",
+      title: "Chat",
       url: createPageUrl("SupportSpace"),
       icon: MessageCircleHeart,
     },
@@ -396,30 +392,6 @@ function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
       title: "Parking Lot",
       url: createPageUrl("ParkingLot"),
       icon: Lightbulb,
-    },
-    {
-      title: "Community",
-      icon: Share2,
-      isCollapsible: true,
-      subItems: [
-        {
-          title: "Accountability",
-          url: createPageUrl("Accountability"),
-          icon: Share2,
-          badge: accountabilityNotifications > 0 ? accountabilityNotifications : null,
-        },
-        {
-          title: "Chat",
-          url: createPageUrl("Chat"),
-          icon: MessageCircle,
-        },
-        {
-          title: "Focus Rooms",
-          url: createPageUrl("FocusRooms"),
-          icon: Users,
-        },
-
-       ]
     },
   ];
 
@@ -661,7 +633,7 @@ function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
                   <div>
                     <h2 className={`font-bold text-lg ${
                       theme === 'dark' ? 'text-white' : theme === 'spicybrains' ? 'text-gray-900' : 'text-gray-900'
-                    }`}>{user?.full_name || 'ADHDone'}</h2>
+                    }`}>{user?.full_name || 'Goals.'}</h2>
                     <p className={`text-xs ${
                       theme === 'dark' ? 'text-gray-400' : theme === 'spicybrains' ? 'text-gray-800 font-medium' : 'text-gray-500'
                     }`}>You've got this</p>
@@ -682,87 +654,6 @@ function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
                 <SidebarGroupContent>
                   <SidebarMenu className="space-y-1">
                     {navigationItems.map((item) => {
-                      if (item.isCollapsible) {
-                        const isOpen = communityOpen;
-                        const onOpenChange = setCommunityOpen;
-
-                        return (
-                          <Collapsible
-                            key={item.title}
-                            open={isOpen}
-                            onOpenChange={onOpenChange}
-                          >
-                            <SidebarMenuItem>
-                              <CollapsibleTrigger asChild>
-                                <SidebarMenuButton
-                                  className={`rounded-xl transition-all duration-200 ${
-                                    isSeasonalTheme()
-                                      ? 'hover:bg-white/50 text-gray-800'
-                                      : theme === 'dark'
-                                        ? 'hover:bg-gray-800 text-gray-300 hover:text-white'
-                                        : theme === 'spicybrains'
-                                          ? 'hover:bg-gradient-to-r hover:from-yellow-300 hover:to-pink-300 text-gray-900 font-medium'
-                                          : 'hover:bg-gray-50 text-gray-700'
-                                  }`}
-                                >
-                                  <div className="flex items-center gap-3 py-3 w-full">
-                                    <item.icon className="w-5 h-5" />
-                                    <span className="flex-1">{item.title}</span>
-                                    {accountabilityNotifications > 0 && (
-                                      <span className="bg-red-500 text-white text-xs rounded-full min-w-[1.25rem] h-5 flex items-center justify-center font-bold px-1">
-                                        {accountabilityNotifications}
-                                      </span>
-                                    )}
-                                    {isOpen ? (
-                                      <ChevronDown className="w-4 h-4" />
-                                    ) : (
-                                      <ChevronRight className="w-4 h-4" />
-                                    )}
-                                  </div>
-                                </SidebarMenuButton>
-                              </CollapsibleTrigger>
-                              <CollapsibleContent className="space-y-1 mt-1 ml-9">
-                                {item.subItems.map((subItem) => (
-                                  <SidebarMenuButton
-                                    key={subItem.title}
-                                    asChild
-                                    className={`rounded-xl transition-all duration-200 ${
-                                      location.pathname === subItem.url
-                                        ? isSeasonalTheme()
-                                          ? 'bg-white/70 text-gray-900 font-medium'
-                                          : theme === 'minimalist'
-                                            ? 'bg-green-50 text-green-700 font-medium'
-                                            : theme === 'dark'
-                                              ? 'bg-gray-800 text-white font-medium'
-                                              : theme === 'spicybrains'
-                                                ? 'bg-gradient-to-r from-pink-400 to-yellow-300 text-gray-900 font-bold border-2 border-cyan-400'
-                                                : 'bg-gradient-to-r from-purple-100 to-orange-100 text-purple-700 font-medium'
-                                        : isSeasonalTheme()
-                                          ? 'hover:bg-white/40 text-gray-700'
-                                          : theme === 'dark'
-                                            ? 'hover:bg-gray-800 text-gray-400 hover:text-white'
-                                            : theme === 'spicybrains'
-                                              ? 'hover:bg-gradient-to-r hover:from-yellow-200 hover:to-pink-200 text-gray-800'
-                                              : 'hover:bg-gray-50 text-gray-600'
-                                    }`}
-                                  >
-                                    <Link to={subItem.url} onClick={handleNavClick} className="flex items-center gap-3 px-4 py-2 relative">
-                                      <subItem.icon className="w-4 h-4" />
-                                      <span className="text-sm flex-1">{subItem.title}</span>
-                                      {subItem.badge && subItem.badge > 0 && (
-                                        <span className="bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
-                                          {subItem.badge}
-                                        </span>
-                                      )}
-                                    </Link>
-                                  </SidebarMenuButton>
-                                ))}
-                              </CollapsibleContent>
-                            </SidebarMenuItem>
-                          </Collapsible>
-                        );
-                      }
-
                       return (
                         <SidebarMenuItem key={item.title}>
                           <Link to={item.url} onClick={handleNavClick}>
@@ -935,7 +826,7 @@ function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
                       : theme === 'spicybrains'
                         ? 'text-gray-900'
                         : 'text-gray-900'
-                }`}>ADHDone</h1>
+                }`}>Goals.</h1>
               </div>
             </header>
 
@@ -943,7 +834,7 @@ function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
               {children}
             </div>
 
-            {currentPageName !== "Home" && currentPageName !== "ParkingLot" && currentPageName !== "SupportSpace" && (
+            {currentPageName !== "Home" && currentPageName !== "ParkingLot" && currentPageName !== "SupportSpace" && currentPageName !== "Chat" && (
               <Button
                 onClick={() => {
                   const event = new CustomEvent('open-voice-assistant');
