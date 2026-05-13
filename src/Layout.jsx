@@ -651,34 +651,34 @@ function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
                     {navigationItems.map((item) => {
                       return (
                         <SidebarMenuItem key={item.title}>
-                          <Link to={item.url} onClick={handleNavClick}>
-                            <SidebarMenuButton
-                              className={`rounded-xl transition-all duration-200 ${
-                                location.pathname === item.url
-                                  ? isSeasonalTheme()
-                                    ? 'bg-white/70 text-gray-900 font-medium'
-                                    : theme === 'minimalist'
-                                      ? 'bg-green-50 text-green-700 font-medium'
-                                      : theme === 'dark'
-                                        ? 'bg-gray-800 text-white font-medium'
-                                      : theme === 'spicybrains'
-                                          ? 'bg-gradient-to-r from-pink-400 to-yellow-300 text-gray-900 font-bold border-2 border-cyan-400'
-                                        : 'bg-gradient-to-r from-purple-100 to-orange-100 text-purple-700 font-medium'
-                                  : isSeasonalTheme()
-                                    ? 'hover:bg-white/40 text-gray-700'
-                                    : theme === 'dark'
-                                      ? 'hover:bg-gray-800 text-gray-400 hover:text-white'
-                                      : theme === 'spicybrains'
-                                        ? 'hover:bg-gradient-to-r hover:from-yellow-300 hover:to-pink-300 text-gray-900 font-medium'
-                                        : 'hover:bg-gray-50 text-gray-700'
-                              }`}
-                            >
-                              <div className="flex items-center gap-3 py-3 w-full">
-                                <item.icon className="w-5 h-5" />
-                                <span>{item.title}</span>
-                              </div>
-                            </SidebarMenuButton>
-                          </Link>
+                         <Link to={item.url} onClick={handleNavClick} className="block w-full pointer-events-auto">
+                           <SidebarMenuButton
+                             className={`rounded-xl transition-all duration-200 w-full pointer-events-auto ${
+                               location.pathname === item.url
+                                 ? isSeasonalTheme()
+                                   ? 'bg-white/70 text-gray-900 font-medium'
+                                   : theme === 'minimalist'
+                                     ? 'bg-green-50 text-green-700 font-medium'
+                                     : theme === 'dark'
+                                       ? 'bg-gray-800 text-white font-medium'
+                                     : theme === 'spicybrains'
+                                         ? 'bg-gradient-to-r from-pink-400 to-yellow-300 text-gray-900 font-bold border-2 border-cyan-400'
+                                       : 'bg-gradient-to-r from-purple-100 to-orange-100 text-purple-700 font-medium'
+                                 : isSeasonalTheme()
+                                   ? 'hover:bg-white/40 text-gray-700'
+                                   : theme === 'dark'
+                                     ? 'hover:bg-gray-800 text-gray-400 hover:text-white'
+                                     : theme === 'spicybrains'
+                                       ? 'hover:bg-gradient-to-r hover:from-yellow-300 hover:to-pink-300 text-gray-900 font-medium'
+                                       : 'hover:bg-gray-50 text-gray-700'
+                             }`}
+                           >
+                             <div className="flex items-center gap-3 py-2 w-full pointer-events-none">
+                               <item.icon className="w-5 h-5 flex-shrink-0" />
+                               <span className="flex-1">{item.title}</span>
+                             </div>
+                           </SidebarMenuButton>
+                         </Link>
                         </SidebarMenuItem>
                       );
                     })}
