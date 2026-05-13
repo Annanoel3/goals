@@ -1,29 +1,69 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, Loader2, Mic, Sparkles, Target, Plus, Check } from "lucide-react";
+import { Send, Loader2, Mic, Sparkles, Target, Plus, Check, Pencil, ChevronDown, ChevronUp } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 
 export default function Planner() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isSavingGoal, setIsSavingGoal] = useState(false);
-  const [planApproved, setPlanApproved] = useState(false);
-  const [goalSaved, setGoalSaved] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [pendingAction, setPendingAction] = useState(null); // 'plan_approved' | 'edit_approved'
+  const [pendingGoalId, setPendingGoalId] = useState(null);
+  const [saved, setSaved] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [mediaRecorder, setMediaRecorder] = useState(null);
+  const [goals, setGoals] = useState([]);
+  const [showGoalPicker, setShowGoalPicker] = useState(false);
+  const [editingGoal, setEditingGoal] = useState(null); // goal being edited in current session
   const messagesEndRef = useRef(null);
   const messagesRef = useRef(messages);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
 
   useEffect(() => { messagesRef.current = messages; }, [messages]);
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Load goals for the "edit existing goal" picker
+  useEffect(() => {
+    base44.entities.Goal.filter({ status: 'active' }).then(setGoals).catch(() => {});
+
+    // If navigated here with ?edit=goalId, auto-start edit session
+    const editId = searchParams.get('edit');
+    if (editId) {
+      base44.entities.Goal.list().then(all => {
+        const goal = all.find(g => g.id === editId);
+        if (goal) startEditSession(goal);
+      });
+    }
+  }, []);
+
+  const startEditSession = (goal) => {
+    setEditingGoal(goal);
+    setShowGoalPicker(false);
+    setMessages([{
+      role: "assistant",
+      content: `I'm ready to help you update your goal: **"${goal.title}"**\n\nWhat changes would you like to make? You can:\n• Add new milestones or steps\n• Extend or adjust the timeline\n• Change priorities\n• Add a whole new phase\n• Anything else — just tell me!`
+    }]);
+    setPendingAction(null);
+    setSaved(false);
+  };
+
+  const handleNewPlan = () => {
+    setMessages([]);
+    setPendingAction(null);
+    setPendingGoalId(null);
+    setSaved(false);
+    setInput("");
+    setEditingGoal(null);
+    setShowGoalPicker(false);
+  };
 
   const sendMessage = useCallback(async (content) => {
     if (!content.trim() || isLoading) return;
@@ -34,29 +74,35 @@ export default function Planner() {
 
     try {
       const allMessages = [...messagesRef.current, userMsg];
-      const res = await base44.functions.invoke("goalPlannerChat", {
-        messages: allMessages,
-        mode: "chat"
-      });
-      const { message, approved } = res.data;
-      const cleanMessage = approved ? message.replace(/^PLAN_APPROVED\s*/i, '') : message;
-      setMessages(prev => [...prev, { role: "assistant", content: cleanMessage }]);
-      if (approved) setPlanApproved(true);
+      const payload = {
+        messages: allMessages.filter(m => m.role !== "system"),
+        mode: "chat",
+      };
+      if (editingGoal) payload.goal_id = editingGoal.id;
+
+      const res = await base44.functions.invoke("goalPlannerChat", payload);
+      const { message, action, goal_id } = res.data;
+
+      setMessages(prev => [...prev, { role: "assistant", content: message }]);
+
+      if (action === 'plan_approved') {
+        setPendingAction('plan_approved');
+      } else if (action === 'edit_approved') {
+        setPendingAction('edit_approved');
+        setPendingGoalId(goal_id || editingGoal?.id);
+      }
     } catch (err) {
       setMessages(prev => [...prev, { role: "assistant", content: "Something went wrong. Please try again." }]);
     } finally {
       setIsLoading(false);
     }
-  }, [isLoading]);
+  }, [isLoading, editingGoal]);
 
-  const saveGoalFromConversation = async () => {
-    setIsSavingGoal(true);
+  const handleSaveNewGoal = async () => {
+    setIsSaving(true);
     try {
       const allMessages = messagesRef.current.filter(m => m.role !== "system");
-      const res = await base44.functions.invoke("goalPlannerChat", {
-        messages: allMessages,
-        mode: "extract_plan"
-      });
+      const res = await base44.functions.invoke("goalPlannerChat", { messages: allMessages, mode: "extract_plan" });
       const plan = res.data.plan;
 
       const goal = await base44.entities.Goal.create({
@@ -70,7 +116,7 @@ export default function Planner() {
         conversation_history: allMessages
       });
 
-      if (plan.steps && plan.steps.length > 0) {
+      if (plan.steps?.length > 0) {
         for (const step of plan.steps) {
           await base44.entities.GoalStep.create({
             goal_id: goal.id,
@@ -85,20 +131,40 @@ export default function Planner() {
         }
       }
 
-      setGoalSaved(true);
-      toast({ title: "Goal saved!", description: `"${plan.title}" has been added to your Goals.` });
+      setSaved(true);
+      toast({ title: "Goal saved!", description: `"${plan.title}" is ready.` });
       setTimeout(() => navigate("/Goals"), 1500);
     } catch (err) {
-      toast({ title: "Error", description: "Could not save the goal. Please try again.", variant: "destructive" });
+      toast({ title: "Error saving goal", description: "Please try again.", variant: "destructive" });
     } finally {
-      setIsSavingGoal(false);
+      setIsSaving(false);
+    }
+  };
+
+  const handleApplyEdits = async () => {
+    setIsSaving(true);
+    try {
+      const allMessages = messagesRef.current.filter(m => m.role !== "system");
+      await base44.functions.invoke("goalPlannerChat", {
+        messages: allMessages,
+        mode: "apply_edit",
+        goal_id: pendingGoalId || editingGoal?.id
+      });
+
+      setSaved(true);
+      toast({ title: "Goal updated!", description: "Your changes have been applied." });
+      setTimeout(() => navigate(`/goal/${pendingGoalId || editingGoal?.id}`), 1500);
+    } catch (err) {
+      toast({ title: "Error applying changes", description: "Please try again.", variant: "destructive" });
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      let mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm';
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm';
       const recorder = new MediaRecorder(stream, { mimeType });
       const chunks = [];
       recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
@@ -115,7 +181,7 @@ export default function Planner() {
           });
           const sttRes = await base44.functions.invoke('transcribeAudio', { audio_base64: base64, filename: `voice-${Date.now()}.webm` });
           if (sttRes?.data?.text) await sendMessage(sttRes.data.text);
-        } catch (e) {
+        } catch {
           toast({ title: "Could not transcribe audio", variant: "destructive" });
         } finally {
           setIsLoading(false);
@@ -124,7 +190,7 @@ export default function Planner() {
       recorder.start();
       setMediaRecorder(recorder);
       setIsRecording(true);
-    } catch (err) {
+    } catch {
       toast({ title: "Microphone access denied", variant: "destructive" });
     }
   };
@@ -136,43 +202,71 @@ export default function Planner() {
     }
   };
 
-  const handleNewPlan = () => {
-    setMessages([]);
-    setPlanApproved(false);
-    setGoalSaved(false);
-    setInput("");
-  };
-
   const isEmpty = messages.length === 0;
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ paddingBottom: 'max(7rem, calc(7rem + env(safe-area-inset-bottom)))' }}>
+    <div className="min-h-screen flex flex-col bg-gray-50" style={{ paddingBottom: 'max(7rem, calc(7rem + env(safe-area-inset-bottom)))' }}>
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-white/80 dark:bg-gray-950/80 backdrop-blur-lg border-b border-gray-100 px-4 py-3">
+      <div className="sticky top-0 z-10 bg-white/90 backdrop-blur-lg border-b border-gray-100 px-4 py-3">
         <div className="max-w-2xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-sm">
               <Sparkles className="w-4 h-4 text-white" />
             </div>
             <div>
-              <h1 className="text-base font-bold text-gray-900 leading-none">Planner</h1>
-              <p className="text-[11px] text-gray-400 mt-0.5">AI-powered goal planning</p>
+              <h1 className="text-base font-bold text-gray-900 leading-none">
+                {editingGoal ? `Editing: ${editingGoal.title}` : 'Planner'}
+              </h1>
+              <p className="text-[11px] text-gray-400 mt-0.5">
+                {editingGoal ? 'Evolve your goal' : 'AI-powered goal planning'}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             {messages.length > 0 && (
               <Button variant="ghost" size="sm" onClick={handleNewPlan} className="text-xs text-gray-500 h-7 px-3 rounded-full">
-                New Plan
+                New
               </Button>
             )}
+            {/* Edit existing goal picker */}
+            <div className="relative">
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs h-7 px-3 rounded-full border-violet-200 text-violet-700 hover:bg-violet-50 flex items-center gap-1"
+                onClick={() => setShowGoalPicker(v => !v)}
+              >
+                <Pencil className="w-3 h-3" />
+                Edit Goal
+                {showGoalPicker ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+              </Button>
+              {showGoalPicker && goals.length > 0 && (
+                <div className="absolute right-0 top-9 bg-white border border-gray-200 rounded-xl shadow-xl z-20 min-w-[220px] py-1">
+                  {goals.map(g => (
+                    <button
+                      key={g.id}
+                      onClick={() => startEditSession(g)}
+                      className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-violet-50 hover:text-violet-700 transition-colors first:rounded-t-xl last:rounded-b-xl"
+                    >
+                      {g.title}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {showGoalPicker && goals.length === 0 && (
+                <div className="absolute right-0 top-9 bg-white border border-gray-200 rounded-xl shadow-xl z-20 min-w-[180px] px-4 py-3 text-sm text-gray-400">
+                  No active goals yet
+                </div>
+              )}
+            </div>
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
-              className="text-xs h-7 px-3 rounded-full border-violet-200 text-violet-700 hover:bg-violet-50"
+              className="text-xs h-7 px-3 rounded-full text-gray-500 hover:bg-gray-100"
               onClick={() => navigate("/Goals")}
             >
               <Target className="w-3 h-3 mr-1" />
-              My Goals
+              Goals
             </Button>
           </div>
         </div>
@@ -181,33 +275,45 @@ export default function Planner() {
       {/* Messages */}
       <div className="flex-1 max-w-2xl w-full mx-auto px-4 pt-6 space-y-4">
         {isEmpty ? (
-          <EmptyState />
+          <EmptyState onExampleClick={sendMessage} />
         ) : (
           <>
             {messages.map((msg, i) => (
               <MessageBubble key={i} msg={msg} />
             ))}
             {isLoading && <TypingIndicator />}
-            {planApproved && !goalSaved && (
+
+            {/* New goal approval */}
+            {pendingAction === 'plan_approved' && !saved && (
               <div className="flex justify-center py-2">
                 <Button
-                  onClick={saveGoalFromConversation}
-                  disabled={isSavingGoal}
-                  className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white rounded-2xl px-6 py-2.5 shadow-lg shadow-violet-200 font-semibold"
+                  onClick={handleSaveNewGoal}
+                  disabled={isSaving}
+                  className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white rounded-2xl px-6 py-2.5 shadow-lg shadow-violet-100 font-semibold"
                 >
-                  {isSavingGoal ? (
-                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving Goal...</>
-                  ) : (
-                    <><Plus className="w-4 h-4 mr-2" /> Save This Goal</>
-                  )}
+                  {isSaving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving...</> : <><Plus className="w-4 h-4 mr-2" />Save This Goal</>}
                 </Button>
               </div>
             )}
-            {goalSaved && (
+
+            {/* Edit approval */}
+            {pendingAction === 'edit_approved' && !saved && (
+              <div className="flex justify-center py-2">
+                <Button
+                  onClick={handleApplyEdits}
+                  disabled={isSaving}
+                  className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-2xl px-6 py-2.5 shadow-lg shadow-emerald-100 font-semibold"
+                >
+                  {isSaving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Applying...</> : <><Check className="w-4 h-4 mr-2" />Apply Changes</>}
+                </Button>
+              </div>
+            )}
+
+            {saved && (
               <div className="flex justify-center py-2">
                 <div className="flex items-center gap-2 bg-green-50 text-green-700 px-5 py-2.5 rounded-2xl text-sm font-semibold border border-green-200">
                   <Check className="w-4 h-4" />
-                  Goal saved! Redirecting...
+                  {pendingAction === 'edit_approved' ? 'Changes applied!' : 'Goal saved!'} Redirecting...
                 </div>
               </div>
             )}
@@ -216,16 +322,14 @@ export default function Planner() {
         )}
       </div>
 
-      {/* Input */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-lg border-t border-gray-100 px-4 py-3"
+      {/* Input bar */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-lg border-t border-gray-100 px-4 py-3"
         style={{ paddingBottom: 'max(0.75rem, calc(0.75rem + env(safe-area-inset-bottom)))' }}>
         <div className="max-w-2xl mx-auto flex items-end gap-2">
           <button
             onClick={isRecording ? stopRecording : startRecording}
             disabled={isLoading}
-            className={`w-10 h-10 flex-shrink-0 rounded-full flex items-center justify-center transition-all ${
-              isRecording ? 'bg-red-500 animate-pulse' : 'bg-gray-100 hover:bg-gray-200'
-            } disabled:opacity-40`}
+            className={`w-10 h-10 flex-shrink-0 rounded-full flex items-center justify-center transition-all ${isRecording ? 'bg-red-500 animate-pulse' : 'bg-gray-100 hover:bg-gray-200'} disabled:opacity-40`}
           >
             <Mic className={`w-4 h-4 ${isRecording ? 'text-white' : 'text-gray-600'}`} />
           </button>
@@ -233,7 +337,13 @@ export default function Planner() {
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(input); } }}
-            placeholder={isEmpty ? "Tell me your goal… e.g. 'I want to learn Spanish in 5 months'" : "Continue the conversation…"}
+            placeholder={
+              editingGoal
+                ? `What changes do you want for "${editingGoal.title}"?`
+                : isEmpty
+                  ? "Tell me your goal… e.g. 'I want to learn Spanish in 5 months'"
+                  : "Continue the conversation…"
+            }
             className="flex-1 min-h-[42px] max-h-32 text-sm resize-none rounded-2xl border-gray-200 focus:border-violet-300 bg-gray-50 focus:bg-white transition-colors"
             disabled={isLoading}
             rows={1}
@@ -251,26 +361,31 @@ export default function Planner() {
   );
 }
 
-function EmptyState() {
+function EmptyState({ onExampleClick }) {
+  const examples = [
+    "I want to learn Spanish in 5 months",
+    "Run a 5K in 3 months",
+    "Launch a side business this year",
+    "Read 24 books this year",
+  ];
   return (
-    <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
+    <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
       <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-violet-100 to-indigo-100 flex items-center justify-center mb-6 shadow-sm">
         <Sparkles className="w-10 h-10 text-violet-600" />
       </div>
-      <h2 className="text-2xl font-bold text-gray-900 mb-3">What's your goal?</h2>
-      <p className="text-gray-500 text-base max-w-sm leading-relaxed mb-8">
-        Tell me what you want to achieve and I'll create a detailed, personalized plan to get you there.
+      <h2 className="text-2xl font-bold text-gray-900 mb-2">What's your goal?</h2>
+      <p className="text-gray-500 text-sm max-w-xs leading-relaxed mb-8">
+        Describe your goal and I'll build a detailed, phased plan with milestones to get you there.
       </p>
       <div className="space-y-2 w-full max-w-xs">
-        {[
-          "Learn Spanish in 5 months",
-          "Run a 5K in 3 months",
-          "Launch a side business this year",
-          "Read 24 books this year",
-        ].map(ex => (
-          <div key={ex} className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-600 text-left">
+        {examples.map(ex => (
+          <button
+            key={ex}
+            onClick={() => onExampleClick(ex)}
+            className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-600 text-left hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700 transition-all"
+          >
             "{ex}"
-          </div>
+          </button>
         ))}
       </div>
     </div>
@@ -279,6 +394,16 @@ function EmptyState() {
 
 function MessageBubble({ msg }) {
   const isUser = msg.role === "user";
+  // Render bold markdown (**text**)
+  const renderContent = (text) => {
+    const parts = text.split(/(\*\*[^*]+\*\*)/g);
+    return parts.map((part, i) =>
+      part.startsWith('**') && part.endsWith('**')
+        ? <strong key={i}>{part.slice(2, -2)}</strong>
+        : part
+    );
+  };
+
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
       {!isUser && (
@@ -286,12 +411,12 @@ function MessageBubble({ msg }) {
           <Sparkles className="w-3.5 h-3.5 text-white" />
         </div>
       )}
-      <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
+      <div className={`max-w-[82%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
         isUser
           ? 'bg-gradient-to-br from-violet-600 to-indigo-600 text-white rounded-br-sm shadow-md shadow-violet-100'
           : 'bg-white border border-gray-100 text-gray-800 rounded-bl-sm shadow-sm'
       }`}>
-        {msg.content}
+        {renderContent(msg.content)}
       </div>
     </div>
   );

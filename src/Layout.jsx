@@ -26,6 +26,7 @@ import {
   HelpCircle,
   Shield,
   ArrowLeft,
+  Target,
 } from "lucide-react";
 import {
   Sidebar,
@@ -352,8 +353,8 @@ function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
   const mainMenuPages = [
     createPageUrl("Home"),
     "/",
-    createPageUrl("Tasks"),
-    createPageUrl("FocusTimer"),
+    createPageUrl("Planner"),
+    createPageUrl("Goals"),
     createPageUrl("Progress"),
     createPageUrl("SupportSpace"),
     createPageUrl("ParkingLot"),
@@ -372,14 +373,14 @@ function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
       icon: LayoutDashboard,
     },
     {
-      title: "Tasks",
-      url: createPageUrl("Tasks"),
-      icon: ListTodo,
+      title: "Planner",
+      url: createPageUrl("Planner"),
+      icon: Sparkles,
     },
     {
-      title: "Focus Timer",
-      url: createPageUrl("FocusTimer"),
-      icon: Timer,
+      title: "Goals",
+      url: createPageUrl("Goals"),
+      icon: Target,
     },
     {
       title: "Progress",
@@ -418,7 +419,7 @@ function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
           icon: Users,
         },
 
-      ]
+       ]
     },
   ];
 

@@ -10,39 +10,40 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { messages, mode } = await req.json();
+    const body = await req.json();
+    const { messages, mode, goal_id } = body;
 
-    // mode: 'chat' for conversation, 'extract_plan' to extract structured plan from conversation
+    // ── EXTRACT PLAN: parse conversation into structured JSON ──────────────────
     if (mode === 'extract_plan') {
       const conversationText = messages.map(m => `${m.role === 'user' ? 'User' : 'Planner'}: ${m.content}`).join('\n\n');
+      const today = new Date().toISOString().split('T')[0];
 
       const extractionResponse = await openai.chat.completions.create({
         model: "gpt-4o",
         messages: [
           {
             role: "system",
-            content: `You are extracting a structured goal plan from a planning conversation. 
-Extract the agreed-upon plan and return it as valid JSON only, no markdown.`
+            content: `You are extracting a structured goal plan from a planning conversation. Return ONLY valid JSON, no markdown fences.`
           },
           {
             role: "user",
-            content: `Based on this conversation, extract the final agreed goal and plan:
+            content: `Extract the FINAL agreed plan from this conversation:
 
 ${conversationText}
 
-Return JSON in this exact structure:
+Return JSON (no markdown) in EXACTLY this structure:
 {
   "title": "concise goal title",
   "description": "what the user wants to achieve",
   "timeline": "e.g. 5 months",
-  "target_date": "YYYY-MM-DD (calculated from today ${new Date().toISOString().split('T')[0]})",
+  "target_date": "YYYY-MM-DD calculated from today ${today}",
   "category": "one of: learning, health, career, finance, relationships, personal, creative, other",
   "plan_summary": "2-3 sentence summary of the overall plan",
   "steps": [
     {
       "title": "step title",
-      "description": "what to do",
-      "phase": "e.g. Month 1, Week 1",
+      "description": "specific actions to take",
+      "phase": "e.g. Month 1, Week 2",
       "priority": "low|medium|high|critical",
       "due_date": "YYYY-MM-DD",
       "order_index": 0
@@ -58,18 +59,159 @@ Return JSON in this exact structure:
       return Response.json({ plan });
     }
 
-    // Default: chat mode
-    const systemPrompt = `You are an expert goal planner and life coach. Your job is to help users create detailed, actionable, realistic plans to achieve their goals.
+    // ── APPLY EDIT: commit approved edits to an existing goal ─────────────────
+    if (mode === 'apply_edit') {
+      const conversationText = messages.map(m => `${m.role === 'user' ? 'User' : 'Planner'}: ${m.content}`).join('\n\n');
 
-When a user shares a goal:
-1. Ask clarifying questions to understand their current situation, available time, resources, and constraints
-2. Create a detailed, phased plan broken down into specific steps with timeframes
-3. Be specific — give actual tasks, not vague suggestions
-4. Make it encouraging but realistic
-5. Format plans clearly with phases (Month 1, Week 1, etc.)
-6. When the user approves the plan (says things like "looks great", "perfect", "let's do it", "save this", "that works"), respond with EXACTLY the phrase "PLAN_APPROVED" at the very start of your message, then summarize the final plan briefly.
+      // Fetch existing goal & steps for context
+      const existingGoal = await base44.asServiceRole.entities.Goal.list().then(all => all.find(g => g.id === goal_id));
+      const existingSteps = await base44.asServiceRole.entities.GoalStep.filter({ goal_id });
 
-Keep responses conversational but structured. Use bullet points and phases when presenting plans.`;
+      const today = new Date().toISOString().split('T')[0];
+      const stepsJson = JSON.stringify(existingSteps.map(s => ({
+        id: s.id, title: s.title, phase: s.phase, priority: s.priority, due_date: s.due_date, order_index: s.order_index, status: s.status
+      })));
+
+      const extractionResponse = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: `You extract approved goal edits from a conversation. Return ONLY valid JSON, no markdown.`
+          },
+          {
+            role: "user",
+            content: `Current goal: ${existingGoal?.title || 'Unknown'}
+Current steps: ${stepsJson}
+
+Conversation about edits:
+${conversationText}
+
+Extract the APPROVED changes. Return JSON:
+{
+  "goal_updates": {
+    "title": "optional - only if changed",
+    "description": "optional - only if changed",
+    "plan_summary": "optional - only if changed",
+    "timeline": "optional - only if changed",
+    "target_date": "YYYY-MM-DD - optional - only if changed"
+  },
+  "steps_to_add": [
+    { "title": "...", "description": "...", "phase": "...", "priority": "low|medium|high|critical", "due_date": "YYYY-MM-DD", "order_index": 999 }
+  ],
+  "steps_to_update": [
+    { "id": "existing step id", "title": "...", "description": "...", "phase": "...", "priority": "...", "due_date": "YYYY-MM-DD" }
+  ],
+  "steps_to_delete": ["step_id_1", "step_id_2"]
+}
+Only include fields that actually changed. today = ${today}`
+          }
+        ],
+        response_format: { type: "json_object" }
+      });
+
+      const edits = JSON.parse(extractionResponse.choices[0].message.content);
+
+      // Apply goal-level updates
+      if (edits.goal_updates && Object.keys(edits.goal_updates).length > 0) {
+        await base44.asServiceRole.entities.Goal.update(goal_id, edits.goal_updates);
+      }
+
+      // Add new steps
+      if (edits.steps_to_add?.length > 0) {
+        for (const step of edits.steps_to_add) {
+          await base44.asServiceRole.entities.GoalStep.create({
+            goal_id,
+            title: step.title,
+            description: step.description || "",
+            phase: step.phase || "",
+            priority: step.priority || "medium",
+            due_date: step.due_date || "",
+            order_index: step.order_index ?? 999,
+            status: "pending"
+          });
+        }
+      }
+
+      // Update existing steps
+      if (edits.steps_to_update?.length > 0) {
+        for (const step of edits.steps_to_update) {
+          const { id, ...updates } = step;
+          await base44.asServiceRole.entities.GoalStep.update(id, updates);
+        }
+      }
+
+      // Delete steps
+      if (edits.steps_to_delete?.length > 0) {
+        for (const stepId of edits.steps_to_delete) {
+          await base44.asServiceRole.entities.GoalStep.delete(stepId);
+        }
+      }
+
+      return Response.json({ success: true, edits });
+    }
+
+    // ── CHAT: main conversational mode ────────────────────────────────────────
+    // Load user's existing goals to allow editing by name
+    let existingGoalsList = [];
+    try {
+      existingGoalsList = await base44.asServiceRole.entities.Goal.filter({ created_by: user.email });
+    } catch (_) { /* ignore */ }
+
+    const goalsSummary = existingGoalsList.length > 0
+      ? `The user has these existing goals:\n${existingGoalsList.map(g => `- ID: ${g.id} | Title: "${g.title}" | Status: ${g.status} | Timeline: ${g.timeline || 'N/A'}`).join('\n')}`
+      : 'The user has no existing goals yet.';
+
+    const isEditSession = !!goal_id;
+
+    let systemPrompt;
+    if (isEditSession) {
+      // Fetch current goal + steps for context
+      const currentGoal = existingGoalsList.find(g => g.id === goal_id);
+      const currentSteps = await base44.asServiceRole.entities.GoalStep.filter({ goal_id });
+      const stepsText = currentSteps
+        .sort((a, b) => (a.order_index || 0) - (b.order_index || 0))
+        .map(s => `  [${s.phase || 'No phase'}] ${s.title} (${s.priority}, due: ${s.due_date || 'TBD'}, status: ${s.status})`)
+        .join('\n');
+
+      systemPrompt = `You are an expert goal planner helping a user EDIT and EVOLVE an existing goal.
+
+CURRENT GOAL: "${currentGoal?.title || 'Unknown'}"
+PLAN SUMMARY: ${currentGoal?.plan_summary || 'N/A'}
+TIMELINE: ${currentGoal?.timeline || 'N/A'}
+
+CURRENT STEPS:
+${stepsText || '  (no steps yet)'}
+
+Your job:
+1. Understand what changes the user wants (add steps, extend timeline, add milestones, change priorities, etc.)
+2. Propose the specific changes clearly — show exactly what will be added/changed/removed
+3. Ask for confirmation before applying anything
+4. NEVER apply changes without explicit user approval (phrases like "yes", "looks good", "do it", "apply it", "perfect", "save it")
+5. When approved, start your response with EXACTLY "EDIT_APPROVED" then summarize what was applied
+6. Always include milestone phases (Month 1, Month 2, Week 1, etc.)
+
+Be conversational and collaborative. Suggest improvements proactively if you see gaps.`;
+    } else {
+      systemPrompt = `You are an expert goal planner and life coach. Your job is to help users create brand-new detailed, actionable, realistic goal plans — OR edit their existing goals.
+
+${goalsSummary}
+
+WHEN CREATING A NEW GOAL:
+1. Ask clarifying questions (current situation, available time, resources, constraints)
+2. Create a detailed phased plan with milestones (Month 1, Month 2, Week 1, etc.)
+3. Include specific, actionable steps — not vague suggestions
+4. Cover the full timeline with clear phases
+5. When user approves (says "looks great", "perfect", "save it", "let's do it", "that works"), start your response with EXACTLY "PLAN_APPROVED" then summarize
+
+WHEN EDITING AN EXISTING GOAL (user mentions a goal by name or asks to adjust):
+1. Acknowledge which goal they're talking about
+2. Understand exactly what they want changed
+3. Propose the specific changes
+4. When user approves, start response with EXACTLY "EDIT_APPROVED:<goal_id>" (use the actual ID from the list above)
+
+Always use milestone phases. Be specific, warm, and encouraging.`;
+    }
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
@@ -80,7 +222,22 @@ Keep responses conversational but structured. Use bullet points and phases when 
     });
 
     const reply = completion.choices[0].message.content;
-    return Response.json({ message: reply, approved: reply.startsWith('PLAN_APPROVED') });
+
+    // Parse response type
+    if (isEditSession && reply.startsWith('EDIT_APPROVED')) {
+      return Response.json({ message: reply.replace(/^EDIT_APPROVED\s*/i, ''), action: 'edit_approved', goal_id });
+    }
+    if (reply.startsWith('PLAN_APPROVED')) {
+      return Response.json({ message: reply.replace(/^PLAN_APPROVED\s*/i, ''), action: 'plan_approved' });
+    }
+    const editMatch = reply.match(/^EDIT_APPROVED:([^\s]+)/i);
+    if (editMatch) {
+      const editGoalId = editMatch[1];
+      return Response.json({ message: reply.replace(/^EDIT_APPROVED:[^\s]+\s*/i, ''), action: 'edit_approved', goal_id: editGoalId });
+    }
+
+    return Response.json({ message: reply, action: 'chat' });
+
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }

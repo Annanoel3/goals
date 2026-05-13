@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import WelcomeCard from "../components/home/WelcomeCard";
-import DailyTipCard from "../components/home/DailyTipCard";
+import DailyQuote from "../components/home/DailyQuote";
 import QuickActions from "../components/home/QuickActions";
 import TodaysTasks from "../components/home/TodaysTasks";
 import EndOfDayReview from "../components/home/EndOfDayReview";
@@ -248,7 +248,7 @@ export default function Home() {
             </div>
             
             <div>
-              <DailyTipCard theme={theme} specialMode={specialMode} />
+              <DailyQuote theme={theme} />
             </div>
           </div>
         </div>

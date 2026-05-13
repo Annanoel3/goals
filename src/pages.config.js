@@ -26,6 +26,8 @@ import Tasks from './pages/Tasks';
 import TermsAndConditions from './pages/TermsAndConditions';
 import TrialEnded from './pages/TrialEnded';
 import UserProfile from './pages/UserProfile';
+import Goals from './pages/Goals';
+import Planner from './pages/Planner';
 import __Layout from './Layout.jsx';
 
 
@@ -58,6 +60,8 @@ export const PAGES = {
     "TermsAndConditions": TermsAndConditions,
     "TrialEnded": TrialEnded,
     "UserProfile": UserProfile,
+    "Goals": Goals,
+    "Planner": Planner,
 }
 
 export const pagesConfig = {

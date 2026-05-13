@@ -14,6 +14,7 @@ import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import Settings from '@/pages/Settings';
+import GoalDetail from '@/pages/GoalDetail';
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
@@ -57,6 +58,7 @@ const AuthenticatedApp = () => {
           <Route key={path} path={`/${path}`} element={<Page />} />
         ))}
         <Route path="/settings" element={<Settings />} />
+        <Route path="/goal/:id" element={<GoalDetail />} />
         <Route path="*" element={<PageNotFound />} />
       </Routes>
     </LayoutWrapper>
