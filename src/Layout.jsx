@@ -353,8 +353,8 @@ function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
   const mainMenuPages = [
     createPageUrl("Home"),
     "/",
-    createPageUrl("Planner"),
-    createPageUrl("Goals"),
+    createPageUrl("Tasks"),
+    createPageUrl("FocusTimer"),
     createPageUrl("Progress"),
     createPageUrl("SupportSpace"),
     createPageUrl("ParkingLot"),
@@ -373,14 +373,14 @@ function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
       icon: LayoutDashboard,
     },
     {
-      title: "Planner",
-      url: createPageUrl("Planner"),
-      icon: Sparkles,
+      title: "Tasks",
+      url: createPageUrl("Tasks"),
+      icon: ListTodo,
     },
     {
-      title: "Goals",
-      url: createPageUrl("Goals"),
-      icon: Target,
+      title: "Focus Timer",
+      url: createPageUrl("FocusTimer"),
+      icon: Timer,
     },
     {
       title: "Progress",
@@ -419,7 +419,7 @@ function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
           icon: Users,
         },
 
-       ]
+      ]
     },
   ];
 
