@@ -175,22 +175,14 @@ function GoalCard({ goal, isDark, onClick }) {
         isDark ? 'bg-gray-900 border-gray-800 hover:border-gray-700' : 'bg-white border-gray-100 hover:border-violet-100'
       }`}
     >
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex items-start justify-between gap-3 mb-2">
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${categoryColors[goal.category] || categoryColors.other}`}>
-              {goal.category}
-            </span>
-            {goal.timeline && (
-              <span className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{goal.timeline}</span>
-            )}
-          </div>
-          <h3 className={`font-semibold text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>{goal.title}</h3>
-          {goal.plan_summary && (
-            <p className={`text-xs mt-1 line-clamp-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{goal.plan_summary}</p>
-          )}
+          <span className={`inline-block text-xs font-semibold px-2 py-0.5 rounded-full ${categoryColors[goal.category] || categoryColors.other}`}>
+            {goal.category}
+          </span>
+          <h3 className={`font-semibold text-sm mt-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>{goal.title}</h3>
         </div>
-        <ArrowRight className={`w-4 h-4 flex-shrink-0 mt-1 ${isDark ? 'text-gray-600' : 'text-gray-300'}`} />
+        <ArrowRight className={`w-4 h-4 flex-shrink-0 ${isDark ? 'text-gray-600' : 'text-gray-300'}`} />
       </div>
     </button>
   );
