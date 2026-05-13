@@ -10,13 +10,6 @@ const ONESIGNAL_REST_API_KEY = Deno.env.get("ONESIGNAL_REST_API_KEY");
 
 Deno.serve(async (req) => {
   try {
-    const body = await req.json();
-    const secret = body.secret;
-
-    if (secret !== Deno.env.get("SCHEDULER_SECRET")) {
-      return Response.json({ error: "Unauthorized" }, { status: 403 });
-    }
-
     const base44 = createClientFromRequest(req);
     const now = new Date();
     const users = await base44.asServiceRole.entities.User.list();
