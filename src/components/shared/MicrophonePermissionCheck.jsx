@@ -90,7 +90,7 @@ export default function MicrophonePermissionCheck({ theme }) {
               </div>
 
               <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                <strong>Optional:</strong> Voice features enhance your experience, but you can use ADHDone without them. When you tap "Enable Microphone", your device will ask for permission.
+                <strong>Optional:</strong> Voice features enhance your experience, but you can use this app without them. When you tap "Enable Microphone", your device will ask for permission.
               </p>
 
               <div className="flex gap-2">
