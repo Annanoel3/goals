@@ -8,7 +8,7 @@ import com.onesignal.debug.LogLevel;
 public class MainApplication extends Application {
 
     // OneSignal App ID for ADHDone
-    private static final String ONESIGNAL_APP_ID = "dc1933bc-e49e-4d8a-aa4a-2c9ca749ff37";
+    private static final String ONESIGNAL_APP_ID = "969fa1ea-0e85-4ac0-b122-015f5957dd30";
 
     @Override
     public void onCreate() {
