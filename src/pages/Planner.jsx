@@ -203,11 +203,13 @@ export default function Planner() {
   };
 
   const isEmpty = messages.length === 0;
+  const [theme] = React.useState(() => localStorage.getItem('adhd_theme') || 'minimalist');
+  const isColorful = theme === 'colorful';
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50" style={{ paddingBottom: 'max(7rem, calc(7rem + env(safe-area-inset-bottom)))' }}>
+    <div className={`min-h-screen flex flex-col ${isColorful ? 'bg-gradient-to-br from-purple-200 via-pink-200 to-blue-200' : 'bg-gray-50'}`} style={{ paddingBottom: 'max(7rem, calc(7rem + env(safe-area-inset-bottom)))' }}>
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-white/90 backdrop-blur-lg border-b border-gray-100 px-4 py-3">
+      <div className={`sticky top-0 z-10 ${isColorful ? 'bg-gradient-to-r from-purple-300/90 to-pink-300/90 border-purple-300/50' : 'bg-white/90 border-gray-100'} backdrop-blur-lg border-b px-4 py-3`}>
         <div className="max-w-2xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-sm">
@@ -323,7 +325,7 @@ export default function Planner() {
       </div>
 
       {/* Input bar */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-lg border-t border-gray-100 px-4 py-3"
+      <div className={`fixed bottom-0 left-0 right-0 ${isColorful ? 'bg-gradient-to-r from-purple-200/95 to-pink-200/95 border-purple-300/50' : 'bg-white/95 border-gray-100'} backdrop-blur-lg border-t px-4 py-3`}
         style={{ paddingBottom: 'max(0.75rem, calc(0.75rem + env(safe-area-inset-bottom)))' }}>
         <div className="max-w-2xl mx-auto flex items-end gap-2">
           <button

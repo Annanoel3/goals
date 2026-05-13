@@ -52,13 +52,14 @@ export default function Home() {
   };
 
   const isDark = theme === 'dark';
+  const isColorful = theme === 'colorful';
 
   return (
-    <div className={`min-h-screen ${isDark ? 'bg-gray-950' : 'bg-gray-50'}`}
+    <div className={`min-h-screen ${isDark ? 'bg-gray-950' : isColorful ? 'bg-gradient-to-br from-purple-200 via-pink-200 to-blue-200' : 'bg-gray-50'}`}
       style={{ paddingBottom: 'max(6rem, calc(6rem + env(safe-area-inset-bottom)))' }}>
 
       {/* Hero greeting */}
-      <div className={`px-6 pt-8 pb-6 ${isDark ? 'bg-gray-900' : 'bg-white'} border-b ${isDark ? 'border-gray-800' : 'border-gray-100'}`}>
+      <div className={`px-6 pt-8 pb-6 ${isDark ? 'bg-gray-900' : isColorful ? 'bg-gradient-to-r from-purple-300/90 to-pink-300/90' : 'bg-white'} border-b ${isDark ? 'border-gray-800' : isColorful ? 'border-purple-300/50' : 'border-gray-100'}`}>
         <div className="max-w-2xl mx-auto">
           <p className={`text-sm font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
             {getGreeting()}{user?.full_name ? `, ${user.full_name.split(' ')[0]}` : ''}
