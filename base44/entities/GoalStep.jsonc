@@ -1,0 +1,81 @@
+{
+  "name": "GoalStep",
+  "type": "object",
+  "properties": {
+    "goal_id": {
+      "type": "string",
+      "description": "The parent goal ID"
+    },
+    "title": {
+      "type": "string",
+      "description": "Step/subtask title"
+    },
+    "description": {
+      "type": "string",
+      "description": "Detailed description of this step"
+    },
+    "priority": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ],
+      "default": "medium",
+      "description": "Priority level of this step"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "in_progress",
+        "completed",
+        "skipped"
+      ],
+      "default": "pending"
+    },
+    "due_date": {
+      "type": "string",
+      "format": "date",
+      "description": "When this step should be completed"
+    },
+    "phase": {
+      "type": "string",
+      "description": "Which phase/month/week this step belongs to, e.g. 'Month 1', 'Week 3'"
+    },
+    "order_index": {
+      "type": "number",
+      "description": "Order within the goal plan",
+      "default": 0
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "onesignal_notification_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Scheduled notification IDs for this step",
+      "default": []
+    },
+    "notes": {
+      "type": "string",
+      "description": "Notes specific to this step"
+    }
+  },
+  "required": [
+    "goal_id",
+    "title"
+  ],
+  "rls": {
+    "read": {
+      "created_by": "{{user.email}}"
+    },
+    "write": {
+      "created_by": "{{user.email}}"
+    }
+  }
+}
