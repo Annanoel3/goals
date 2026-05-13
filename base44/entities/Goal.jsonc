@@ -48,6 +48,22 @@
       "default": "personal",
       "description": "Goal category"
     },
+    "preferred_time": {
+      "type": "string",
+      "description": "Preferred time of day for action/workout (e.g., '6:00 AM', '18:30')",
+      "default": null
+    },
+    "reminder_interval": {
+      "type": "string",
+      "enum": [
+        "15min",
+        "30min",
+        "1hour",
+        "2hours"
+      ],
+      "description": "Follow-up reminder interval if action not completed (for health goals)",
+      "default": "2hours"
+    },
     "notes": {
       "type": "string",
       "description": "Personal notes about this goal"

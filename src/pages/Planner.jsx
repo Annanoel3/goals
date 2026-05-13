@@ -113,6 +113,8 @@ export default function Planner() {
         target_date: plan.target_date,
         category: plan.category || "personal",
         status: "active",
+        preferred_time: plan.preferred_time || null,
+        reminder_interval: plan.reminder_interval || "2hours",
         conversation_history: allMessages
       });
 

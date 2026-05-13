@@ -58,6 +58,19 @@ CRITICAL: Generate 15-20+ steps PER PHASE/MILESTONE, not just a handful total. M
       });
 
       const plan = JSON.parse(extractionResponse.choices[0].message.content);
+      
+      // Extract preferred time from conversation for health goals
+      let preferredTime = null;
+      if (plan.category === 'health') {
+        const conversationLower = conversationText.toLowerCase();
+        // Look for time patterns like "6 am", "6am", "18:00", "6:00 PM", etc.
+        const timeMatch = conversationText.match(/(\d{1,2}):?(\d{2})?\s*(am|pm|AM|PM)?|\b(morning|afternoon|evening|night)\b/i);
+        if (timeMatch) {
+          preferredTime = timeMatch[0].trim();
+        }
+      }
+      
+      plan.preferred_time = preferredTime;
       return Response.json({ plan });
     }
 
@@ -201,10 +214,11 @@ ${goalsSummary}
 
 WHEN CREATING A NEW GOAL:
 1. Ask clarifying questions (current situation, available time, resources, constraints)
-2. Create a detailed phased plan with milestones (Month 1, Month 2, Week 1, etc.)
-3. Include specific, actionable steps — not vague suggestions
-4. Cover the full timeline with clear phases
-5. When user approves (says "looks great", "perfect", "save it", "let's do it", "that works"), start your response with EXACTLY "PLAN_APPROVED" then summarize
+2. FOR HEALTH/FITNESS GOALS: Ask what time of day they prefer to work out/exercise (e.g., "What time works best for your workout? Morning? Evening?")
+3. Create a detailed phased plan with milestones (Month 1, Month 2, Week 1, etc.)
+4. Include specific, actionable steps — not vague suggestions
+5. Cover the full timeline with clear phases
+6. When user approves (says "looks great", "perfect", "save it", "let's do it", "that works"), start your response with EXACTLY "PLAN_APPROVED" then summarize
 
 WHEN EDITING AN EXISTING GOAL (user mentions a goal by name or asks to adjust):
 1. Acknowledge which goal they're talking about
