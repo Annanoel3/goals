@@ -89,9 +89,6 @@ export default function Home() {
 
       <div className="max-w-2xl mx-auto px-6 py-6 space-y-6">
 
-        {/* Daily quote */}
-        <DailyQuote theme={theme} />
-
         {/* Active goals */}
         {goals.length > 0 && (
           <section>
@@ -130,25 +127,30 @@ export default function Home() {
         )}
 
         {/* Next steps */}
-        {recentSteps.length > 0 && (
-          <section>
-            <h2 className={`text-lg font-bold mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>Up Next</h2>
-            <div className={`rounded-2xl overflow-hidden divide-y ${isDark ? 'bg-gray-900 border border-gray-800 divide-gray-800' : 'bg-white border border-gray-100 divide-gray-50'} shadow-sm`}>
-              {recentSteps.map(step => (
-                <div key={step.id} className="flex items-center gap-3 px-4 py-3">
-                  <div className={`w-7 h-7 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${isDark ? 'border-gray-600' : 'border-gray-200'}`}>
-                    <Clock className={`w-3 h-3 ${isDark ? 'text-gray-500' : 'text-gray-400'}`} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-sm font-medium truncate ${isDark ? 'text-gray-100' : 'text-gray-800'}`}>{step.title}</p>
-                    <p className={`text-xs truncate ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{step.goalTitle}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-      </div>
+         {recentSteps.length > 0 && (
+           <section>
+             <h2 className={`text-lg font-bold mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>Up Next</h2>
+             <div className={`rounded-2xl overflow-hidden divide-y ${isDark ? 'bg-gray-900 border border-gray-800 divide-gray-800' : 'bg-white border border-gray-100 divide-gray-50'} shadow-sm`}>
+               {recentSteps.map(step => (
+                 <div key={step.id} className="flex items-center gap-3 px-4 py-3">
+                   <div className={`w-7 h-7 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${isDark ? 'border-gray-600' : 'border-gray-200'}`}>
+                     <Clock className={`w-3 h-3 ${isDark ? 'text-gray-500' : 'text-gray-400'}`} />
+                   </div>
+                   <div className="flex-1 min-w-0">
+                     <p className={`text-sm font-medium truncate ${isDark ? 'text-gray-100' : 'text-gray-800'}`}>{step.title}</p>
+                     <p className={`text-xs truncate ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{step.goalTitle}</p>
+                   </div>
+                 </div>
+               ))}
+             </div>
+           </section>
+         )}
+
+        {/* Daily quote at bottom */}
+        <div className="mt-12 pt-8 border-t" style={{ borderColor: isDark ? 'rgb(31, 41, 55)' : 'rgb(229, 231, 235)' }}>
+          <DailyQuote theme={theme} />
+        </div>
+        </div>
     </div>
   );
 }
