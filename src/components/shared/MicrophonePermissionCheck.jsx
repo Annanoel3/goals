@@ -80,7 +80,7 @@ export default function MicrophonePermissionCheck({ theme }) {
                     : 'bg-gradient-to-r from-purple-100 to-pink-100 border border-purple-200'
               }`}>
                 <p className={`text-sm mb-3 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                  🎤 <strong>ADHDone works best with voice!</strong>
+                  🎤 <strong>Voice makes your experience seamless</strong>
                 </p>
                 <ul className={`text-sm space-y-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
                   <li>• Quickly add tasks by speaking</li>
@@ -90,7 +90,7 @@ export default function MicrophonePermissionCheck({ theme }) {
               </div>
 
               <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                When you tap "Enable Microphone", your device will ask for permission.
+                <strong>Optional:</strong> Voice features enhance your experience, but you can use ADHDone without them. When you tap "Enable Microphone", your device will ask for permission.
               </p>
 
               <div className="flex gap-2">
