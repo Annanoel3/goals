@@ -384,11 +384,6 @@ function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
       icon: TrendingUp,
     },
     {
-      title: "Chat",
-      url: createPageUrl("SupportSpace"),
-      icon: MessageCircleHeart,
-    },
-    {
       title: "Parking Lot",
       url: createPageUrl("ParkingLot"),
       icon: Lightbulb,
@@ -834,7 +829,7 @@ function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
               {children}
             </div>
 
-            {currentPageName !== "Home" && currentPageName !== "ParkingLot" && currentPageName !== "SupportSpace" && currentPageName !== "Chat" && (
+            {currentPageName !== "Home" && currentPageName !== "ParkingLot" && (
               <Button
                 onClick={() => {
                   const event = new CustomEvent('open-voice-assistant');

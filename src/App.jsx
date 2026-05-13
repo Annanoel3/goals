@@ -55,7 +55,7 @@ const AuthenticatedApp = () => {
       <Routes>
         <Route path="/" element={<MainPage />} />
         {Object.entries(Pages).map(([path, Page]) => (
-          <Route key={path} path={`/${path}`} element={<Page />} />
+          path !== 'SupportSpace' && <Route key={path} path={`/${path}`} element={<Page />} />
         ))}
         <Route path="/settings" element={<Settings />} />
         <Route path="/goal/:id" element={<GoalDetail />} />

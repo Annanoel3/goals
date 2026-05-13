@@ -177,7 +177,7 @@ export default function Progress() {
               Your Progress
             </h1>
             <p className={isSeasonalTheme() ? `${specialMode}-text` : subTextClass}>
-              Track your task habits and energy patterns
+              Track your goal progress and productivity patterns
             </p>
           </CardContent>
         </Card>
@@ -199,10 +199,10 @@ export default function Progress() {
             {/* Quick stats row */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[
-                { label: 'Completed today', value: todaysSummary?.tasks_completed ?? 0, icon: CheckCircle2 },
-                { label: 'Still active', value: activeTasks.length, icon: Clock },
+                { label: 'Active goals', value: activeTasks.length, icon: Target },
                 { label: 'Current streak', value: `${currentStreak}d`, icon: Flame },
-                { label: 'Avg completion', value: `${avgCompletionRate}%`, icon: Target },
+                { label: 'Avg completion', value: `${avgCompletionRate}%`, icon: CheckCircle2 },
+                { label: 'Peak energy time', value: bestEnergyTime || 'N/A', icon: Zap },
               ].map(({ label, value, icon: Icon }) => (
                 <Card key={label} className={cardClass}>
                   <CardContent className="p-4">
@@ -226,32 +226,32 @@ export default function Progress() {
             <div className="grid md:grid-cols-3 gap-4">
               <Card className={cardClass}>
                 <CardContent className="p-5">
-                  <p className={`text-xs mb-1 ${subTextClass}`}>Tasks completed (all time)</p>
+                  <p className={`text-xs mb-1 ${subTextClass}`}>Steps completed (all time)</p>
                   <p className={`text-4xl font-bold ${textClass}`}>{completedTasks.length}</p>
                 </CardContent>
               </Card>
               <Card className={cardClass}>
                 <CardContent className="p-5">
-                  <p className={`text-xs mb-1 ${subTextClass}`}>Avg daily completion rate</p>
+                  <p className={`text-xs mb-1 ${subTextClass}`}>Avg completion rate</p>
                   <p className={`text-4xl font-bold ${textClass}`}>{avgCompletionRate}%</p>
-                  <p className={`text-xs mt-1 ${subTextClass}`}>over last 30 days</p>
+                  <p className={`text-xs mt-1 ${subTextClass}`}>on active steps</p>
                 </CardContent>
               </Card>
               <Card className={cardClass}>
                 <CardContent className="p-5">
-                  <p className={`text-xs mb-1 ${subTextClass}`}>Peak energy time</p>
+                  <p className={`text-xs mb-1 ${subTextClass}`}>Your best time</p>
                   <p className={`text-3xl font-bold ${textClass}`}>{bestEnergyTime}</p>
-                  <p className={`text-xs mt-1 ${subTextClass}`}>based on check-ins</p>
+                  <p className={`text-xs mt-1 ${subTextClass}`}>for getting things done</p>
                 </CardContent>
               </Card>
             </div>
 
-            {/* Tasks completed last 14 days */}
+            {/* Steps completed last 14 days */}
             <Card className={cardClass}>
               <CardHeader>
                 <CardTitle className={`flex items-center gap-2 ${textClass}`}>
                   <BarChart2 className="w-5 h-5" />
-                  Tasks Completed — Last 14 Days
+                  Steps Completed — Last 14 Days
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -347,7 +347,7 @@ export default function Progress() {
               <CardHeader>
                 <CardTitle className={`flex items-center gap-2 ${textClass}`}>
                   <Target className="w-5 h-5" />
-                  Completed Tasks by Priority
+                  Completed Steps by Priority
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -385,7 +385,7 @@ export default function Progress() {
               </CardHeader>
               <CardContent>
                 {Object.keys(completionsByDate).length === 0 ? (
-                  <p className={subTextClass}>No completed tasks yet — complete tasks to build your history!</p>
+                  <p className={subTextClass}>No completed steps yet — complete steps to build your history!</p>
                 ) : (
                   <div className="space-y-3">
                     {Array.from({ length: 14 }, (_, i) => {
@@ -406,7 +406,7 @@ export default function Progress() {
                             {d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                           </span>
                           <span className="text-sm font-semibold text-green-500">
-                            ✅ {completed} {completed === 1 ? 'task' : 'tasks'} done
+                            ✅ {completed} {completed === 1 ? 'step' : 'steps'} done
                           </span>
                         </div>
                       </div>
