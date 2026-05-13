@@ -1,21 +1,21 @@
 {
   "project_info": {
-    "project_number": "148993125469",
-    "project_id": "adhdone-be827",
-    "storage_bucket": "adhdone-be827.firebasestorage.app"
+    "project_number": "227062075182",
+    "project_id": "goals-fc2e7",
+    "storage_bucket": "goals-fc2e7.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:148993125469:android:bf4812e5512357cc6c31b4",
+        "mobilesdk_app_id": "1:227062075182:android:4eba8c6896ca947e16b4bf",
         "android_client_info": {
-          "package_name": "co.median.android.odxqpdy"
+          "package_name": "com.mediocreatbest.goals"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyDYgdJXc-dcLRPnvRjgNqgPLm33L5Rk7wQ"
+          "current_key": "AIzaSyDxYjDxxt-Mh7GmHqC1VZSQPwtCP7OjcNA"
         }
       ],
       "services": {
