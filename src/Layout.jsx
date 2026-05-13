@@ -176,8 +176,8 @@ function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
   const getBackgroundClass = () => {
     if (theme === 'dark') return 'bg-[#0a0a0b]';
     if (theme === 'minimalist') return 'bg-gradient-to-br from-stone-50 via-sage-50 to-stone-100';
-    if (theme === 'spicybrains') return '';
-    return 'bg-gradient-to-br from-purple-50 via-orange-50 to-teal-50';
+    if (theme === 'colorful') return 'bg-gradient-to-br from-purple-200 via-pink-200 to-blue-200';
+    return 'bg-gradient-to-br from-stone-50 via-sage-50 to-stone-100';
   };
 
 
@@ -301,12 +301,16 @@ function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
           <Sidebar className={`border-r relative z-10 ${
             theme === 'dark'
               ? 'bg-gray-950 border-gray-800'
-              : 'border-gray-200/50 backdrop-blur-sm bg-white/80'
+              : theme === 'colorful'
+                ? 'bg-gradient-to-b from-purple-100/90 to-pink-100/90 backdrop-blur-sm border-purple-300/50'
+                : 'border-gray-200/50 backdrop-blur-sm bg-white/80'
           }`}>
             <SidebarHeader className={`${
               theme === 'dark'
                 ? 'bg-gray-900 border-0'
-                : 'border-0'
+                : theme === 'colorful'
+                  ? 'bg-gradient-to-r from-purple-200 to-pink-200 border-0'
+                  : 'border-0'
             }`} style={{
               paddingTop: 'max(3rem, calc(2rem + env(safe-area-inset-top)))',
               paddingLeft: '1.5rem',
@@ -347,7 +351,7 @@ function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
             </SidebarHeader>
 
             <SidebarContent className={`${
-              theme === 'dark' ? 'bg-gray-950' : ''
+              theme === 'dark' ? 'bg-gray-950' : theme === 'colorful' ? 'bg-gradient-to-b from-purple-100/80 to-pink-100/80' : ''
             }`} style={{
               paddingTop: '2.5rem',
               paddingBottom: '2.5rem',
@@ -368,10 +372,14 @@ function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
                                    ? 'bg-green-50 text-green-700 font-medium'
                                    : theme === 'dark'
                                      ? 'bg-gray-800 text-white font-medium'
-                                     : 'bg-gradient-to-r from-purple-100 to-orange-100 text-purple-700 font-medium'
+                                     : theme === 'colorful'
+                                       ? 'bg-gradient-to-r from-violet-300 to-pink-300 text-gray-900 font-medium shadow-md'
+                                       : 'bg-gradient-to-r from-purple-100 to-orange-100 text-purple-700 font-medium'
                                  : theme === 'dark'
                                    ? 'hover:bg-gray-800 text-gray-400 hover:text-white'
-                                   : 'hover:bg-gray-50 text-gray-700'
+                                   : theme === 'colorful'
+                                     ? 'hover:bg-gradient-to-r hover:from-purple-200 hover:to-pink-200 text-gray-900 font-medium'
+                                     : 'hover:bg-gray-50 text-gray-700'
                              }`}
                            >
                              <div className="flex items-center gap-3 py-2 w-full pointer-events-none">
@@ -391,7 +399,9 @@ function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
             <SidebarFooter className={`space-y-3 ${
               theme === 'dark'
                 ? 'bg-gray-950'
-                : ''
+                : theme === 'colorful'
+                  ? 'bg-gradient-to-t from-purple-200 to-pink-100'
+                  : ''
             }`} style={{
               paddingTop: '1rem',
               paddingLeft: '1rem',
@@ -405,7 +415,9 @@ function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
                   className={`flex-1 flex items-center justify-center gap-2 rounded-xl ${
                     theme === 'dark'
                       ? 'border-gray-700 hover:bg-gray-800 text-gray-300 bg-transparent'
-                      : ''
+                      : theme === 'colorful'
+                        ? 'bg-gradient-to-r from-violet-400 to-pink-400 hover:from-violet-500 hover:to-pink-500 text-white font-medium shadow-md'
+                        : ''
                   }`}
                 >
                   {theme === 'minimalist' ? (
@@ -433,7 +445,9 @@ function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
                 className={`w-full flex items-center justify-center gap-2 rounded-xl ${
                   theme === 'dark'
                     ? 'border-gray-700 hover:bg-gray-800 text-gray-300 bg-transparent'
-                    : ''
+                    : theme === 'colorful'
+                      ? 'bg-gradient-to-r from-violet-400 to-pink-400 hover:from-violet-500 hover:to-pink-500 text-white font-medium shadow-md'
+                      : ''
                 }`}
               >
                 <Settings className="w-4 h-4" />
@@ -446,7 +460,9 @@ function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
             <header className={`backdrop-blur-md border-b px-6 md:hidden sticky top-0 z-10 ${
               theme === 'dark'
                 ? 'bg-gray-950/80 border-gray-800'
-                : 'bg-white/60 border-gray-200/50'
+                : theme === 'colorful'
+                  ? 'bg-gradient-to-r from-purple-200/80 via-pink-200/80 to-blue-200/80 border-purple-300/50'
+                  : 'bg-white/60 border-gray-200/50'
             }`} style={{
               paddingTop: 'max(1rem, calc(0.5rem + env(safe-area-inset-top, 0px)))',
               paddingBottom: '1rem'
