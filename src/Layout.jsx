@@ -48,7 +48,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import EnergyCheckInModal from "./components/shared/EnergyCheckInModal";
+
 import MiniPomodoroBar from "./components/shared/MiniPomodoroBar";
 import UniversalVoiceAssistant from "./components/shared/UniversalVoiceAssistant";
 import MicrophonePermissionCheck from "./components/shared/MicrophonePermissionCheck";
@@ -95,8 +95,7 @@ function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
   const [theme, setTheme] = useState(() => {
     return localStorage.getItem('adhd_theme') || 'minimalist';
   });
-  const [showEnergyCheckIn, setShowEnergyCheckIn] = useState(false);
-  const [energyCheckInTitle, setEnergyCheckInTitle] = useState('');
+
   const [accountabilityNotifications, setAccountabilityNotifications] = useState(0);
   const getDateBasedMode = () => {
     const now = new Date();
@@ -183,35 +182,7 @@ function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
     }
   }, [user, authCheckComplete]);
 
-  useEffect(() => {
-    const now = new Date();
-    const today = now.toISOString().split('T')[0];
-    const currentHour = now.getHours(); // local time
 
-    // Three time windows, each with their own localStorage key
-    if (currentHour >= 8 && currentHour < 12) {
-      // Morning: 8am to noon
-      const key = `energy_checkin_morning_${today}`;
-      if (!localStorage.getItem(key)) {
-        localStorage.setItem(key, '1');
-        setTimeout(() => {
-          setEnergyCheckInTitle('How are you feeling about the day ahead?');
-          setShowEnergyCheckIn(true);
-        }, 3000);
-      }
-    } else if (currentHour >= 12 && currentHour < 19) {
-      // Afternoon: noon–7pm
-      const key = `energy_checkin_afternoon_${today}`;
-      if (!localStorage.getItem(key)) {
-        localStorage.setItem(key, '1');
-        setTimeout(() => {
-          setEnergyCheckInTitle('How are you feeling about the rest of the day?');
-          setShowEnergyCheckIn(true);
-        }, 3000);
-      }
-    }
-    // Evening (7pm+): only the end-of-day recap shows — no energy check-in
-  }, []);
 
   // Android back button handler
   useEffect(() => {
@@ -855,12 +826,6 @@ function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
           </main>
 
           <MiniPomodoroBar theme={theme} />
-          <EnergyCheckInModal
-            isOpen={showEnergyCheckIn}
-            onClose={() => setShowEnergyCheckIn(false)}
-            theme={theme}
-            title={energyCheckInTitle}
-          />
           <UniversalVoiceAssistant theme={theme} currentPageName={currentPageName} />
           <MicrophonePermissionCheck theme={theme} />
           <PokeNotification theme={theme} />
