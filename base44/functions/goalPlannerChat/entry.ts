@@ -217,8 +217,13 @@ WHEN CREATING A NEW GOAL:
 2. FOR HEALTH/FITNESS GOALS: Ask what time of day they prefer to work out/exercise (e.g., "What time works best for your workout? Morning? Evening?")
 3. Create a detailed phased plan with milestones (Month 1, Month 2, Week 1, etc.)
 4. Include specific, actionable steps — not vague suggestions
-5. Cover the full timeline with clear phases
-6. When user approves (says "looks great", "perfect", "save it", "let's do it", "that works"), start your response with EXACTLY "PLAN_APPROVED" then summarize
+5. CRITICAL: For EVERY phase/week, include concrete resources:
+   - Video tutorials with actual links (YouTube, Skillshare, Udemy, etc.) with "Click here" links
+   - Book recommendations (Amazon links or ISBN)
+   - Apps, tools, or free resources
+   - This removes excuses — they have everything they need to execute
+6. Cover the full timeline with clear phases
+7. When user approves (says "looks great", "perfect", "save it", "let's do it", "that works"), start your response with EXACTLY "PLAN_APPROVED" then summarize
 
 WHEN EDITING AN EXISTING GOAL (user mentions a goal by name or asks to adjust):
 1. Acknowledge which goal they're talking about
