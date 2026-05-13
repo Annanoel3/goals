@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Loader2, Calendar, CheckCircle2, Clock, AlertCircle, Plus, Trash2, ChevronDown, ChevronUp, Upload, X } from "lucide-react";
+import { ArrowLeft, Loader2, Calendar, CheckCircle2, Clock, AlertCircle, Plus, Trash2, ChevronDown, ChevronUp, Upload, X, History } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 
 export default function GoalDetail() {
@@ -37,10 +37,11 @@ export default function GoalDetail() {
 
   const toggleStepStatus = async (step) => {
     const newStatus = step.status === 'completed' ? 'pending' : 'completed';
-    await base44.entities.GoalStep.update(step.id, {
-      status: newStatus,
-      completed_at: newStatus === 'completed' ? new Date().toISOString() : null
-    });
+    const updates = { status: newStatus };
+    if (newStatus === 'completed') {
+      updates.completed_at = new Date().toISOString();
+    }
+    await base44.entities.GoalStep.update(step.id, updates);
     await loadData();
   };
 
@@ -166,17 +167,43 @@ export default function GoalDetail() {
           )}
         </div>
 
+        {/* Completion History */}
+         {steps.some(s => s.completed_at) && (
+           <div className="mt-8 pt-6 border-t border-gray-200">
+             <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
+               <History className="w-4 h-4 text-violet-600" />
+               Completion History
+             </h3>
+             <div className="space-y-2">
+               {steps
+                 .filter(s => s.completed_at)
+                 .sort((a, b) => new Date(b.completed_at) - new Date(a.completed_at))
+                 .map(step => (
+                   <div key={step.id} className="flex items-start gap-3 p-3 bg-green-50 rounded-lg border border-green-100">
+                     <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
+                     <div className="flex-1 min-w-0">
+                       <p className="text-sm font-medium text-green-900">{step.title}</p>
+                       <p className="text-xs text-green-600 mt-1">
+                         Completed {new Date(step.completed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                       </p>
+                     </div>
+                   </div>
+                 ))}
+             </div>
+           </div>
+         )}
+
         {/* Notes */}
-        {goal.notes && (
-          <div className="mt-6 bg-amber-50 border border-amber-100 rounded-xl p-4">
-            <p className="text-xs font-semibold text-amber-900 mb-2">Notes</p>
-            <p className="text-sm text-amber-800">{goal.notes}</p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
+         {goal.notes && (
+           <div className="mt-6 bg-amber-50 border border-amber-100 rounded-xl p-4">
+             <p className="text-xs font-semibold text-amber-900 mb-2">Notes</p>
+             <p className="text-sm text-amber-800">{goal.notes}</p>
+           </div>
+         )}
+        </div>
+        </div>
+        );
+        }
 
 function StepCard({ step, onToggle, isExpanded, onExpandChange, onUpdate, toast }) {
   const [notes, setNotes] = useState(step.notes || '');

@@ -31,7 +31,7 @@ Deno.serve(async (req) => {
 
 ${conversationText}
 
-Return JSON (no markdown) in EXACTLY this structure:
+Return JSON (no markdown) in EXACTLY this structure. IMPORTANT: Create AT LEAST 15-20+ detailed subtasks PER MILESTONE, breaking down the goal into granular actionable steps:
 {
   "title": "concise goal title",
   "description": "what the user wants to achieve",
@@ -41,15 +41,17 @@ Return JSON (no markdown) in EXACTLY this structure:
   "plan_summary": "2-3 sentence summary of the overall plan",
   "steps": [
     {
-      "title": "step title",
-      "description": "specific actions to take",
-      "phase": "e.g. Month 1, Week 2",
+      "title": "specific, granular subtask (e.g., 'Complete Lesson 2: Present Tense Conjugation')",
+      "description": "detailed explanation of what to do and why",
+      "phase": "e.g. Month 1, Week 1 (use phases like Month 1, Month 2, etc.)",
       "priority": "low|medium|high|critical",
-      "due_date": "YYYY-MM-DD",
+      "due_date": "YYYY-MM-DD (spread across the timeline, realistic pacing)",
       "order_index": 0
     }
   ]
-}`
+}
+
+CRITICAL: Generate 15-20+ steps PER PHASE/MILESTONE, not just a handful total. Make the plan deeply detailed and actionable.`
           }
         ],
         response_format: { type: "json_object" }
