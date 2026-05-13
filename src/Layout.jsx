@@ -507,7 +507,6 @@ function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
           </main>
 
           <UniversalVoiceAssistant theme={theme} currentPageName={currentPageName} />
-          <MicrophonePermissionCheck theme={theme} />
       </TooltipProvider>
     </div>
   );
