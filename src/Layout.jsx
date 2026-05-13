@@ -49,11 +49,8 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 
-import MiniPomodoroBar from "./components/shared/MiniPomodoroBar";
 import UniversalVoiceAssistant from "./components/shared/UniversalVoiceAssistant";
 import MicrophonePermissionCheck from "./components/shared/MicrophonePermissionCheck";
-import PokeNotification from "./components/shared/PokeNotification";
-import AppGuideModal from "./components/shared/AppGuideModal";
 import { base44 } from "@/api/base44Client";
 import {
   DropdownMenu,
@@ -135,7 +132,6 @@ function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
     // If user explicitly set 'normal', respect that
     return stored;
   });
-  const [showAppGuide, setShowAppGuide] = useState(false);
   const [showSpicyBrainsExplanation, setShowSpicyBrainsExplanation] = useState(false);
 
   useEffect(() => {
@@ -672,23 +668,6 @@ function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
               paddingRight: '1rem',
               paddingBottom: 'max(4rem, calc(2rem + env(safe-area-inset-bottom)))'
             }}>
-              <Button
-                variant="outline"
-                onClick={() => setShowAppGuide(true)}
-                className={`w-full flex items-center justify-center gap-2 rounded-xl ${
-                  isSeasonalTheme()
-                    ? 'bg-white/60 hover:bg-white/80 text-gray-800 border-white/40'
-                    : theme === 'dark'
-                      ? 'border-gray-700 hover:bg-gray-800 text-gray-300 bg-transparent'
-                      : theme === 'spicybrains'
-                        ? 'bg-gradient-to-r from-yellow-300 to-pink-300 hover:from-yellow-400 hover:to-pink-400 text-gray-900 font-bold border-2 border-cyan-400'
-                        : ''
-                }`}
-              >
-                <HelpCircle className="w-4 h-4" />
-                <span>App Guide</span>
-              </Button>
-
               <div className="flex items-center gap-2">
                 <Button
                   variant="outline"
@@ -825,18 +804,10 @@ function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
             )}
           </main>
 
-          <MiniPomodoroBar theme={theme} />
           <UniversalVoiceAssistant theme={theme} currentPageName={currentPageName} />
           <MicrophonePermissionCheck theme={theme} />
-          <PokeNotification theme={theme} />
 
-        <AppGuideModal
-          isOpen={showAppGuide}
-          onClose={() => setShowAppGuide(false)}
-          theme={theme}
-        />
-
-        <Dialog open={showSpicyBrainsExplanation} onOpenChange={setShowSpicyBrainsExplanation}>
+          <Dialog open={showSpicyBrainsExplanation} onOpenChange={setShowSpicyBrainsExplanation}>
           <DialogContent className="max-w-2xl bg-gradient-to-br from-pink-100 via-purple-100 to-cyan-100 border-4 border-yellow-400">
             <DialogHeader>
               <DialogTitle className="text-3xl font-bold text-center bg-gradient-to-r from-pink-600 via-purple-600 to-cyan-600 bg-clip-text text-transparent">
