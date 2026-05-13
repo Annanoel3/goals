@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.4';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
 const CRON_SECRET = Deno.env.get('CRON_SECRET');
 
@@ -93,78 +93,42 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        const tasks = await base44.asServiceRole.entities.Task.filter({
+        const steps = await base44.asServiceRole.entities.GoalStep.filter({
           created_by: user.email
         });
 
-        const activeTasks = tasks.filter(t => t.status === 'active');
-        totalScanned += activeTasks.length;
+        const activeSteps = steps.filter(s => s.status === 'pending' || s.status === 'in_progress');
+        totalScanned += activeSteps.length;
 
-        console.log(`📋 [TASK REMINDERS] User ${user.email} has ${activeTasks.length} active tasks`);
+        console.log(`📋 [TASK REMINDERS] User ${user.email} has ${activeSteps.length} active goal steps`);
 
-        for (const t of activeTasks) {
-          if (!t.next_reminder) continue;
+        for (const s of activeSteps) {
+          if (!s.due_date) continue;
           
-          const when = parseWhen(t.next_reminder);
+          const dueTime = parseWhen(s.due_date);
+          const reminderTime = dueTime - (24 * 60 * 60 * 1000); // Remind 24 hours before
           
-          console.log(`🔍 [TASK REMINDERS] Task "${t.title}" (ID: ${t.id}): interval=${t.reminder_interval}, next_reminder=${t.next_reminder}, parsed=${new Date(when).toISOString()}, now=${new Date(now).toISOString()}`);
+          console.log(`🔍 [TASK REMINDERS] Step "${s.title}" (ID: ${s.id}): due=${s.due_date}, parsed=${new Date(dueTime).toISOString()}, now=${new Date(now).toISOString()}`);
           
-          if (when && when <= now) {
-            console.log(`🔔 [TASK REMINDERS] Sending reminder to ${user.email}: "${t.title}" (ID: ${t.id})`);
+          if (reminderTime && reminderTime <= now && now < dueTime) {
+            console.log(`🔔 [TASK REMINDERS] Sending reminder to ${user.email}: "${s.title}" (ID: ${s.id})`);
 
             const r = await base44.asServiceRole.functions.invoke('notifySend', {
               toUserId: user.email,
-              title: 'Task Reminder 📋',
-              body: t.title || 'You have a task due',
-              screen: '/Tasks',
+              title: 'Goal Step Due Soon 🎯',
+              body: s.title || 'You have a goal step due',
+              screen: '/Goals',
             });
 
             if (r?.data?.success) {
-              let next = null;
-              const ms = t.reminder_interval ? intervalMs[t.reminder_interval] : 0;
-              
-              console.log(`📊 [TASK REMINDERS] Task has interval: ${t.reminder_interval}, ms: ${ms}`);
-              
-              // For recurring reminders, calculate next time
-              if (ms && ms > 0) {
-                const lastReminderTime = parseWhen(t.next_reminder);
-                let nextTime = lastReminderTime + ms;
-                
-                // If we're multiple intervals behind, catch up to the next future one
-                const nowTime = Date.now();
-                while (nextTime <= nowTime) {
-                  nextTime += ms;
-                }
-                
-                next = new Date(nextTime).toISOString();
-                console.log(`✅ [TASK REMINDERS] Calculated next reminder: ${next} (in ${Math.round((nextTime - nowTime) / 60000)} minutes)`);
-              } else {
-                console.log(`⚠️ [TASK REMINDERS] No recurring interval, next_reminder will be null`);
-              }
-
-              // Update task with new next_reminder
-              console.log(`💾 [TASK REMINDERS] Updating task ${t.id} with reminder_count: ${(t.reminder_count || 0) + 1}, next_reminder: ${next}`);
-              
-              try {
-                const updateResult = await base44.asServiceRole.entities.Task.update(t.id, {
-                  reminder_count: (t.reminder_count || 0) + 1,
-                  next_reminder: next
-                });
-                
-                console.log(`💾 [TASK REMINDERS] ✅ Update successful for task ${t.id}:`, JSON.stringify(updateResult));
-              } catch (updateError) {
-                console.error(`💾 [TASK REMINDERS] ❌ Update FAILED for task ${t.id}:`, updateError);
-                throw updateError;
-              }
-
               ok++;
-              console.log(`✅ [TASK REMINDERS] Complete for task ${t.id}`);
+              console.log(`✅ [TASK REMINDERS] Reminder sent for step ${s.id}`);
             } else {
               console.error('❌ [TASK REMINDERS] Notification send failed:', r?.data);
               fail++;
             }
-          } else if (when > now) {
-            console.log(`⏳ [TASK REMINDERS] Task "${t.title}" (ID: ${t.id}) not yet due: ${new Date(when).toISOString()} (in ${Math.round((when - now) / 60000)} minutes)`);
+          } else if (reminderTime > now) {
+            console.log(`⏳ [TASK REMINDERS] Step "${s.title}" (ID: ${s.id}) not yet due: ${new Date(dueTime).toISOString()} (in ${Math.round((dueTime - now) / 60000)} minutes)`);
           }
         }
       } catch (userError) {

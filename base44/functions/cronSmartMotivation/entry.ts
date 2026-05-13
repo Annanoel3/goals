@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.7.1';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
 const CRON_SECRET = Deno.env.get('CRON_SECRET');
 
@@ -52,35 +52,39 @@ Deno.serve(async (req) => {
 
         console.log(`🔍 [SMART MOTIVATION] Analyzing ${user.email}...`);
 
-        let tasks;
+        let goals, steps;
         try {
-          tasks = await base44.asServiceRole.entities.Task.filter({ created_by: user.email });
-        } catch (taskError) {
-          console.error(`❌ [SMART MOTIVATION] Failed to fetch tasks for ${user.email}:`, taskError);
-          errors.push({ user: user.email, error: 'Failed to fetch tasks', details: taskError.message });
+          goals = await base44.asServiceRole.entities.Goal.filter({ created_by: user.email });
+          steps = await base44.asServiceRole.entities.GoalStep.filter({ created_by: user.email });
+        } catch (dataError) {
+          console.error(`❌ [SMART MOTIVATION] Failed to fetch goals/steps for ${user.email}:`, dataError);
+          errors.push({ user: user.email, error: 'Failed to fetch goals/steps', details: dataError.message });
           fail++;
           continue;
         }
 
-        const activeTasks = tasks.filter(t => t.status === 'active');
-        const completedToday = tasks.filter(t => {
-          if (t.status !== 'completed' || !t.completed_at) return false;
-          const completedDate = new Date(t.completed_at).toISOString().split('T')[0];
+        const activeGoals = goals.filter(g => g.status === 'active');
+        const activeSteps = steps.filter(s => s.status === 'pending' || s.status === 'in_progress');
+        const completedToday = steps.filter(s => {
+          if (s.status !== 'completed' || !s.completed_at) return false;
+          const completedDate = new Date(s.completed_at).toISOString().split('T')[0];
           return completedDate === today;
         });
 
-        console.log(`📋 [SMART MOTIVATION] ${user.email}: ${activeTasks.length} active, ${completedToday.length} completed today`);
+        console.log(`📋 [SMART MOTIVATION] ${user.email}: ${activeGoals.length} active goals, ${activeSteps.length} active steps, ${completedToday.length} completed today`);
 
-        if (activeTasks.length === 0 && completedToday.length === 0) {
+        if (activeGoals.length === 0 && activeSteps.length === 0 && completedToday.length === 0) {
           console.log(`⏭️  [SMART MOTIVATION] Skipping ${user.email} - no activity`);
           continue;
         }
 
         let message = '';
         if (completedToday.length > 0) {
-          message = `Great work today! You completed ${completedToday.length} task${completedToday.length === 1 ? '' : 's'}.`;
-        } else if (activeTasks.length > 0) {
-          message = `You have ${activeTasks.length} active task${activeTasks.length === 1 ? '' : 's'}. Ready to tackle them?`;
+          message = `Great work today! You completed ${completedToday.length} step${completedToday.length === 1 ? '' : 's'} toward your goals.`;
+        } else if (activeSteps.length > 0) {
+          message = `You have ${activeSteps.length} step${activeSteps.length === 1 ? '' : 's'} ready across ${activeGoals.length} goal${activeGoals.length === 1 ? '' : 's'}. Let's go!`;
+        } else if (activeGoals.length > 0) {
+          message = `You're working on ${activeGoals.length} goal${activeGoals.length === 1 ? '' : 's'}. Keep the momentum going!`;
         }
 
         if (message) {

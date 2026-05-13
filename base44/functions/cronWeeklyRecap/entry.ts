@@ -42,22 +42,28 @@ Deno.serve(async (req) => {
 
                 console.log(`📈 [WEEKLY RECAP] Processing ${user.email}...`);
 
-                const summaries = await base44.asServiceRole.entities.DailySummary.filter({
+                const steps = await base44.asServiceRole.entities.GoalStep.filter({
                     created_by: user.email
-                }, '-date', 7);
+                });
 
-                const weekSummaries = summaries.filter(s => s.date >= weekStart);
+                const weekSteps = steps.filter(s => {
+                  if (!s.completed_at) return false;
+                  const completedDate = new Date(s.completed_at).toISOString().split('T')[0];
+                  return completedDate >= weekStart;
+                });
 
-                const totalTasks = weekSummaries.reduce((sum, s) => sum + (s.tasks_completed || 0), 0);
-                const currentStreak = weekSummaries[0]?.streak_days || 0;
-                const totalPoints = user.total_points || 0;
+                const totalSteps = weekSteps.length;
+                const goals = await base44.asServiceRole.entities.Goal.filter({
+                    created_by: user.email,
+                    status: 'active'
+                });
 
-                console.log(`📊 [WEEKLY RECAP] ${user.email}: ${totalTasks} tasks, ${currentStreak} streak, ${totalPoints} points`);
+                console.log(`📊 [WEEKLY RECAP] ${user.email}: ${totalSteps} steps completed, ${goals.length} active goals`);
 
                 const notifyResponse = await base44.asServiceRole.functions.invoke('notifySend', {
                     toUserId: user.email,
                     title: "📊 Your Week in Review",
-                    body: `${totalTasks} tasks completed • ${currentStreak} day streak • ${totalPoints} total points`,
+                    body: `${totalSteps} steps completed • ${goals.length} active goal${goals.length === 1 ? '' : 's'}`,
                     screen: "/Progress"
                 });
 
