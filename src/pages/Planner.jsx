@@ -137,8 +137,9 @@ export default function Planner() {
       }
 
       setSaved(true);
+      setPendingGoalId(goal.id);
       toast({ title: "Goal saved!", description: `"${plan.title}" is ready.` });
-      setTimeout(() => navigate("/Goals"), 1500);
+      setTimeout(() => navigate("/Goals"), 2500);
     } catch (err) {
       toast({ title: "Error saving goal", description: "Please try again.", variant: "destructive" });
     } finally {
@@ -317,11 +318,17 @@ export default function Planner() {
             )}
 
             {saved && (
-              <div className="flex justify-center py-2">
+              <div className="flex flex-col items-center gap-3 py-3">
                 <div className="flex items-center gap-2 bg-green-50 text-green-700 px-5 py-2.5 rounded-2xl text-sm font-semibold border border-green-200">
                   <Check className="w-4 h-4" />
-                  {pendingAction === 'edit_approved' ? 'Changes applied!' : 'Goal saved!'} Redirecting...
+                  {pendingAction === 'edit_approved' ? 'Changes applied!' : 'Goal saved!'}
                 </div>
+                {pendingAction !== 'edit_approved' && (
+                  <div className="bg-violet-50 border border-violet-100 rounded-2xl px-5 py-4 max-w-sm text-center">
+                    <p className="text-sm text-violet-800 font-medium mb-1">Your plan is a living document 🌱</p>
+                    <p className="text-xs text-violet-600 leading-relaxed">Come back anytime to adjust difficulty, add resources, skip ahead, extend the timeline, or completely restructure a phase. Just tell me what's working and what isn't.</p>
+                  </div>
+                )}
               </div>
             )}
             <div ref={messagesEndRef} />
