@@ -316,16 +316,16 @@ Always be specific, warm, encouraging, and treat the plan as a living document t
     const reply = completion.choices[0].message.content;
 
     // Parse response type
-    if (isEditSession && reply.startsWith('EDIT_APPROVED')) {
-      return Response.json({ message: reply.replace(/^EDIT_APPROVED\s*/i, ''), action: 'edit_approved', goal_id });
+    if (isEditSession && reply.includes('EDIT_APPROVED')) {
+      return Response.json({ message: reply.replace(/EDIT_APPROVED\s*/i, '').trim(), action: 'edit_approved', goal_id });
     }
-    if (reply.startsWith('PLAN_APPROVED')) {
-      return Response.json({ message: reply.replace(/^PLAN_APPROVED\s*/i, ''), action: 'plan_approved' });
+    if (reply.includes('PLAN_APPROVED')) {
+      return Response.json({ message: reply.replace(/PLAN_APPROVED\s*/i, '').trim(), action: 'plan_approved' });
     }
-    const editMatch = reply.match(/^EDIT_APPROVED:([^\s]+)/i);
+    const editMatch = reply.match(/EDIT_APPROVED:([^\s]+)/i);
     if (editMatch) {
       const editGoalId = editMatch[1];
-      return Response.json({ message: reply.replace(/^EDIT_APPROVED:[^\s]+\s*/i, ''), action: 'edit_approved', goal_id: editGoalId });
+      return Response.json({ message: reply.replace(/EDIT_APPROVED:[^\s]+\s*/i, '').trim(), action: 'edit_approved', goal_id: editGoalId });
     }
 
     return Response.json({ message: reply, action: 'chat' });

@@ -88,9 +88,9 @@ export default function Planner() {
 
       setMessages(prev => [...prev, { role: "assistant", content: message }]);
 
-      if (action === 'plan_approved') {
+      if (action === 'plan_approved' || message?.includes('PLAN_APPROVED')) {
         setPendingAction('plan_approved');
-      } else if (action === 'edit_approved') {
+      } else if (action === 'edit_approved' || message?.includes('EDIT_APPROVED')) {
         setPendingAction('edit_approved');
         setPendingGoalId(goal_id || editingGoal?.id);
       }
