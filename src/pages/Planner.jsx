@@ -147,7 +147,6 @@ export default function Planner() {
 
       setSaved(true);
       setPendingGoalId(goal.id);
-      setTimeout(() => setSaved(false), 3000);
     } catch (err) {
       toast({ title: "Error saving goal", description: "Please try again.", variant: "destructive" });
     } finally {
