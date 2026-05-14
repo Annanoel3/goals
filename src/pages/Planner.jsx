@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, Loader2, Mic, Sparkles, Target, Plus, Check, ChevronDown, ChevronUp } from "lucide-react";
+import { Send, Loader2, Mic, Sparkles, Target, Plus, Check, ChevronDown, ChevronUp, ChevronRight } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import GoalPlanLoadingAnimation from "@/components/shared/GoalPlanLoadingAnimation";
 
@@ -214,8 +214,12 @@ export default function Planner() {
   };
 
   const isEmpty = messages.length === 0;
+  const hasGoals = goals.length > 0;
   const [theme] = React.useState(() => localStorage.getItem('adhd_theme') || 'minimalist');
   const isColorful = theme === 'colorful';
+
+  // Show saved chats list if we have goals and aren't currently editing
+  const showGoalsList = hasGoals && !editingGoal && isEmpty;
 
   return (
     <div className={`min-h-screen flex flex-col ${isColorful ? 'bg-gradient-to-br from-purple-200 via-pink-200 to-blue-200' : 'bg-gray-50'}`} style={{ paddingBottom: 'max(7rem, calc(7rem + env(safe-area-inset-bottom)))' }}>
@@ -228,17 +232,17 @@ export default function Planner() {
             </div>
             <div>
               <h1 className="text-base font-bold text-gray-900 leading-none">
-                {editingGoal ? `Editing: ${editingGoal.title}` : 'Planner'}
+                {editingGoal ? `Editing: ${editingGoal.title}` : showGoalsList ? 'My Goals' : 'Planner'}
               </h1>
               <p className="text-[11px] text-gray-400 mt-0.5">
-                {editingGoal ? 'Evolve your goal' : 'AI-powered goal planning'}
+                {editingGoal ? 'Evolve your goal' : showGoalsList ? 'Click to adjust' : 'AI-powered goal planning'}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {messages.length > 0 && (
+            {(editingGoal || messages.length > 0) && (
               <Button variant="ghost" size="sm" onClick={handleNewPlan} className="text-xs text-gray-500 h-7 px-3 rounded-full">
-                New
+                {editingGoal ? 'Back' : 'New'}
               </Button>
             )}
             <Button
@@ -254,9 +258,11 @@ export default function Planner() {
         </div>
       </div>
 
-      {/* Messages */}
+      {/* Messages / Goals List */}
       <div className="flex-1 max-w-2xl w-full mx-auto px-4 pt-24 space-y-4">
-        {isEmpty ? (
+        {showGoalsList ? (
+          <GoalsList goals={goals} onSelectGoal={startEditSession} onNewChat={handleNewPlan} />
+        ) : isEmpty ? (
           <EmptyState onExampleClick={sendMessage} />
         ) : (
           <>
@@ -600,6 +606,44 @@ function TypingIndicator() {
           ))}
         </div>
       </div>
+    </div>
+  );
+}
+
+function GoalsList({ goals, onSelectGoal, onNewChat }) {
+  return (
+    <div className="flex flex-col items-center py-12 px-6">
+      <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-violet-100 to-indigo-100 flex items-center justify-center mb-6 shadow-sm">
+        <Target className="w-10 h-10 text-violet-600" />
+      </div>
+      <h2 className="text-2xl font-bold text-gray-900 mb-2">Your Goals</h2>
+      <p className="text-gray-500 text-sm max-w-xs leading-relaxed mb-8 text-center">
+        Click any goal to refine, extend, or adjust your plan.
+      </p>
+      <div className="w-full max-w-sm space-y-3 mb-8">
+        {goals.map(goal => (
+          <button
+            key={goal.id}
+            onClick={() => onSelectGoal(goal)}
+            className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3.5 text-left hover:border-violet-300 hover:bg-violet-50 hover:shadow-md transition-all group"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-gray-900 text-sm group-hover:text-violet-700 truncate">{goal.title}</p>
+                <p className="text-xs text-gray-500 mt-1 line-clamp-1">{goal.timeline || 'Timeline TBD'}</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-violet-600 flex-shrink-0 mt-1" />
+            </div>
+          </button>
+        ))}
+      </div>
+      <Button
+        onClick={onNewChat}
+        className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white rounded-2xl px-6 py-2.5 shadow-lg shadow-violet-100 font-semibold"
+      >
+        <Plus className="w-4 h-4 mr-2" />
+        Plan New Goal
+      </Button>
     </div>
   );
 }
