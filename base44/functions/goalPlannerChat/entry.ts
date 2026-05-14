@@ -208,8 +208,29 @@ Only include fields that actually changed. today = ${today}`
       existingGoalsList = await base44.asServiceRole.entities.Goal.filter({ created_by: user.email });
     } catch (_) { /* ignore */ }
 
+    // Load steps for all goals so AI has full context even in new-plan mode
+    let allStepsMap = {};
+    try {
+      for (const g of existingGoalsList) {
+        const steps = await base44.asServiceRole.entities.GoalStep.filter({ goal_id: g.id });
+        allStepsMap[g.id] = steps.sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
+      }
+    } catch (_) { /* ignore */ }
+
     const goalsSummary = existingGoalsList.length > 0
-      ? `The user has these existing goals:\n${existingGoalsList.map(g => `- ID: ${g.id} | Title: "${g.title}" | Status: ${g.status} | Timeline: ${g.timeline || 'N/A'}`).join('\n')}`
+      ? `The user has these existing goals (with their full step lists):\n${existingGoalsList.map(g => {
+          const steps = allStepsMap[g.id] || [];
+          const phaseMap = {};
+          steps.forEach(s => {
+            const p = s.phase || 'Uncategorized';
+            if (!phaseMap[p]) phaseMap[p] = [];
+            phaseMap[p].push(s.title);
+          });
+          const phaseSummary = Object.entries(phaseMap)
+            .map(([phase, titles]) => `      ${phase}: ${titles.join(', ')}`)
+            .join('\n');
+          return `- ID: ${g.id} | Title: "${g.title}" | Status: ${g.status} | Timeline: ${g.timeline || 'N/A'}\n${phaseSummary || '      (no steps)'}`;
+        }).join('\n\n')}`
       : 'The user has no existing goals yet.';
 
     const isEditSession = !!goal_id;
@@ -226,32 +247,46 @@ Only include fields that actually changed. today = ${today}`
         .map(s => `  [${s.phase || 'No phase'}] ${s.title} (${s.priority}, due: ${s.due_date || 'TBD'}, status: ${s.status})`)
         .join('\n');
 
+      // Group steps by phase so the AI can see gaps clearly
+      const phaseMap = {};
+      currentSteps.forEach(s => {
+        const p = s.phase || 'Uncategorized';
+        if (!phaseMap[p]) phaseMap[p] = [];
+        phaseMap[p].push(s.title);
+      });
+      const phasesSummary = Object.entries(phaseMap)
+        .map(([phase, titles]) => `  ${phase} (${titles.length} steps):\n${titles.map(t => `    - ${t}`).join('\n')}`)
+        .join('\n');
+
       systemPrompt = `You are an expert goal planner and ongoing accountability partner helping a user EDIT and EVOLVE an existing goal.
 
-TODAY'S DATE: ${today}. Use this to calculate timelines accurately. When a user says "by [month year]", calculate the number of months from today to that date.
+TODAY'S DATE: ${today}. Use this to calculate timelines accurately.
 
 CURRENT GOAL: "${currentGoal?.title || 'Unknown'}"
 PLAN SUMMARY: ${currentGoal?.plan_summary || 'N/A'}
 TIMELINE: ${currentGoal?.timeline || 'N/A'}
 
-CURRENT STEPS:
-${stepsText || '  (no steps yet)'}
+FULL PLAN — ALL EXISTING STEPS BY PHASE:
+${phasesSummary || '  (no steps yet)'}
 
-Your job:
-1. Understand what changes the user wants — could be anything: too easy, too hard, not enough resources, want to skip ahead, restructure a phase, extend timeline, add advanced content, etc.
-2. Ask 1-2 targeted questions to understand the exact situation before proposing changes
-3. Propose SPECIFIC changes: show exactly what will be added/changed/removed, with concrete resources included
-4. NEVER apply changes without explicit user approval (phrases like "yes", "looks good", "do it", "apply it", "perfect", "save it", "go ahead")
-5. When approved, start your response with EXACTLY "EDIT_APPROVED" then give a brief warm summary of what changed
+CRITICAL RULES — READ CAREFULLY:
+1. You have the FULL plan above. You can see every phase, every week, every step. You already know everything about this goal.
+2. When the user asks you to fill a missing week/phase (e.g. "add Week 2 of Month 3"), DO NOT ask them what should go there. You already have all the surrounding context — look at Week 1 and Week 3 of that month, understand the progression, and propose what Week 2 should logically contain. Infer from context like an expert coach.
+3. NEVER ask the user to tell you what their own plan is about. You have it all above. Asking the user "what is your goal?" or "what did you focus on?" when you already have the full step list is unacceptable.
+4. You MAY ask 1 short clarifying question ONLY if the user's request is genuinely ambiguous and cannot be inferred from the plan (e.g. they want to completely restructure a phase without any context clue). For gap-filling, NEVER ask — just propose.
+5. Propose SPECIFIC changes with concrete content, resources, and steps. Show exactly what will be added.
+6. NEVER apply changes without explicit user approval (e.g. "yes", "looks good", "do it", "apply it", "perfect", "save it", "go ahead")
+7. When approved, start your response with EXACTLY "EDIT_APPROVED" then give a brief warm summary of what changed.
 
 PROACTIVE COACHING — watch for these signals and respond accordingly:
-- "too easy / too basic / I already know this" → ask their current level, then propose accelerating phases, removing beginner steps, adding harder content with advanced resources
-- "too hard / struggling / overwhelmed" → propose breaking steps into smaller pieces, slowing pace, adding more foundational resources
+- "too easy / too basic / I already know this" → propose accelerating phases, removing beginner steps, adding harder content
+- "too hard / struggling / overwhelmed" → propose breaking steps into smaller pieces, slowing pace, adding foundational resources
 - "I don't have time" → propose extending timeline or reducing weekly step count
 - "I finished early" → propose adding advanced phases or a follow-on goal
 - "I need more resources" → add specific links, videos, books to relevant steps
+- "a week/phase got skipped / is missing" → look at surrounding weeks/phases in the plan above and fill the gap logically
 
-Always be specific, warm, and treat the plan as a living document. Always include milestone phases.`;
+Always be specific, warm, and treat the plan as a living document.`;
     } else {
       const userCity = body.city || null;
 
