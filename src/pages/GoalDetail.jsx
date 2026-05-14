@@ -8,6 +8,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Loader2, Calendar, CheckCircle2, Clock, AlertCircle, Plus, Trash2, ChevronDown, ChevronUp, Upload, X, History } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import StepDetailsModal from "@/components/goals/StepDetailsModal";
+import HabitTimePrompt from "@/components/goals/HabitTimePrompt";
+import HabitCheckInModal from "@/components/goals/HabitCheckInModal";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 export default function GoalDetail() {
@@ -22,6 +24,7 @@ export default function GoalDetail() {
   const [isStepModalOpen, setIsStepModalOpen] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [habitCheckInStep, setHabitCheckInStep] = useState(null);
 
   useEffect(() => { loadData(); }, [id]);
 
@@ -178,41 +181,63 @@ export default function GoalDetail() {
                          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide px-2">{week}</div>
                          <div className="space-y-2">
                            {weekSteps.map(step => (
-                             <button
+                             <div
                                key={step.id}
-                               onClick={() => {
-                                 setSelectedStep(step);
-                                 setIsStepModalOpen(true);
-                               }}
-                               className={`w-full text-left p-3 rounded-lg border transition-all ${
+                               className={`w-full text-left rounded-lg border transition-all overflow-hidden ${
                                  step.status === 'completed'
                                    ? 'bg-green-50 border-green-100'
                                    : 'bg-white border-gray-100 hover:border-violet-300'
                                }`}
                              >
-                               <div className="flex items-start gap-3">
-                                 <div className="flex-shrink-0 mt-0.5">
-                                   <Checkbox
-                                     checked={step.status === 'completed'}
-                                     onChange={(e) => {
-                                       e.stopPropagation();
-                                       toggleStepStatus(step);
-                                     }}
-                                     className="mt-0.5"
-                                   />
+                               <button
+                                 onClick={() => {
+                                   setSelectedStep(step);
+                                   setIsStepModalOpen(true);
+                                 }}
+                                 className="w-full text-left p-3"
+                               >
+                                 <div className="flex items-start gap-3">
+                                   <div className="flex-shrink-0 mt-0.5">
+                                     <Checkbox
+                                       checked={step.status === 'completed'}
+                                       onChange={(e) => {
+                                         e.stopPropagation();
+                                         toggleStepStatus(step);
+                                       }}
+                                       className="mt-0.5"
+                                     />
+                                   </div>
+                                   <div className="flex-1 min-w-0">
+                                     <div className="flex items-center gap-1.5">
+                                       <h4 className={`font-medium text-sm ${step.status === 'completed' ? 'line-through text-gray-400' : 'text-gray-900'}`}>
+                                         {step.title}
+                                       </h4>
+                                       {step.is_daily_habit && step.habit_time && (
+                                         <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-600">
+                                           🔔 {step.habit_time}
+                                         </span>
+                                       )}
+                                     </div>
+                                     {step.description && (
+                                       <p className={`text-xs mt-1 line-clamp-2 ${step.status === 'completed' ? 'text-gray-400' : 'text-gray-500'}`}>
+                                         {step.description}
+                                       </p>
+                                     )}
+                                   </div>
                                  </div>
-                                 <div className="flex-1 min-w-0">
-                                   <h4 className={`font-medium text-sm ${step.status === 'completed' ? 'line-through text-gray-400' : 'text-gray-900'}`}>
-                                     {step.title}
-                                   </h4>
-                                   {step.description && (
-                                     <p className={`text-xs mt-1 line-clamp-2 ${step.status === 'completed' ? 'text-gray-400' : 'text-gray-500'}`}>
-                                       {step.description}
-                                     </p>
-                                   )}
-                                 </div>
-                               </div>
-                             </button>
+                               </button>
+                               {step.is_daily_habit && !step.habit_time && step.status !== 'completed' && (
+                                 <HabitTimePrompt step={step} onScheduled={loadData} />
+                               )}
+                               {step.is_daily_habit && step.habit_checkin_pending && step.status !== 'completed' && (
+                                 <button
+                                   onClick={e => { e.stopPropagation(); setHabitCheckInStep(step); }}
+                                   className="w-full text-center py-2 text-xs font-semibold text-violet-700 bg-violet-50 border-t border-violet-100 hover:bg-violet-100 transition-colors"
+                                 >
+                                   ✅ Did you do it today? Tap to check in
+                                 </button>
+                               )}
+                             </div>
                            ))}
                          </div>
                        </div>
@@ -288,6 +313,13 @@ export default function GoalDetail() {
           isOpen={isStepModalOpen}
           onClose={() => setIsStepModalOpen(false)}
           onUpdate={loadData}
+        />
+
+        {/* Habit Check-In Modal */}
+        <HabitCheckInModal
+          step={habitCheckInStep}
+          onClose={() => setHabitCheckInStep(null)}
+          onCheckedIn={loadData}
         />
          </div>
          </div>

@@ -97,7 +97,7 @@
           },
           "specific_details": {
             "type": "string",
-            "description": "Specific sections, times, pages, etc. (e.g., 'watch 2:30-5:45', 'read pages 45-52')"
+            "description": "Specific sections, times, pages, etc."
           }
         },
         "required": [
@@ -114,7 +114,7 @@
         "type": "string"
       },
       "default": [],
-      "description": "Measurable indicators of completion (e.g., 'Can play scales at 60 bpm')"
+      "description": "Measurable indicators of completion"
     },
     "tips_and_guidance": {
       "type": "string",
@@ -127,6 +127,29 @@
       },
       "description": "Array of image URLs attached to this step",
       "default": []
+    },
+    "is_daily_habit": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether this step is a recurring daily habit (e.g. morning affirmations, meditation, journaling)"
+    },
+    "habit_time": {
+      "type": "string",
+      "description": "Time of day for the daily habit reminder, e.g. '07:00'"
+    },
+    "habit_notification_id": {
+      "type": "string",
+      "description": "OneSignal notification ID for the scheduled daily habit reminder"
+    },
+    "habit_checkin_pending": {
+      "type": "boolean",
+      "default": false,
+      "description": "True when the user was notified but hasn't checked in yet"
+    },
+    "last_habit_checkin_date": {
+      "type": "string",
+      "format": "date",
+      "description": "The last date the user did a habit check-in"
     }
   },
   "required": [

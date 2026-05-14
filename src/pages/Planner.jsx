@@ -134,7 +134,8 @@ export default function Planner() {
             status: "pending",
             step_resources: step.step_resources || [],
             success_criteria: step.success_criteria || [],
-            tips_and_guidance: step.tips_and_guidance || ""
+            tips_and_guidance: step.tips_and_guidance || "",
+            is_daily_habit: step.is_daily_habit === true
           })
         ));
       }

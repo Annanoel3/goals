@@ -51,6 +51,7 @@ import {
 
 import UniversalVoiceAssistant from "./components/shared/UniversalVoiceAssistant";
 import MicrophonePermissionCheck from "./components/shared/MicrophonePermissionCheck";
+import AppOpenHabitCheck from "./components/goals/AppOpenHabitCheck";
 import { base44 } from "@/api/base44Client";
 import {
   DropdownMenu,
@@ -235,6 +236,7 @@ function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
       }}
     >
       {user && <OneSignalInit user={user} />}
+      {user && <AppOpenHabitCheck user={user} />}
       <EasterEggVideo />
 
       <style>{`
