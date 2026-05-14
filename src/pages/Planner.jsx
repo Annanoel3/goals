@@ -19,6 +19,7 @@ export default function Planner() {
   const [goals, setGoals] = useState([]);
   const [showGoalPicker, setShowGoalPicker] = useState(false);
   const [editingGoal, setEditingGoal] = useState(null); // goal being edited in current session
+  const [userCity, setUserCity] = useState(null);
   const messagesEndRef = useRef(null);
   const messagesRef = useRef(messages);
   const navigate = useNavigate();
@@ -30,9 +31,10 @@ export default function Planner() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Load goals for the "edit existing goal" picker
+  // Load goals and user city
   useEffect(() => {
     base44.entities.Goal.filter({ status: 'active' }).then(setGoals).catch(() => {});
+    base44.auth.me().then(u => { if (u?.city) setUserCity(u.city); }).catch(() => {});
 
     // If navigated here with ?edit=goalId, auto-start edit session
     const editId = searchParams.get('edit');
@@ -77,6 +79,7 @@ export default function Planner() {
       const payload = {
         messages: allMessages.filter(m => m.role !== "system"),
         mode: "chat",
+        city: userCity,
       };
       if (editingGoal) payload.goal_id = editingGoal.id;
 

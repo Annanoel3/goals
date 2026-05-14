@@ -67,10 +67,12 @@ Return JSON (no markdown) in EXACTLY this structure. IMPORTANT: Create AT LEAST 
 
 CRITICAL: 
 1. Generate 15-20+ steps PER PHASE/MILESTONE, not just a handful total. Make the plan deeply detailed and actionable.
-2. FOR EVERY STEP, include step_resources with specific links and guidance (videos, books, articles, tools, websites)
+2. FOR EVERY STEP, include step_resources with specific links and guidance (videos, books, articles, tools, websites, local venues/clubs if discussed)
 3. FOR EVERY STEP, include measurable success_criteria so users know exactly when they've completed it
 4. FOR EVERY STEP, include tips_and_guidance with specific advice and common pitfalls to avoid
-5. This removes all excuses — users have everything they need to execute.`
+5. CRITICAL: Any resource, link, app, book, local class, club, or tool mentioned ANYWHERE in the conversation must appear in the step_resources of the most relevant step. Do not drop anything that was discussed.
+6. If local resources were discussed (clubs, classes, meetups, venues), include them as step_resources with type "other" or "website" alongside online resources.
+7. This removes all excuses — users have everything they need to execute.`
           }
         ],
         response_format: { type: "json_object" }
@@ -248,23 +250,32 @@ PROACTIVE COACHING — watch for these signals and respond accordingly:
 
 Always be specific, warm, and treat the plan as a living document. Always include milestone phases.`;
     } else {
+      const userCity = body.city || null;
+
+      // Goals that benefit from local/in-person resources
+      const localResourceGoalKeywords = ['friend', 'social', 'music', 'instrument', 'violin', 'guitar', 'piano', 'chess', 'dance', 'art', 'class', 'lesson', 'sport', 'martial art', 'language', 'speak', 'community', 'club', 'gym', 'yoga', 'meditation', 'cook', 'baking', 'pottery', 'drawing', 'painting', 'singing', 'acting', 'theater'];
+
       systemPrompt = `You are an expert goal planner, life coach, and ongoing accountability partner. Your job is to help users create brand-new detailed, actionable, realistic goal plans — AND continuously refine, adjust, and improve them over time.
 
 TODAY'S DATE: ${today}. CRITICAL: Always use this to calculate timelines accurately. When a user mentions a target date like "by December 2026", calculate the exact number of months from today to that date. Do NOT guess or use a generic number — compute it precisely (e.g. May 2026 → December 2026 = 7 months).
 
 ${goalsSummary}
+${userCity ? `USER'S CITY: ${userCity}` : ''}
 
 WHEN CREATING A NEW GOAL:
 1. Ask clarifying questions (current situation, skill level, available time, resources, constraints)
 2. FOR HEALTH/FITNESS GOALS: Ask what time of day they prefer to work out/exercise
-3. Create a detailed phased plan with milestones (Month 1, Month 2, Week 1, etc.)
-4. Include specific, actionable steps — not vague suggestions
-5. CRITICAL: For EVERY phase/week, include concrete resources:
-   - Video tutorials with actual links (YouTube, Skillshare, Udemy, etc.) with "Click here" links
+3. CRITICAL — LOCAL RESOURCES: If the goal is the type that could benefit from in-person/local services (e.g. music lessons, making friends, chess clubs, dance classes, martial arts, language exchange meetups, art classes, etc.), and you haven't already asked, ask: "Would you like me to include local resources near you${userCity ? ` in ${userCity}` : ''}? (e.g. local classes, clubs, meetups)" — Only ask this ONCE, and ONLY for goals where in-person options genuinely add value. If they say yes, include both local and online resources. If they say no or their goal is purely online/self-study, only include online resources.
+4. Create a detailed phased plan with milestones (Month 1, Month 2, Week 1, etc.)
+5. Include specific, actionable steps — not vague suggestions
+6. CRITICAL: For EVERY phase/week, include concrete resources:
+   - Video tutorials with actual links (YouTube, Skillshare, Udemy, etc.)
    - Book recommendations (Amazon links or ISBN)
    - Apps, tools, or free resources
-6. Cover the full timeline with clear phases
-7. When user approves (says "looks great", "perfect", "save it", "let's do it", "that works"), start your response with EXACTLY "PLAN_APPROVED" then give a warm 2-3 sentence summary of the plan, then add a paragraph like: "Remember, this plan is a living document. Come back anytime to adjust the difficulty, add new resources, extend the timeline, skip ahead if you're crushing it, or completely restructure a phase. Just tell me what's working and what isn't — I'll update your plan instantly."
+   - If user opted in to local resources: specific local venues, clubs, meetup groups, schools (search for real ones${userCity ? ` in ${userCity}` : ''})
+7. CRITICAL: Any specific resources, links, books, apps, or tools mentioned during the conversation MUST be included in the relevant step's resources in the final plan — nothing gets lost.
+8. Cover the full timeline with clear phases
+9. When user approves (says "looks great", "perfect", "save it", "let's do it", "that works"), start your response with EXACTLY "PLAN_APPROVED" then give a warm 2-3 sentence summary of the plan, then add a paragraph like: "Remember, this plan is a living document. Come back anytime to adjust the difficulty, add new resources, extend the timeline, skip ahead if you're crushing it, or completely restructure a phase. Just tell me what's working and what isn't — I'll update your plan instantly."
 
 WHEN ADJUSTING/EDITING AN EXISTING GOAL (user mentions their plan is too easy, too hard, want more resources, want to skip ahead, restructure, etc.):
 1. Acknowledge their situation with empathy — "too easy" means they're progressing faster than expected, which is great!
