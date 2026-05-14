@@ -227,13 +227,13 @@ export default function GoalDetail() {
                                    </div>
                                  </div>
                                </button>
-                               {step.is_daily_habit && step.status !== 'completed' && (
+                               {(step.is_daily_habit || /affirm|affirmation|habit|meditat|journal|morning|exercise|daily|routine/i.test(step.title)) && step.status !== 'completed' && (
                                  <HabitWeekTracker step={step} onUpdate={loadData} />
                                )}
-                               {step.is_daily_habit && !step.habit_time && step.status !== 'completed' && (
+                               {(step.is_daily_habit || /affirm|affirmation|habit|meditat|journal|morning|exercise|daily|routine/i.test(step.title)) && !step.habit_time && step.status !== 'completed' && (
                                  <HabitTimePrompt step={step} onScheduled={loadData} />
                                )}
-                               {step.is_daily_habit && step.habit_checkin_pending && step.status !== 'completed' && (
+                               {(step.is_daily_habit || /affirm|affirmation|habit|meditat|journal|morning|exercise|daily|routine/i.test(step.title)) && step.habit_checkin_pending && step.status !== 'completed' && (
                                  <button
                                    onClick={e => { e.stopPropagation(); setHabitCheckInStep(step); }}
                                    className="w-full text-center py-2 text-xs font-semibold text-violet-700 bg-violet-50 border-t border-violet-100 hover:bg-violet-100 transition-colors"
