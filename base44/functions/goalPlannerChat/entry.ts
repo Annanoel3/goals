@@ -159,15 +159,15 @@ Only include fields that actually changed. today = ${today}`
 
       const edits = JSON.parse(extractionResponse.choices[0].message.content);
 
-      // Apply goal-level updates
+      // Apply goal-level updates (user-scoped so created_by is preserved)
       if (edits.goal_updates && Object.keys(edits.goal_updates).length > 0) {
-        await base44.asServiceRole.entities.Goal.update(goal_id, edits.goal_updates);
+        await base44.entities.Goal.update(goal_id, edits.goal_updates);
       }
 
-      // Add new steps
+      // Add new steps (user-scoped so created_by is set correctly for RLS)
       if (edits.steps_to_add?.length > 0) {
         for (const step of edits.steps_to_add) {
-          await base44.asServiceRole.entities.GoalStep.create({
+          await base44.entities.GoalStep.create({
             goal_id,
             title: step.title,
             description: step.description || "",
@@ -187,14 +187,14 @@ Only include fields that actually changed. today = ${today}`
       if (edits.steps_to_update?.length > 0) {
         for (const step of edits.steps_to_update) {
           const { id, ...updates } = step;
-          await base44.asServiceRole.entities.GoalStep.update(id, updates);
+          await base44.entities.GoalStep.update(id, updates);
         }
       }
 
       // Delete steps
       if (edits.steps_to_delete?.length > 0) {
         for (const stepId of edits.steps_to_delete) {
-          await base44.asServiceRole.entities.GoalStep.delete(stepId);
+          await base44.entities.GoalStep.delete(stepId);
         }
       }
 
