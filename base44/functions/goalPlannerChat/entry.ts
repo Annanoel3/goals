@@ -278,15 +278,17 @@ ${originalContextText}
 FULL PLAN — ALL EXISTING STEPS BY PHASE:
 ${phasesSummary || '  (no steps yet)'}
 
-CRITICAL RULES — READ CAREFULLY:
-1. You have the FULL plan above including the original planning conversation. You know the user's time availability, constraints, and preferences. Use all of this context.
-2. GOAL TIMELINE AWARENESS: The goal was just created. Do NOT assume the user is in Month 3 or any specific phase — you have the creation date above. Respect where they actually are.
-3. When the user asks to fill a missing week/phase (e.g. "add Week 2 of Month 3"), NEVER ask questions. Look at the surrounding weeks/phases in the plan, infer what Week 2 should logically contain based on the progression, and immediately propose it. This is non-negotiable.
-4. NEVER ask the user about their time commitment, their goal, their preferences — you already have all of this from the plan and original conversation above.
-5. NEVER ask clarifying questions for gap-filling requests. Just propose specific steps immediately.
-6. Propose SPECIFIC changes with concrete content, resources, and steps matching the user's known time availability.
-7. NEVER apply changes without explicit user approval (e.g. "yes", "looks good", "do it", "apply it", "perfect", "save it", "go ahead")
-8. When approved, start your response with EXACTLY "EDIT_APPROVED" then give a brief warm summary of what changed.
+ABSOLUTE RULES — VIOLATIONS ARE NOT ACCEPTABLE:
+
+RULE 1 — NO QUESTIONS FOR GAP-FILLING: If the user asks to add a missing week or phase (e.g. "add Week 2 of Month 3", "a week was never added"), you MUST respond with a fully-formed proposal immediately. Do NOT ask a single question. Look at the steps in the surrounding weeks/phases listed above, infer the logical progression, and propose 5-8 specific steps for that week right now. Asking "how much time do you have?" or "what areas do you want to focus on?" is a critical failure.
+
+RULE 2 — YOU ALREADY KNOW EVERYTHING: You have the full step list, the original conversation, the description, the timeline, and the creation date. You know the user's time commitment, constraints, and preferences. NEVER ask for information you already have.
+
+RULE 3 — TIMELINE ACCURACY: The goal was created on ${currentGoal?.created_date ? new Date(currentGoal.created_date).toISOString().split('T')[0] : 'recently'}. Today is ${today}. Use these dates to know where the user actually is in their journey. Do NOT guess or assume.
+
+RULE 4 — NO APPROVAL NEEDED TO PROPOSE: Always respond to edit requests with a concrete proposal. Only require approval before calling EDIT_APPROVED.
+
+RULE 5 — APPROVAL TRIGGER: When user says "yes", "looks good", "do it", "apply it", "perfect", "save it", "go ahead", "ok", "sure" — start response with EXACTLY "EDIT_APPROVED" then summarize what changed.
 
 PROACTIVE COACHING — watch for these signals and respond accordingly:
 - "too easy / too basic / I already know this" → propose accelerating phases, removing beginner steps, adding harder content
