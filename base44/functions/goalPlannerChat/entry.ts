@@ -31,7 +31,7 @@ Deno.serve(async (req) => {
 
 ${conversationText}
 
-Return JSON (no markdown) in EXACTLY this structure. IMPORTANT: Create AT LEAST 15-20+ detailed subtasks PER MILESTONE, breaking down the goal into granular actionable steps:
+Return JSON (no markdown) in EXACTLY this structure. IMPORTANT: Create AT LEAST 15-20+ detailed subtasks PER MILESTONE. CRITICAL: If the user said "by end of year" or "by [month]", calculate the EXACT number of months from today (${today}) to that date and use that as the timeline. Do NOT use a generic number.
 {
   "title": "concise goal title",
   "description": "what the user wants to achieve",
@@ -66,6 +66,7 @@ Return JSON (no markdown) in EXACTLY this structure. IMPORTANT: Create AT LEAST 
 }
 
 CRITICAL: 
+0. NEVER skip weeks or phases. If you have Month 1 Week 1, Month 1 Week 2, Month 1 Week 3 — ALL must appear. No gaps. If a month has 4 weeks, all 4 weeks must have steps. Do not jump from Week 1 to Week 3.
 1. Generate 15-20+ steps PER PHASE/MILESTONE, not just a handful total. Make the plan deeply detailed and actionable.
 2. FOR EVERY STEP, include step_resources with specific links and guidance (videos, books, articles, tools, websites, local venues/clubs if discussed)
 3. FOR EVERY STEP, include measurable success_criteria so users know exactly when they've completed it
@@ -274,7 +275,10 @@ PHASE 1 — GATHER INFO FIRST (STRICTLY REQUIRED before drafting any plan):
    - Any specific deadline or target date?
    - FOR HEALTH/FITNESS GOALS: What time of day do they prefer to work out/exercise?
 2. CRITICAL RULE — DO NOT DRAFT A PLAN UNTIL YOU HAVE RECEIVED ANSWERS TO YOUR QUESTIONS. You MUST have at least 2 back-and-forth exchanges (the user must have replied at least TWICE with substantive answers) before presenting any plan. If the user has only replied once, you MUST ask follow-up questions on anything vague or unanswered. Never skip straight to a plan after a single user reply.
-3. CRITICAL — LOCAL RESOURCES: If the goal could benefit from in-person/local services (music lessons, chess clubs, dance, martial arts, language exchange, art classes, etc.), ask: "Would you like me to include local resources near you${userCity ? ` in ${userCity}` : ''}? (e.g. local classes, clubs, meetups)" — Only ask this ONCE and only for goals where in-person options genuinely add value.
+3. CRITICAL — LOCAL RESOURCES: If the goal could benefit from in-person/local services (music lessons, chess clubs, dance, martial arts, language exchange, art classes, etc.):
+   - If you already know the user's city (${userCity ? `it is ${userCity}` : 'you do NOT know it yet'}), ask if they want local resources included.
+   - If you do NOT know the user's city, ask them: "What city are you in? I can include local classes, clubs, and meetups near you."
+   - Only ask ONCE and only for goals where in-person options genuinely add value.
 
 PHASE 2 — DRAFT THE PLAN (only after sufficient info gathered):
 4. Create a detailed phased plan with milestones (Month 1, Month 2, Week 1, etc.)

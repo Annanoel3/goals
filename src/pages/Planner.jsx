@@ -142,6 +142,7 @@ export default function Planner() {
       setSaved(true);
       setPendingGoalId(goal.id);
       toast({ title: "Goal saved!", description: `"${plan.title}" is ready.` });
+      setTimeout(() => setSaved(false), 5000);
     } catch (err) {
       toast({ title: "Error saving goal", description: "Please try again.", variant: "destructive" });
     } finally {
@@ -160,6 +161,7 @@ export default function Planner() {
       });
 
       setSaved(true);
+      setTimeout(() => setSaved(false), 5000);
       toast({ title: "Goal updated!", description: "Your changes have been applied." });
     } catch (err) {
       toast({ title: "Error applying changes", description: "Please try again.", variant: "destructive" });
