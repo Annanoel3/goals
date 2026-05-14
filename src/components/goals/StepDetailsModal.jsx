@@ -78,7 +78,7 @@ export default function StepDetailsModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto w-full max-w-2xl">
+      <DialogContent className="max-h-[90vh] overflow-y-auto w-full max-w-2xl" onOpenAutoFocus={(e) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle className="text-xl">{step.title}</DialogTitle>
         </DialogHeader>
