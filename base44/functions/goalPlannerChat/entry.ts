@@ -110,9 +110,9 @@ CRITICAL:
     if (mode === 'apply_edit') {
       const conversationText = messages.map(m => `${m.role === 'user' ? 'User' : 'Planner'}: ${m.content}`).join('\n\n');
 
-      // Fetch existing goal & steps for context
-      const existingGoal = await base44.asServiceRole.entities.Goal.list().then(all => all.find(g => g.id === goal_id));
-      const existingSteps = await base44.asServiceRole.entities.GoalStep.filter({ goal_id });
+      // Fetch existing goal & steps for context (user-scoped so RLS returns their data)
+      const existingGoal = await base44.entities.Goal.list().then(all => all.find(g => g.id === goal_id));
+      const existingSteps = await base44.entities.GoalStep.filter({ goal_id });
 
       const today = new Date().toISOString().split('T')[0];
       const stepsJson = JSON.stringify(existingSteps.map(s => ({

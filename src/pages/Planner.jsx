@@ -146,8 +146,7 @@ export default function Planner() {
 
       setSaved(true);
       setPendingGoalId(goal.id);
-      toast({ title: "Goal saved!", description: `"${plan.title}" is ready.` });
-      setTimeout(() => setSaved(false), 5000);
+      setTimeout(() => setSaved(false), 3000);
     } catch (err) {
       toast({ title: "Error saving goal", description: "Please try again.", variant: "destructive" });
     } finally {
@@ -166,8 +165,7 @@ export default function Planner() {
       });
 
       setSaved(true);
-      setTimeout(() => setSaved(false), 5000);
-      toast({ title: "Goal updated!", description: "Your changes have been applied." });
+      setTimeout(() => setSaved(false), 3000);
     } catch (err) {
       toast({ title: "Error applying changes", description: "Please try again.", variant: "destructive" });
     } finally {
@@ -302,7 +300,7 @@ export default function Planner() {
 
             {saved && (
               <div className="flex flex-col items-center gap-3 py-3">
-                <div className="flex items-center gap-2 bg-green-50 text-green-700 px-5 py-2.5 rounded-2xl text-sm font-semibold border border-green-200">
+                <div className="flex items-center gap-2 bg-green-50 text-green-700 px-5 py-2.5 rounded-2xl text-sm font-semibold border border-green-200 animate-in fade-in slide-in-from-bottom-2 duration-300">
                   <Check className="w-4 h-4" />
                   {pendingAction === 'edit_approved' ? 'Changes applied!' : 'Goal saved!'}
                 </div>
