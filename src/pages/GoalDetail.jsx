@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Loader2, Calendar, CheckCircle2, Clock, AlertCircle, Plus, Trash2, ChevronDown, ChevronUp, Upload, X, History } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import StepDetailsModal from "@/components/goals/StepDetailsModal";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 export default function GoalDetail() {
   const { id } = useParams();
@@ -19,6 +20,8 @@ export default function GoalDetail() {
   const [expandedPhases, setExpandedPhases] = useState({});
   const [selectedStep, setSelectedStep] = useState(null);
   const [isStepModalOpen, setIsStepModalOpen] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => { loadData(); }, [id]);
 
@@ -48,7 +51,7 @@ export default function GoalDetail() {
   };
 
   const deleteGoal = async () => {
-    if (!confirm("Delete this goal? This cannot be undone.")) return;
+    setIsDeleting(true);
     await Promise.all(steps.map(s => base44.entities.GoalStep.delete(s.id)));
     await base44.entities.Goal.delete(goal.id);
     navigate("/Goals");
@@ -103,7 +106,7 @@ export default function GoalDetail() {
                 )}
               </div>
             </div>
-            <Button variant="outline" size="sm" onClick={deleteGoal} className="text-red-600 border-red-200 hover:bg-red-50">
+            <Button variant="outline" size="sm" onClick={() => setShowDeleteConfirm(true)} className="text-red-600 border-red-200 hover:bg-red-50">
               <Trash2 className="w-4 h-4" />
             </Button>
           </div>
@@ -259,6 +262,26 @@ export default function GoalDetail() {
              <p className="text-sm text-amber-800">{goal.notes}</p>
            </div>
          )}
+        {/* Delete Confirmation Dialog */}
+        <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+          <DialogContent className="max-w-sm rounded-2xl">
+            <DialogHeader>
+              <DialogTitle className="text-gray-900">Delete this goal?</DialogTitle>
+              <DialogDescription className="text-gray-500 mt-1">
+                This will permanently delete <span className="font-semibold text-gray-700">"{goal?.title}"</span> and all its steps. This cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex gap-3 mt-2">
+              <Button variant="outline" className="flex-1 rounded-xl" onClick={() => setShowDeleteConfirm(false)} disabled={isDeleting}>
+                Cancel
+              </Button>
+              <Button onClick={deleteGoal} disabled={isDeleting} className="flex-1 rounded-xl bg-red-600 hover:bg-red-700 text-white">
+                {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Delete"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
         {/* Step Details Modal */}
         <StepDetailsModal
           step={selectedStep}
