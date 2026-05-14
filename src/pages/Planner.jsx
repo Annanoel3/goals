@@ -282,7 +282,7 @@ export default function Planner() {
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={() => setInput("I'd like to work on it some more")}
+                  onClick={() => sendMessage("I'd like to work on it some more")}
                   className="rounded-2xl px-6 py-2.5 border-2 border-gray-300 text-gray-700 hover:bg-gray-50 font-semibold"
                 >
                   I'd like to work on it some more
