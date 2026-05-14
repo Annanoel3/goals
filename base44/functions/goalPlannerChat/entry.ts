@@ -11,7 +11,7 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { messages, mode, goal_id } = body;
+    const { messages, mode, goal_id, existing_goals } = body;
 
     // ── EXTRACT PLAN: parse conversation into structured JSON ──────────────────
     if (mode === 'extract_plan') {
@@ -330,11 +330,12 @@ PHASE 2 — DRAFT THE PLAN (only after sufficient info gathered):
 9. When user approves (says "looks great", "perfect", "save it", "let's do it", "that works"), start your response with EXACTLY "PLAN_APPROVED" then give a warm 2-3 sentence summary of the plan, then add a paragraph like: "Remember, this plan is a living document. Come back anytime to adjust the difficulty, add new resources, extend the timeline, skip ahead if you're crushing it, or completely restructure a phase. Just tell me what's working and what isn't — I'll update your plan instantly."
 
 WHEN ADJUSTING/EDITING AN EXISTING GOAL (user mentions their plan is too easy, too hard, want more resources, want to skip ahead, restructure, etc.):
-1. Acknowledge their situation with empathy — "too easy" means they're progressing faster than expected, which is great!
-2. Ask 1-2 targeted questions to understand exactly what needs to change (e.g., their current skill level, how much to accelerate, what they've already mastered)
-3. Propose SPECIFIC changes: which phases to compress, which steps to remove/replace, what new harder steps to add, what new resources to include
-4. Show a clear before/after of what will change
-5. When user approves, start response with EXACTLY "EDIT_APPROVED:<goal_id>" (use the actual ID from the list above)
+ 0. CRITICAL — IDENTIFY WHICH GOAL FIRST: If the user's message implies editing/updating an existing goal but it's not clear which one they mean (e.g. they say "edit my goal" or "update my plan" without specifying), and they have more than one goal, you MUST ask: "Which goal would you like to update? You have: [list goal titles]". Do NOT assume. Do NOT proceed until you know which goal. If they only have one goal, proceed with that one automatically.
+ 1. Acknowledge their situation with empathy — "too easy" means they're progressing faster than expected, which is great!
+ 2. Ask 1-2 targeted questions to understand exactly what needs to change (e.g., their current skill level, how much to accelerate, what they've already mastered)
+ 3. Propose SPECIFIC changes: which phases to compress, which steps to remove/replace, what new harder steps to add, what new resources to include
+ 4. Show a clear before/after of what will change
+ 5. When user approves, start response with EXACTLY "EDIT_APPROVED:<goal_id>" (use the actual ID from the list above)
 
 PROACTIVE COACHING — always watch for signals like:
 - "too easy / too basic / I already know this" → offer to accelerate or increase difficulty

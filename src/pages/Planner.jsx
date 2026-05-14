@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, Loader2, Mic, Sparkles, Target, Plus, Check, Pencil, ChevronDown, ChevronUp } from "lucide-react";
+import { Send, Loader2, Mic, Sparkles, Target, Plus, Check, ChevronDown, ChevronUp } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 
 export default function Planner() {
@@ -17,7 +17,6 @@ export default function Planner() {
   const [isRecording, setIsRecording] = useState(false);
   const [mediaRecorder, setMediaRecorder] = useState(null);
   const [goals, setGoals] = useState([]);
-  const [showGoalPicker, setShowGoalPicker] = useState(false);
   const [editingGoal, setEditingGoal] = useState(null); // goal being edited in current session
   const [userCity, setUserCity] = useState(null);
   const messagesEndRef = useRef(null);
@@ -48,7 +47,6 @@ export default function Planner() {
 
   const startEditSession = (goal) => {
     setEditingGoal(goal);
-    setShowGoalPicker(false);
     setMessages([{
       role: "assistant",
       content: `I'm ready to help you update your goal: **"${goal.title}"**\n\nWhat changes would you like to make? You can:\n• Add new milestones or steps\n• Extend or adjust the timeline\n• Change priorities\n• Add a whole new phase\n• Anything else — just tell me!`
@@ -64,7 +62,6 @@ export default function Planner() {
     setSaved(false);
     setInput("");
     setEditingGoal(null);
-    setShowGoalPicker(false);
   };
 
   const sendMessage = useCallback(async (content) => {
@@ -80,6 +77,7 @@ export default function Planner() {
         messages: allMessages.filter(m => m.role !== "system"),
         mode: "chat",
         city: userCity,
+        existing_goals: goals.map(g => ({ id: g.id, title: g.title })),
       };
       if (editingGoal) payload.goal_id = editingGoal.id;
 
@@ -92,7 +90,13 @@ export default function Planner() {
         setPendingAction('plan_approved');
       } else if (action === 'edit_approved' || message?.includes('EDIT_APPROVED')) {
         setPendingAction('edit_approved');
-        setPendingGoalId(goal_id || editingGoal?.id);
+        const resolvedGoalId = goal_id || editingGoal?.id;
+        setPendingGoalId(resolvedGoalId);
+        // If we weren't already in an edit session, set it now
+        if (!editingGoal && resolvedGoalId) {
+          const found = goals.find(g => g.id === resolvedGoalId);
+          if (found) setEditingGoal(found);
+        }
       }
     } catch (err) {
       setMessages(prev => [...prev, { role: "assistant", content: "Something went wrong. Please try again." }]);
@@ -240,37 +244,6 @@ export default function Planner() {
                 New
               </Button>
             )}
-            {/* Edit existing goal picker */}
-            <div className="relative">
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-xs h-7 px-3 rounded-full border-violet-200 text-violet-700 hover:bg-violet-50 flex items-center gap-1"
-                onClick={() => setShowGoalPicker(v => !v)}
-              >
-                <Pencil className="w-3 h-3" />
-                Edit Goal
-                {showGoalPicker ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-              </Button>
-              {showGoalPicker && goals.length > 0 && (
-                <div className="absolute right-0 top-9 bg-white border border-gray-200 rounded-xl shadow-xl z-20 min-w-[220px] py-1">
-                  {goals.map(g => (
-                    <button
-                      key={g.id}
-                      onClick={() => startEditSession(g)}
-                      className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-violet-50 hover:text-violet-700 transition-colors first:rounded-t-xl last:rounded-b-xl"
-                    >
-                      {g.title}
-                    </button>
-                  ))}
-                </div>
-              )}
-              {showGoalPicker && goals.length === 0 && (
-                <div className="absolute right-0 top-9 bg-white border border-gray-200 rounded-xl shadow-xl z-20 min-w-[180px] px-4 py-3 text-sm text-gray-400">
-                  No active goals yet
-                </div>
-              )}
-            </div>
             <Button
               variant="ghost"
               size="sm"
