@@ -271,6 +271,26 @@ export default function Planner() {
               </div>
             )}
 
+            {/* Plan preview before approval - show when AI presents the draft */}
+            {messages.length > 0 && !isLoading && !pendingAction && !saved && !editingGoal && (
+              <div className="flex flex-col items-center gap-3 pt-2">
+                <Button
+                  onClick={handleSaveNewGoal}
+                  className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white rounded-2xl px-6 py-2.5 shadow-lg shadow-violet-100 font-semibold"
+                >
+                  <Check className="w-4 h-4 mr-2" />
+                  Looks good!
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setInput("I'd like to work on it some more")}
+                  className="rounded-2xl px-6 py-2.5 border-2 border-gray-300 text-gray-700 hover:bg-gray-50 font-semibold"
+                >
+                  I'd like to work on it some more
+                </Button>
+              </div>
+            )}
+
             {/* New goal approval */}
             {pendingAction === 'plan_approved' && !saved && (
               <div className="flex justify-center py-2">
