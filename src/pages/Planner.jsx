@@ -275,7 +275,7 @@ export default function Planner() {
             {pendingAction === 'plan_approved' && !saved && (
               <div className="flex justify-center py-2">
                 {isSaving ? (
-                  <SavingProgressBar />
+                  <GoalPlanLoadingAnimation />
                 ) : (
                   <Button
                     onClick={handleSaveNewGoal}
@@ -304,8 +304,8 @@ export default function Planner() {
             )}
 
             {saved && (
-              <div className="flex flex-col items-center gap-3 py-3">
-                <div className="flex items-center gap-2 bg-green-50 text-green-700 px-5 py-2.5 rounded-2xl text-sm font-semibold border border-green-200 animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <div className="flex flex-col items-center gap-3 py-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <div className="flex items-center gap-2 bg-green-50 text-green-700 px-5 py-2.5 rounded-2xl text-sm font-semibold border border-green-200">
                   <Check className="w-4 h-4" />
                   {pendingAction === 'edit_approved' ? 'Changes applied!' : 'Goal saved!'}
                 </div>
@@ -314,8 +314,8 @@ export default function Planner() {
                     <p className="text-sm text-violet-800 font-medium mb-1">Your plan is a living document 🌱</p>
                     <p className="text-xs text-violet-600 leading-relaxed mb-3">Come back anytime to adjust difficulty, add resources, skip ahead, extend the timeline, or completely restructure a phase. Just tell me what's working and what isn't.</p>
                     <div className="flex gap-2 justify-center">
-                      <Button size="sm" className="rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs" onClick={() => navigate("/Goals")}>
-                        View Goals
+                      <Button size="sm" className="rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs" onClick={() => navigate(`/goal/${pendingGoalId}`)}>
+                        Go to Goal
                       </Button>
                       <Button size="sm" variant="outline" className="rounded-xl text-xs border-violet-200 text-violet-700 hover:bg-violet-50" onClick={handleNewPlan}>
                         Plan Another
