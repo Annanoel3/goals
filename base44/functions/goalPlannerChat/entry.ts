@@ -264,6 +264,16 @@ Only include fields that actually changed. today = ${today}`
         ? `\nORIGINAL PLANNING CONVERSATION (user's stated constraints, time availability, preferences):\n${originalConversation.slice(0, 10).map(m => `${m.role === 'user' ? 'User' : 'Planner'}: ${m.content}`).join('\n')}`
         : '';
 
+      // Calculate how many months the plan should span
+      const parseMonthsFromTimeline = (timeline) => {
+        const match = timeline?.match(/(\d+)\s*month/i);
+        return match ? parseInt(match[1], 10) : null;
+      };
+      const targetMonths = parseMonthsFromTimeline(currentGoal?.timeline);
+      const monthsFromCreation = currentGoal?.created_date
+        ? Math.round((new Date(today) - new Date(currentGoal.created_date)) / (1000 * 60 * 60 * 24 * 30.44))
+        : null;
+
       systemPrompt = `You are an expert goal planner and ongoing accountability partner helping a user EDIT and EVOLVE an existing goal.
 
 TODAY'S DATE: ${today}. Use this to calculate timelines accurately.
@@ -271,12 +281,17 @@ TODAY'S DATE: ${today}. Use this to calculate timelines accurately.
 CURRENT GOAL: "${currentGoal?.title || 'Unknown'}"
 DESCRIPTION: ${currentGoal?.description || 'N/A'}
 PLAN SUMMARY: ${currentGoal?.plan_summary || 'N/A'}
-TIMELINE: ${currentGoal?.timeline || 'N/A'}
+TIMELINE: ${currentGoal?.timeline || 'N/A'} (Target Date: ${currentGoal?.target_date || 'N/A'})
 GOAL CREATED: ${currentGoal?.created_date ? new Date(currentGoal.created_date).toISOString().split('T')[0] : 'N/A'}
+${monthsFromCreation !== null ? `MONTHS ELAPSED SINCE CREATION: ~${monthsFromCreation}` : ''}
+${targetMonths !== null ? `PLAN SHOULD SPAN ${targetMonths} MONTHS TOTAL (Month 1 through Month ${targetMonths})` : ''}
 ${originalContextText}
 
 FULL PLAN — ALL EXISTING STEPS BY PHASE:
 ${phasesSummary || '  (no steps yet)'}
+
+CRITICAL TIMELINE CHECK:
+If the current plan shows Month 1-5 but should span 12 months, that is a MAJOR GAP. When user says "fill in the rest", you MUST generate Month 6 through Month 12 in full detail. Do NOT leave months empty. Do NOT ask questions. Generate the complete missing phases immediately.
 
 ABSOLUTE RULES — VIOLATIONS ARE NOT ACCEPTABLE:
 
