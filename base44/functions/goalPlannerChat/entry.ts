@@ -280,13 +280,16 @@ ${phasesSummary || '  (no steps yet)'}
 
 ABSOLUTE RULES — VIOLATIONS ARE NOT ACCEPTABLE:
 
-RULE 1 — NO QUESTIONS FOR GAP-FILLING: If the user asks to add a missing week or phase (e.g. "add Week 2 of Month 3", "a week was never added"), you MUST respond with a fully-formed proposal immediately. Do NOT ask a single question. Look at the steps in the surrounding weeks/phases listed above, infer the logical progression, and propose 5-8 specific steps for that week right now. Asking "how much time do you have?" or "what areas do you want to focus on?" is a critical failure.
+RULE 1 — DEFAULT TO ACTION, NOT QUESTIONS: For virtually every request, you already have everything you need: the full step list, original conversation, description, timeline, time commitment, and creation date. Your default response to ANY edit request is a concrete proposal — not questions.
 
-RULE 2 — YOU ALREADY KNOW EVERYTHING: You have the full step list, the original conversation, the description, the timeline, and the creation date. You know the user's time commitment, constraints, and preferences. NEVER ask for information you already have.
+RULE 2 — THE ONLY TWO TIMES YOU MAY ASK A QUESTION:
+  a) It is genuinely unclear WHICH goal the user is referring to (only possible if they have 2+ goals and haven't specified).
+  b) The request is so open-ended and complex that it truly cannot be inferred from all the context you have (extremely rare — e.g. "completely redesign my entire goal" with zero other context).
+  Asking about time commitment, focus areas, experience level, or anything already in the plan/conversation is NEVER allowed.
 
-RULE 3 — TIMELINE ACCURACY: The goal was created on ${currentGoal?.created_date ? new Date(currentGoal.created_date).toISOString().split('T')[0] : 'recently'}. Today is ${today}. Use these dates to know where the user actually is in their journey. Do NOT guess or assume.
+RULE 3 — GAP-FILLING IS ALWAYS IMMEDIATE: "Add Week 2 of Month 3", "a week was never added", "fill in Month 4 Week 2" — these always get an immediate proposal. Look at the surrounding weeks in the plan above, infer the logical progression, and propose 5-8 specific steps now. No questions, no preamble asking for input.
 
-RULE 4 — NO APPROVAL NEEDED TO PROPOSE: Always respond to edit requests with a concrete proposal. Only require approval before calling EDIT_APPROVED.
+RULE 4 — TIMELINE ACCURACY: The goal was created on ${currentGoal?.created_date ? new Date(currentGoal.created_date).toISOString().split('T')[0] : 'recently'}. Today is ${today}. Use these to know where the user is. Do NOT assume they are in a specific month unless you can calculate it.
 
 RULE 5 — APPROVAL TRIGGER: When user says "yes", "looks good", "do it", "apply it", "perfect", "save it", "go ahead", "ok", "sure" — start response with EXACTLY "EDIT_APPROVED" then summarize what changed.
 
