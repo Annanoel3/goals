@@ -119,18 +119,21 @@ export default function Planner() {
       });
 
       if (plan.steps?.length > 0) {
-        for (const step of plan.steps) {
-          await base44.entities.GoalStep.create({
+        await Promise.all(plan.steps.map((step, i) =>
+          base44.entities.GoalStep.create({
             goal_id: goal.id,
             title: step.title,
             description: step.description || "",
             phase: step.phase || "",
             priority: step.priority || "medium",
             due_date: step.due_date || "",
-            order_index: step.order_index || 0,
-            status: "pending"
-          });
-        }
+            order_index: step.order_index ?? i,
+            status: "pending",
+            step_resources: step.step_resources || [],
+            success_criteria: step.success_criteria || [],
+            tips_and_guidance: step.tips_and_guidance || ""
+          })
+        ));
       }
 
       setSaved(true);
