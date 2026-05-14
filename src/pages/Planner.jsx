@@ -295,26 +295,32 @@ export default function Planner() {
             {/* New goal approval */}
             {pendingAction === 'plan_approved' && !saved && (
               <div className="flex justify-center py-2">
-                <Button
-                  onClick={handleSaveNewGoal}
-                  disabled={isSaving}
-                  className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white rounded-2xl px-6 py-2.5 shadow-lg shadow-violet-100 font-semibold"
-                >
-                  {isSaving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving...</> : <><Plus className="w-4 h-4 mr-2" />Save This Goal</>}
-                </Button>
+                {isSaving ? (
+                  <SavingProgressBar />
+                ) : (
+                  <Button
+                    onClick={handleSaveNewGoal}
+                    className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white rounded-2xl px-6 py-2.5 shadow-lg shadow-violet-100 font-semibold"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />Save This Goal
+                  </Button>
+                )}
               </div>
             )}
 
             {/* Edit approval */}
             {pendingAction === 'edit_approved' && !saved && (
               <div className="flex justify-center py-2">
-                <Button
-                  onClick={handleApplyEdits}
-                  disabled={isSaving}
-                  className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-2xl px-6 py-2.5 shadow-lg shadow-emerald-100 font-semibold"
-                >
-                  {isSaving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Applying...</> : <><Check className="w-4 h-4 mr-2" />Apply Changes</>}
-                </Button>
+                {isSaving ? (
+                  <SavingProgressBar isEdit />
+                ) : (
+                  <Button
+                    onClick={handleApplyEdits}
+                    className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-2xl px-6 py-2.5 shadow-lg shadow-emerald-100 font-semibold"
+                  >
+                    <Check className="w-4 h-4 mr-2" />Apply Changes
+                  </Button>
+                )}
               </div>
             )}
 
@@ -457,6 +463,55 @@ function MessageBubble({ msg }) {
           : 'bg-white border border-gray-100 text-gray-800 rounded-bl-sm shadow-sm'
       }`}>
         {renderContent(msg.content)}
+      </div>
+    </div>
+  );
+}
+
+function SavingProgressBar({ isEdit = false }) {
+  const newGoalSteps = [
+    "Laying out the timeline…",
+    "Structuring your milestones…",
+    "Making sure the goal is achievable…",
+    "Adding resources and guidance…",
+    "Setting up success criteria…",
+    "Building your step-by-step plan…",
+    "Almost there…",
+  ];
+  const editSteps = [
+    "Reading your requested changes…",
+    "Updating the milestones…",
+    "Making sure everything fits together…",
+    "Applying your edits…",
+    "Almost done…",
+  ];
+  const steps = isEdit ? editSteps : newGoalSteps;
+  const [stepIndex, setStepIndex] = React.useState(0);
+  const [progress, setProgress] = React.useState(5);
+
+  React.useEffect(() => {
+    const totalDuration = isEdit ? 8000 : 14000;
+    const interval = totalDuration / steps.length;
+    const stepTimer = setInterval(() => {
+      setStepIndex(i => Math.min(i + 1, steps.length - 1));
+    }, interval);
+    const progressTimer = setInterval(() => {
+      setProgress(p => Math.min(p + 1, 92));
+    }, totalDuration / 92);
+    return () => { clearInterval(stepTimer); clearInterval(progressTimer); };
+  }, []);
+
+  return (
+    <div className="w-full max-w-sm bg-white border border-violet-100 rounded-2xl px-5 py-4 shadow-md shadow-violet-50">
+      <div className="flex items-center gap-2 mb-3">
+        <Loader2 className="w-4 h-4 text-violet-500 animate-spin flex-shrink-0" />
+        <p className="text-sm font-medium text-violet-800 transition-all duration-500">{steps[stepIndex]}</p>
+      </div>
+      <div className="h-2 bg-violet-100 rounded-full overflow-hidden">
+        <div
+          className="h-full bg-gradient-to-r from-violet-500 to-indigo-500 rounded-full transition-all duration-1000 ease-out"
+          style={{ width: `${progress}%` }}
+        />
       </div>
     </div>
   );
