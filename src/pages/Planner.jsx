@@ -421,33 +421,94 @@ function EmptyState({ onExampleClick }) {
   );
 }
 
+function renderInlineText(text) {
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const parts = text.split(/(\*\*[^*]+\*\*|https?:\/\/[^\s]+)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**')) return <strong key={i}>{part.slice(2, -2)}</strong>;
+    if (part.match(urlRegex)) return (
+      <a key={i} href={part} target="_blank" rel="noopener noreferrer"
+        className="underline hover:opacity-80 transition-opacity font-semibold break-all">{part}</a>
+    );
+    return part;
+  });
+}
+
+function CollapsibleSection({ title, body }) {
+  const [open, setOpen] = React.useState(false);
+  // First ~8 words for the preview
+  const previewWords = body.trim().split(/\s+/).slice(0, 8).join(' ');
+  const hasMore = body.trim().split(/\s+/).length > 8;
+
+  return (
+    <div className="border border-gray-100 rounded-xl mb-2 overflow-hidden bg-gray-50">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left hover:bg-gray-100 transition-colors"
+      >
+        <span className="font-semibold text-gray-800 text-sm">{title}</span>
+        {open ? <ChevronUp className="w-4 h-4 text-gray-400 flex-shrink-0" /> : <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />}
+      </button>
+      {!open && hasMore && (
+        <div className="px-3 pb-2 relative pointer-events-none">
+          <p className="text-xs text-gray-400 leading-relaxed">
+            {previewWords}…
+          </p>
+        </div>
+      )}
+      {open && (
+        <div className="px-3 pb-3 text-sm text-gray-700 leading-relaxed whitespace-pre-wrap border-t border-gray-100 pt-2">
+          {renderInlineText(body.trim())}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function MessageBubble({ msg }) {
   const isUser = msg.role === "user";
-  // Render bold markdown (**text**) and clickable links
-  const renderContent = (text) => {
-    // URL regex that catches http/https links
-    const urlRegex = /(https?:\/\/[^\s]+)/g;
-    const parts = text.split(/(\*\*[^*]+\*\*|https?:\/\/[^\s]+)/g);
-    
-    return parts.map((part, i) => {
-      if (part.startsWith('**') && part.endsWith('**')) {
-        return <strong key={i}>{part.slice(2, -2)}</strong>;
+
+  // Parse assistant messages: detect numbered/titled sections like "1. Title:\n   - ..."
+  const parseBlocks = (text) => {
+    // Match patterns like: "1. Title:" or "**Month 1:**" or "### Week 1" etc.
+    const sectionRegex = /^(\d+\.\s+[^\n:]+:?|#{1,3}\s+[^\n]+|\*\*[^\n*]+\*\*:?)$/;
+    const lines = text.split('\n');
+    const blocks = [];
+    let i = 0;
+
+    while (i < lines.length) {
+      const line = lines[i].trim();
+      if (sectionRegex.test(line)) {
+        // Collect body lines until the next section header or end
+        const title = line.replace(/^\*\*|\*\*:?$|^#{1,3}\s+/g, '').replace(/:$/, '').trim();
+        let bodyLines = [];
+        i++;
+        while (i < lines.length && !sectionRegex.test(lines[i].trim())) {
+          bodyLines.push(lines[i]);
+          i++;
+        }
+        const body = bodyLines.join('\n').trim();
+        if (body) {
+          blocks.push({ type: 'section', title, body });
+        } else {
+          blocks.push({ type: 'text', content: line });
+        }
+      } else {
+        // Accumulate plain text lines
+        let textLines = [];
+        while (i < lines.length && !sectionRegex.test(lines[i].trim())) {
+          textLines.push(lines[i]);
+          i++;
+        }
+        const content = textLines.join('\n').trim();
+        if (content) blocks.push({ type: 'text', content });
       }
-      if (part.match(urlRegex)) {
-        return (
-          <a
-            key={i}
-            href={part}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline hover:opacity-80 transition-opacity font-semibold break-all"
-          >
-            {part}
-          </a>
-        );
-      }
-      return part;
-    });
+    }
+    return blocks;
+  };
+
+  const hasSections = (text) => {
+    return /^\d+\.\s+[^\n:]+:?$/m.test(text) || /^#{1,3}\s+/m.test(text);
   };
 
   return (
@@ -457,12 +518,24 @@ function MessageBubble({ msg }) {
           <Sparkles className="w-3.5 h-3.5 text-white" />
         </div>
       )}
-      <div className={`max-w-[82%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
+      <div className={`max-w-[82%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
         isUser
-          ? 'bg-gradient-to-br from-violet-600 to-indigo-600 text-white rounded-br-sm shadow-md shadow-violet-100'
+          ? 'bg-gradient-to-br from-violet-600 to-indigo-600 text-white rounded-br-sm shadow-md shadow-violet-100 whitespace-pre-wrap'
           : 'bg-white border border-gray-100 text-gray-800 rounded-bl-sm shadow-sm'
       }`}>
-        {renderContent(msg.content)}
+        {isUser ? renderInlineText(msg.content) : (
+          hasSections(msg.content) ? (
+            <div>
+              {parseBlocks(msg.content).map((block, i) =>
+                block.type === 'section'
+                  ? <CollapsibleSection key={i} title={block.title} body={block.body} />
+                  : <p key={i} className="text-sm text-gray-800 leading-relaxed mb-2 whitespace-pre-wrap">{renderInlineText(block.content)}</p>
+              )}
+            </div>
+          ) : (
+            <span className="whitespace-pre-wrap">{renderInlineText(msg.content)}</span>
+          )
+        )}
       </div>
     </div>
   );
