@@ -124,7 +124,7 @@ CRITICAL:
         messages: [
           {
             role: "system",
-            content: `You extract approved goal edits from a conversation. Return ONLY valid JSON, no markdown.`
+            content: `You extract approved goal edits from a conversation. Return ONLY valid JSON, no markdown. CRITICAL: Extract EVERY proposed step from the planner's response, not just a sample. If the planner proposed 30 steps, return all 30.`
           },
           {
             role: "user",
@@ -134,7 +134,13 @@ Current steps: ${stepsJson}
 Conversation about edits:
 ${conversationText}
 
-Extract the APPROVED changes. Return JSON:
+Extract the APPROVED changes. CRITICAL RULES:
+1. If the planner proposed new months/weeks (e.g., "Here's Month 6-12" or "Here are the missing months"), extract EVERY SINGLE STEP from that proposal.
+2. Do NOT omit any steps. Count the steps in the proposal and ensure your steps_to_add array has the SAME count.
+3. For each step, include: title, description, phase (e.g. "Month 6, Week 1"), priority, due_date, order_index, step_resources, success_criteria, tips_and_guidance.
+4. Preserve the exact phase naming from the proposal (if it says "Month 6, Week 1", use exactly that).
+
+Return JSON:
 {
   "goal_updates": {
     "title": "optional - only if changed",
@@ -144,7 +150,7 @@ Extract the APPROVED changes. Return JSON:
     "target_date": "YYYY-MM-DD - optional - only if changed"
   },
   "steps_to_add": [
-    { "title": "...", "description": "...", "phase": "...", "priority": "low|medium|high|critical", "due_date": "YYYY-MM-DD", "order_index": 999 }
+    { "title": "...", "description": "...", "phase": "...", "priority": "low|medium|high|critical", "due_date": "YYYY-MM-DD", "order_index": 999, "step_resources": [], "success_criteria": [], "tips_and_guidance": "" }
   ],
   "steps_to_update": [
     { "id": "existing step id", "title": "...", "description": "...", "phase": "...", "priority": "...", "due_date": "YYYY-MM-DD" }
