@@ -103,7 +103,7 @@ export default function Planner() {
     } finally {
       setIsLoading(false);
     }
-  }, [isLoading, editingGoal]);
+  }, [isLoading, editingGoal, goals, userCity]);
 
   const handleSaveNewGoal = async () => {
     setIsSaving(true);
