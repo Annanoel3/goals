@@ -108,7 +108,22 @@ export default function GoalDetail() {
             </Button>
           </div>
 
-          {goal.plan_summary && <p className="text-gray-700 mb-4 leading-relaxed">{goal.plan_summary}</p>}
+          {goal.plan_summary && (
+            <p className="text-gray-700 mb-4 leading-relaxed whitespace-pre-wrap">
+              {goal.plan_summary.split(/(\[Click here\]|\(https?:\/\/[^\)]+\))/g).map((part, idx) => {
+                const urlMatch = part.match(/\(https?:\/\/([^\)]+)\)/);
+                if (urlMatch) {
+                  const url = urlMatch[1];
+                  return (
+                    <a key={idx} href={`https://${url}`} target="_blank" rel="noopener noreferrer" className="text-violet-600 hover:text-violet-700 hover:underline font-semibold">
+                      {part}
+                    </a>
+                  );
+                }
+                return part;
+              })}
+            </p>
+          )}
 
           {/* Progress */}
           {steps.length > 0 && (
