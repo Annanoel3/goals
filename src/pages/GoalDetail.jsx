@@ -10,6 +10,7 @@ import { useToast } from "@/components/ui/use-toast";
 import StepDetailsModal from "@/components/goals/StepDetailsModal";
 import HabitTimePrompt from "@/components/goals/HabitTimePrompt";
 import HabitCheckInModal from "@/components/goals/HabitCheckInModal";
+import HabitWeekTracker from "@/components/goals/HabitWeekTracker";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 export default function GoalDetail() {
@@ -226,6 +227,9 @@ export default function GoalDetail() {
                                    </div>
                                  </div>
                                </button>
+                               {step.is_daily_habit && step.status !== 'completed' && (
+                                 <HabitWeekTracker step={step} onUpdate={loadData} />
+                               )}
                                {step.is_daily_habit && !step.habit_time && step.status !== 'completed' && (
                                  <HabitTimePrompt step={step} onScheduled={loadData} />
                                )}

@@ -26,6 +26,11 @@ export default function HabitCheckInModal({ step, onClose, onCheckedIn }) {
       }
       if (didIt) {
         updates.completed_at = new Date().toISOString();
+        // Record today in the weekly tracker
+        const existing = step.habit_completions || [];
+        if (!existing.includes(today)) {
+          updates.habit_completions = [...existing, today];
+        }
       }
       await base44.entities.GoalStep.update(step.id, updates);
       toast({

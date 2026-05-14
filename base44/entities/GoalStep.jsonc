@@ -150,6 +150,15 @@
       "type": "string",
       "format": "date",
       "description": "The last date the user did a habit check-in"
+    },
+    "habit_completions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "format": "date"
+      },
+      "default": [],
+      "description": "Array of ISO date strings (YYYY-MM-DD) on which the habit was completed"
     }
   },
   "required": [
