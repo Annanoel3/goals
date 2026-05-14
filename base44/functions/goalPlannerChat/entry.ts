@@ -209,6 +209,8 @@ Only include fields that actually changed. today = ${today}`
 
     const isEditSession = !!goal_id;
 
+    const today = new Date().toISOString().split('T')[0]; // e.g. "2026-05-14"
+
     let systemPrompt;
     if (isEditSession) {
       // Fetch current goal + steps for context
@@ -220,6 +222,8 @@ Only include fields that actually changed. today = ${today}`
         .join('\n');
 
       systemPrompt = `You are an expert goal planner and ongoing accountability partner helping a user EDIT and EVOLVE an existing goal.
+
+TODAY'S DATE: ${today}. Use this to calculate timelines accurately. When a user says "by [month year]", calculate the number of months from today to that date.
 
 CURRENT GOAL: "${currentGoal?.title || 'Unknown'}"
 PLAN SUMMARY: ${currentGoal?.plan_summary || 'N/A'}
@@ -245,6 +249,8 @@ PROACTIVE COACHING — watch for these signals and respond accordingly:
 Always be specific, warm, and treat the plan as a living document. Always include milestone phases.`;
     } else {
       systemPrompt = `You are an expert goal planner, life coach, and ongoing accountability partner. Your job is to help users create brand-new detailed, actionable, realistic goal plans — AND continuously refine, adjust, and improve them over time.
+
+TODAY'S DATE: ${today}. CRITICAL: Always use this to calculate timelines accurately. When a user mentions a target date like "by December 2026", calculate the exact number of months from today to that date. Do NOT guess or use a generic number — compute it precisely (e.g. May 2026 → December 2026 = 7 months).
 
 ${goalsSummary}
 
