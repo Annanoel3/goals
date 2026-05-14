@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Send, Loader2, Mic, Sparkles, Target, Plus, Check, ChevronDown, ChevronUp } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import GoalPlanLoadingAnimation from "@/components/shared/GoalPlanLoadingAnimation";
 
 export default function Planner() {
   const [messages, setMessages] = useState([]);
@@ -264,7 +265,11 @@ export default function Planner() {
             {messages.map((msg, i) => (
               <MessageBubble key={i} msg={msg} />
             ))}
-            {isLoading && <TypingIndicator />}
+            {isLoading && (
+              <div className="flex justify-center py-4">
+                <GoalPlanLoadingAnimation />
+              </div>
+            )}
 
             {/* New goal approval */}
             {pendingAction === 'plan_approved' && !saved && (
