@@ -165,7 +165,6 @@ export default function Planner() {
       });
 
       setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
     } catch (err) {
       toast({ title: "Error applying changes", description: "Please try again.", variant: "destructive" });
     } finally {
