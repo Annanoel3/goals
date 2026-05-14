@@ -408,14 +408,31 @@ function EmptyState({ onExampleClick }) {
 
 function MessageBubble({ msg }) {
   const isUser = msg.role === "user";
-  // Render bold markdown (**text**)
+  // Render bold markdown (**text**) and clickable links
   const renderContent = (text) => {
-    const parts = text.split(/(\*\*[^*]+\*\*)/g);
-    return parts.map((part, i) =>
-      part.startsWith('**') && part.endsWith('**')
-        ? <strong key={i}>{part.slice(2, -2)}</strong>
-        : part
-    );
+    // URL regex that catches http/https links
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const parts = text.split(/(\*\*[^*]+\*\*|https?:\/\/[^\s]+)/g);
+    
+    return parts.map((part, i) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return <strong key={i}>{part.slice(2, -2)}</strong>;
+      }
+      if (part.match(urlRegex)) {
+        return (
+          <a
+            key={i}
+            href={part}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:opacity-80 transition-opacity font-semibold break-all"
+          >
+            {part}
+          </a>
+        );
+      }
+      return part;
+    });
   };
 
   return (
