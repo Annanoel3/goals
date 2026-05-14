@@ -142,7 +142,6 @@ export default function Planner() {
       setSaved(true);
       setPendingGoalId(goal.id);
       toast({ title: "Goal saved!", description: `"${plan.title}" is ready.` });
-      setTimeout(() => navigate("/Goals"), 2500);
     } catch (err) {
       toast({ title: "Error saving goal", description: "Please try again.", variant: "destructive" });
     } finally {
@@ -162,7 +161,6 @@ export default function Planner() {
 
       setSaved(true);
       toast({ title: "Goal updated!", description: "Your changes have been applied." });
-      setTimeout(() => navigate(`/goal/${pendingGoalId || editingGoal?.id}`), 1500);
     } catch (err) {
       toast({ title: "Error applying changes", description: "Please try again.", variant: "destructive" });
     } finally {
@@ -329,7 +327,15 @@ export default function Planner() {
                 {pendingAction !== 'edit_approved' && (
                   <div className="bg-violet-50 border border-violet-100 rounded-2xl px-5 py-4 max-w-sm text-center">
                     <p className="text-sm text-violet-800 font-medium mb-1">Your plan is a living document 🌱</p>
-                    <p className="text-xs text-violet-600 leading-relaxed">Come back anytime to adjust difficulty, add resources, skip ahead, extend the timeline, or completely restructure a phase. Just tell me what's working and what isn't.</p>
+                    <p className="text-xs text-violet-600 leading-relaxed mb-3">Come back anytime to adjust difficulty, add resources, skip ahead, extend the timeline, or completely restructure a phase. Just tell me what's working and what isn't.</p>
+                    <div className="flex gap-2 justify-center">
+                      <Button size="sm" className="rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs" onClick={() => navigate("/Goals")}>
+                        View Goals
+                      </Button>
+                      <Button size="sm" variant="outline" className="rounded-xl text-xs border-violet-200 text-violet-700 hover:bg-violet-50" onClick={handleNewPlan}>
+                        Plan Another
+                      </Button>
+                    </div>
                   </div>
                 )}
               </div>
