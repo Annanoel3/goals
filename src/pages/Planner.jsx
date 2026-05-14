@@ -220,7 +220,7 @@ export default function Planner() {
   return (
     <div className={`min-h-screen flex flex-col ${isColorful ? 'bg-gradient-to-br from-purple-200 via-pink-200 to-blue-200' : 'bg-gray-50'}`} style={{ paddingBottom: 'max(7rem, calc(7rem + env(safe-area-inset-bottom)))' }}>
       {/* Header */}
-      <div className={`sticky top-0 z-10 ${isColorful ? 'bg-gradient-to-r from-purple-300/90 to-pink-300/90 border-purple-300/50' : 'bg-white/90 border-gray-100'} backdrop-blur-lg border-b px-4 py-3`}>
+      <div className={`fixed top-0 left-0 right-0 z-50 ${isColorful ? 'bg-gradient-to-r from-purple-300/90 to-pink-300/90 border-purple-300/50' : 'bg-white/90 border-gray-100'} backdrop-blur-lg border-b px-4 py-3`}>
         <div className="max-w-2xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-sm">
@@ -255,7 +255,7 @@ export default function Planner() {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 max-w-2xl w-full mx-auto px-4 pt-6 space-y-4">
+      <div className="flex-1 max-w-2xl w-full mx-auto px-4 pt-24 space-y-4">
         {isEmpty ? (
           <EmptyState onExampleClick={sendMessage} />
         ) : (
