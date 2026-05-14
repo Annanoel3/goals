@@ -202,17 +202,17 @@ Only include fields that actually changed. today = ${today}`
     }
 
     // ── CHAT: main conversational mode ────────────────────────────────────────
-    // Load user's existing goals to allow editing by name
+    // Load user's existing goals — use user-scoped client so RLS returns their own goals
     let existingGoalsList = [];
     try {
-      existingGoalsList = await base44.asServiceRole.entities.Goal.filter({ created_by: user.email });
+      existingGoalsList = await base44.entities.Goal.list('-created_date', 50);
     } catch (_) { /* ignore */ }
 
     // Load steps for all goals so AI has full context even in new-plan mode
     let allStepsMap = {};
     try {
       for (const g of existingGoalsList) {
-        const steps = await base44.asServiceRole.entities.GoalStep.filter({ goal_id: g.id });
+        const steps = await base44.entities.GoalStep.filter({ goal_id: g.id });
         allStepsMap[g.id] = steps.sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
       }
     } catch (_) { /* ignore */ }
