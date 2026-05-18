@@ -9,8 +9,8 @@ import { Task } from "@/entities/Task";
 import { ParkingLotIdea } from "@/entities/ParkingLotIdea";
 import { User } from "@/entities/User";
 import { scheduleReminder } from "../utils/reminderScheduler";
-import { VoiceRecorder } from 'capacitor-voice-recorder';
 import { Capacitor } from '@capacitor/core';
+import { hasAudioPermission, requestAudioPermission, startNativeRecording, stopNativeRecording } from '@/lib/voiceRecorder';
 
 export default function UniversalVoiceAssistant({ theme, currentPageName }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -32,15 +32,15 @@ export default function UniversalVoiceAssistant({ theme, currentPageName }) {
   const startRecording = async () => {
     try {
       if (Capacitor.isNativePlatform()) {
-        const { value: hasPermission } = await VoiceRecorder.hasAudioRecordingPermission();
+        const hasPermission = await hasAudioPermission();
         if (!hasPermission) {
-          const { value: granted } = await VoiceRecorder.requestAudioRecordingPermission();
+          const granted = await requestAudioPermission();
           if (!granted) {
             setFeedbackMessage("❌ Microphone permission denied");
             return;
           }
         }
-        await VoiceRecorder.startRecording();
+        await startNativeRecording();
       } else {
         // Web fallback using MediaRecorder
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -74,8 +74,8 @@ export default function UniversalVoiceAssistant({ theme, currentPageName }) {
 
     if (Capacitor.isNativePlatform()) {
       try {
-        const result = await VoiceRecorder.stopRecording();
-        const { recordDataBase64, mimeType } = result.value;
+        const recording = await stopNativeRecording();
+        const { recordDataBase64, mimeType } = recording;
         // Convert base64 to File
         const byteChars = atob(recordDataBase64);
         const byteArr = new Uint8Array(byteChars.length);

@@ -2,8 +2,8 @@ import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Mic, Square, Loader2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
-import { VoiceRecorder } from 'capacitor-voice-recorder';
 import { Capacitor } from '@capacitor/core';
+import { hasAudioPermission, requestAudioPermission, startNativeRecording, stopNativeRecording } from '@/lib/voiceRecorder';
 
 export default function VoiceTaskInput({ onTranscription, theme, inline = true }) {
   const [isRecording, setIsRecording] = useState(false);
@@ -12,12 +12,12 @@ export default function VoiceTaskInput({ onTranscription, theme, inline = true }
   const startRecording = async () => {
     try {
       if (Capacitor.isNativePlatform()) {
-        const { value: hasPermission } = await VoiceRecorder.hasAudioRecordingPermission();
+        const hasPermission = await hasAudioPermission();
         if (!hasPermission) {
-          const { value: granted } = await VoiceRecorder.requestAudioRecordingPermission();
+          const granted = await requestAudioPermission();
           if (!granted) return;
         }
-        await VoiceRecorder.startRecording();
+        await startNativeRecording();
         setIsRecording(true);
       } else {
         // Web fallback
@@ -50,8 +50,8 @@ export default function VoiceTaskInput({ onTranscription, theme, inline = true }
 
     if (Capacitor.isNativePlatform()) {
       try {
-        const result = await VoiceRecorder.stopRecording();
-        const { recordDataBase64, mimeType } = result.value;
+        const recording = await stopNativeRecording();
+        const { recordDataBase64, mimeType } = recording;
         const byteChars = atob(recordDataBase64);
         const byteArr = new Uint8Array(byteChars.length);
         for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);

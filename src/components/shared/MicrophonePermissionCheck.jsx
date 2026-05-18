@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Mic, CheckCircle } from "lucide-react";
-import { VoiceRecorder } from 'capacitor-voice-recorder';
 import { Capacitor } from '@capacitor/core';
+import { hasAudioPermission, requestAudioPermission } from '@/lib/voiceRecorder';
 
 export default function MicrophonePermissionCheck({ theme }) {
   const [showPrompt, setShowPrompt] = useState(false);
@@ -21,7 +21,7 @@ export default function MicrophonePermissionCheck({ theme }) {
 
   const requestPermission = async () => {
     try {
-      const { value: hasPermission } = await VoiceRecorder.hasAudioRecordingPermission();
+      const hasPermission = await hasAudioPermission();
       if (hasPermission) {
         localStorage.setItem('microphone_permission_asked', 'granted');
         setPermissionStatus('granted');
@@ -29,7 +29,7 @@ export default function MicrophonePermissionCheck({ theme }) {
         return;
       }
 
-      const { value: granted } = await VoiceRecorder.requestAudioRecordingPermission();
+      const granted = await requestAudioPermission();
       localStorage.setItem('microphone_permission_asked', granted ? 'granted' : 'denied');
       if (granted) {
         setPermissionStatus('granted');
