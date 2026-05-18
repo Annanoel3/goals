@@ -2,6 +2,10 @@
 .env
 .env.*
 
+# Android release signing — never commit
+*.keystore
+*.jks
+
 # Logs
 logs
 *.log
