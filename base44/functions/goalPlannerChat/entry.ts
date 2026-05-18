@@ -31,12 +31,12 @@ Deno.serve(async (req) => {
 
 ${conversationText}
 
-Return JSON (no markdown) in EXACTLY this structure. CRITICAL STRUCTURAL RULE FOR GOALS 3+ MONTHS:
+Return JSON (no markdown) in EXACTLY this structure. CRITICAL STRUCTURAL RULE FOR ALL GOALS 1+ MONTHS:
 - Calculate the EXACT number of months from today (${today}) to target date.
-- If the plan is 3+ months, organize steps as: Month 1 Week 1, Month 1 Week 2, Month 1 Week 3, Month 1 Week 4, Month 2 Week 1, etc.
+- Organize steps as: Month 1 Week 1, Month 1 Week 2, Month 1 Week 3, Month 1 Week 4, Month 2 Week 1, etc.
 - Each week must have 3-5 actionable steps (consistent distribution).
 - NO SKIPPED WEEKS OR MONTHS. If the plan spans 6 months, generate all 24 weeks (6 × 4).
-- For goals under 3 months, weeks are optional — just use "Month 1", "Month 2" phases directly.
+- For goals under 1 month, just use "Week 1", "Week 2" phases directly.
 
 IMPORTANT: Create AT LEAST 15-20+ detailed subtasks PER MILESTONE. CRITICAL: If the user said "by end of year" or "by [month]", calculate the EXACT number of months from today (${today}) to that date and use that as the timeline. Do NOT use a generic number.
 {
@@ -112,8 +112,8 @@ CRITICAL:
         const phases = new Set(p.steps.map(s => s.phase || 'Uncategorized').filter(ph => ph !== 'Uncategorized'));
         const phaseArray = Array.from(phases).sort();
         
-        // For 3+ month goals: enforce week structure (Month X Week Y)
-        if (expectedMonths >= 3) {
+        // For 1+ month goals: enforce week structure (Month X Week Y)
+        if (expectedMonths >= 1) {
           const monthWeekCounts = {};
           let hasWeekStructure = false;
           
@@ -176,26 +176,21 @@ CRITICAL:
               };
             }
           }
-        } else {
-          // For shorter goals (< 3 months), just check months are present
-          const monthCounts = {};
+        } else if (expectedMonths < 1) {
+          // For goals under 1 month, just use weeks (Week 1, Week 2, etc.)
+          const weekCounts = {};
           phaseArray.forEach(phase => {
-            const monthMatch = phase.match(/Month (\d+)/i);
-            if (monthMatch) {
-              const monthNum = parseInt(monthMatch[1], 10);
-              monthCounts[monthNum] = true;
+            const weekMatch = phase.match(/Week (\d+)/i);
+            if (weekMatch) {
+              const weekNum = parseInt(weekMatch[1], 10);
+              weekCounts[weekNum] = true;
             }
           });
           
-          const missingMonths = [];
-          for (let i = 1; i <= expectedMonths; i++) {
-            if (!monthCounts[i]) missingMonths.push(i);
-          }
-          
-          if (missingMonths.length > 0) {
+          if (Object.keys(weekCounts).length === 0) {
             return {
               valid: false,
-              error: `Plan is incomplete: missing Month ${missingMonths.join(', Month ')}.`
+              error: `Plan structure missing: expected week-based phases for goals under 1 month.`
             };
           }
         }
