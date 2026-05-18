@@ -39,8 +39,7 @@ export async function maybeShowAdOnOpen() {
   if (hasShownAdThisLaunch) return;
   hasShownAdThisLaunch = true;
 
-  const count = parseInt(localStorage.getItem('appOpenCount') || '0') + 1;
-  localStorage.setItem('appOpenCount', String(count));
+  const count = parseInt(localStorage.getItem('app_open_count') || '0');
 
   if (count % SHOW_EVERY_N_OPENS === 0) {
     await new Promise(resolve => setTimeout(resolve, AD_DELAY_MS));
