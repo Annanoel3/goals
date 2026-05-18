@@ -68,7 +68,15 @@ IMPORTANT: Create AT LEAST 15-20+ detailed subtasks PER MILESTONE. CRITICAL: If 
         "another criterion"
       ],
       "tips_and_guidance": "specific advice, common pitfalls, best practices for this step",
-      "is_daily_habit": false
+      "is_daily_habit": false,
+      "sub_steps": [
+        {
+          "title": "granular sub-step (optional — use if step needs 2-3 detailed actions)",
+          "description": "what specifically to do",
+          "priority": "low|medium|high",
+          "due_date": "YYYY-MM-DD"
+        }
+      ]
     }
   ]
 }
@@ -365,7 +373,7 @@ Only include fields that actually changed. today = ${today}`
       // Add new steps (user-scoped so created_by is set correctly for RLS)
       if (edits.steps_to_add?.length > 0) {
         for (const step of edits.steps_to_add) {
-          await base44.entities.GoalStep.create({
+          const createdStep = await base44.entities.GoalStep.create({
             goal_id,
             title: step.title,
             description: step.description || "",
@@ -378,6 +386,23 @@ Only include fields that actually changed. today = ${today}`
             success_criteria: step.success_criteria || [],
             tips_and_guidance: step.tips_and_guidance || ""
           });
+
+          // Create sub-steps if provided
+          if (step.sub_steps?.length > 0) {
+            for (const subStep of step.sub_steps) {
+              await base44.entities.GoalStep.create({
+                goal_id,
+                parent_step_id: createdStep.id,
+                title: subStep.title,
+                description: subStep.description || "",
+                phase: step.phase || "",
+                priority: subStep.priority || "low",
+                due_date: subStep.due_date || "",
+                order_index: 0,
+                status: "pending"
+              });
+            }
+          }
         }
       }
 

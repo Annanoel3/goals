@@ -6,6 +6,10 @@
       "type": "string",
       "description": "The parent goal ID"
     },
+    "parent_step_id": {
+      "type": "string",
+      "description": "The parent step ID (if this is a sub-step)"
+    },
     "title": {
       "type": "string",
       "description": "Step/subtask title"
@@ -42,7 +46,7 @@
     },
     "phase": {
       "type": "string",
-      "description": "Which phase/month/week this step belongs to, e.g. 'Month 1', 'Week 3'"
+      "description": "Which phase/month/week this step belongs to, e.g. 'Month 1 Week 2'"
     },
     "order_index": {
       "type": "number",

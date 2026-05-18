@@ -167,8 +167,9 @@ export default function Planner() {
       });
 
       if (plan.steps?.length > 0) {
-        await Promise.all(plan.steps.map((step, i) =>
-          base44.entities.GoalStep.create({
+        for (let i = 0; i < plan.steps.length; i++) {
+          const step = plan.steps[i];
+          const createdStep = await base44.entities.GoalStep.create({
             goal_id: goal.id,
             title: step.title,
             description: step.description || "",
@@ -181,8 +182,25 @@ export default function Planner() {
             success_criteria: step.success_criteria || [],
             tips_and_guidance: step.tips_and_guidance || "",
             is_daily_habit: step.is_daily_habit === true
-          })
-        ));
+          });
+
+          // Create sub-steps if provided
+          if (step.sub_steps?.length > 0) {
+            for (const subStep of step.sub_steps) {
+              await base44.entities.GoalStep.create({
+                goal_id: goal.id,
+                parent_step_id: createdStep.id,
+                title: subStep.title,
+                description: subStep.description || "",
+                phase: step.phase || "",
+                priority: subStep.priority || "low",
+                due_date: subStep.due_date || "",
+                order_index: 0,
+                status: "pending"
+              });
+            }
+          }
+        }
       }
 
       setSaved(true);
