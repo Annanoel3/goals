@@ -1,0 +1,176 @@
+{
+  "name": "GoalStep",
+  "type": "object",
+  "properties": {
+    "goal_id": {
+      "type": "string",
+      "description": "The parent goal ID"
+    },
+    "title": {
+      "type": "string",
+      "description": "Step/subtask title"
+    },
+    "description": {
+      "type": "string",
+      "description": "Detailed description of this step"
+    },
+    "priority": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ],
+      "default": "medium",
+      "description": "Priority level of this step"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "in_progress",
+        "completed",
+        "skipped"
+      ],
+      "default": "pending"
+    },
+    "due_date": {
+      "type": "string",
+      "format": "date",
+      "description": "When this step should be completed"
+    },
+    "phase": {
+      "type": "string",
+      "description": "Which phase/month/week this step belongs to, e.g. 'Month 1', 'Week 3'"
+    },
+    "order_index": {
+      "type": "number",
+      "description": "Order within the goal plan",
+      "default": 0
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "onesignal_notification_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Scheduled notification IDs for this step",
+      "default": []
+    },
+    "notes": {
+      "type": "string",
+      "description": "Notes specific to this step"
+    },
+    "step_resources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "video",
+              "book",
+              "article",
+              "tool",
+              "course",
+              "website",
+              "other"
+            ],
+            "description": "Type of resource"
+          },
+          "title": {
+            "type": "string",
+            "description": "Name of the resource"
+          },
+          "url": {
+            "type": "string",
+            "description": "Link to the resource"
+          },
+          "description": {
+            "type": "string",
+            "description": "Brief description or how to use it"
+          },
+          "specific_details": {
+            "type": "string",
+            "description": "Specific sections, times, pages, etc."
+          }
+        },
+        "required": [
+          "type",
+          "title"
+        ]
+      },
+      "default": [],
+      "description": "Resources needed for this specific step"
+    },
+    "success_criteria": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Measurable indicators of completion"
+    },
+    "tips_and_guidance": {
+      "type": "string",
+      "description": "Specific advice, best practices, or common pitfalls to avoid"
+    },
+    "pictures": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Array of image URLs attached to this step",
+      "default": []
+    },
+    "is_daily_habit": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether this step is a recurring daily habit (e.g. morning affirmations, meditation, journaling)"
+    },
+    "habit_time": {
+      "type": "string",
+      "description": "Time of day for the daily habit reminder, e.g. '07:00'"
+    },
+    "habit_notification_id": {
+      "type": "string",
+      "description": "OneSignal notification ID for the scheduled daily habit reminder"
+    },
+    "habit_checkin_pending": {
+      "type": "boolean",
+      "default": false,
+      "description": "True when the user was notified but hasn't checked in yet"
+    },
+    "last_habit_checkin_date": {
+      "type": "string",
+      "format": "date",
+      "description": "The last date the user did a habit check-in"
+    },
+    "habit_completions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "format": "date"
+      },
+      "default": [],
+      "description": "Array of ISO date strings (YYYY-MM-DD) on which the habit was completed"
+    }
+  },
+  "required": [
+    "goal_id",
+    "title"
+  ],
+  "rls": {
+    "read": {
+      "created_by": "{{user.email}}"
+    },
+    "write": {
+      "created_by": "{{user.email}}"
+    }
+  }
+}

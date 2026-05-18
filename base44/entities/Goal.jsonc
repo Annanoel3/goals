@@ -1,0 +1,104 @@
+{
+  "name": "Goal",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "The goal title, e.g. 'Learn Spanish'"
+    },
+    "description": {
+      "type": "string",
+      "description": "Full goal description and context from the user"
+    },
+    "plan_summary": {
+      "type": "string",
+      "description": "The AI-generated plan summary text"
+    },
+    "timeline": {
+      "type": "string",
+      "description": "Timeline description, e.g. '5 months', '1 year'"
+    },
+    "target_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Target completion date"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "completed",
+        "paused"
+      ],
+      "default": "active",
+      "description": "Current status of the goal"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "learning",
+        "health",
+        "career",
+        "finance",
+        "relationships",
+        "personal",
+        "creative",
+        "other"
+      ],
+      "default": "personal",
+      "description": "Goal category"
+    },
+    "preferred_time": {
+      "type": "string",
+      "description": "Preferred time of day for action/workout (e.g., '6:00 AM', '18:30')",
+      "default": null
+    },
+    "reminder_interval": {
+      "type": "string",
+      "enum": [
+        "15min",
+        "30min",
+        "1hour",
+        "2hours"
+      ],
+      "description": "Follow-up reminder interval if action not completed (for health goals)",
+      "default": "2hours"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Personal notes about this goal"
+    },
+    "pictures": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Array of image URLs attached to this goal",
+      "default": []
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When goal was completed"
+    },
+    "conversation_history": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "description": "The planning conversation history",
+      "default": []
+    }
+  },
+  "required": [
+    "title"
+  ],
+  "rls": {
+    "read": {
+      "created_by": "{{user.email}}"
+    },
+    "write": {
+      "created_by": "{{user.email}}"
+    }
+  }
+}
