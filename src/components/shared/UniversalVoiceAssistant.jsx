@@ -9,6 +9,8 @@ import { Task } from "@/entities/Task";
 import { ParkingLotIdea } from "@/entities/ParkingLotIdea";
 import { User } from "@/entities/User";
 import { scheduleReminder } from "../utils/reminderScheduler";
+import { VoiceRecorder } from 'capacitor-voice-recorder';
+import { Capacitor } from '@capacitor/core';
 
 export default function UniversalVoiceAssistant({ theme, currentPageName }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -16,7 +18,6 @@ export default function UniversalVoiceAssistant({ theme, currentPageName }) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingMessage, setProcessingMessage] = useState("");
   const [feedbackMessage, setFeedbackMessage] = useState("");
-  const [mediaRecorder, setMediaRecorder] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -24,92 +25,83 @@ export default function UniversalVoiceAssistant({ theme, currentPageName }) {
       setIsOpen(true);
       setFeedbackMessage("");
     };
-
     window.addEventListener('open-voice-assistant', handleOpen);
     return () => window.removeEventListener('open-voice-assistant', handleOpen);
   }, []);
 
   const startRecording = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-
-      let mimeType = 'audio/webm;codecs=opus';
-      if (!MediaRecorder.isTypeSupported(mimeType)) {
-        mimeType = 'audio/webm';
-      }
-      if (!MediaRecorder.isTypeSupported(mimeType)) {
-        mimeType = 'audio/mp4';
-      }
-
-      const recorder = new MediaRecorder(stream, { mimeType });
-      const chunks = [];
-
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          chunks.push(e.data);
+      if (Capacitor.isNativePlatform()) {
+        const { value: hasPermission } = await VoiceRecorder.hasAudioRecordingPermission();
+        if (!hasPermission) {
+          const { value: granted } = await VoiceRecorder.requestAudioRecordingPermission();
+          if (!granted) {
+            setFeedbackMessage("❌ Microphone permission denied");
+            return;
+          }
         }
-      };
-
-      recorder.onstop = async () => {
-        const audioBlob = new Blob(chunks, { type: mimeType });
-        stream.getTracks().forEach(track => track.stop());
-
-        if (audioBlob.size === 0) {
+        await VoiceRecorder.startRecording();
+      } else {
+        // Web fallback using MediaRecorder
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        let mimeType = 'audio/webm;codecs=opus';
+        if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'audio/webm';
+        if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'audio/mp4';
+        const recorder = new MediaRecorder(stream, { mimeType });
+        const chunks = [];
+        recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+        recorder.onstop = async () => {
+          const audioBlob = new Blob(chunks, { type: mimeType });
+          stream.getTracks().forEach(t => t.stop());
+          if (audioBlob.size === 0) { setIsRecording(false); return; }
           setIsRecording(false);
-          return;
-        }
-
-        setIsRecording(false);
-        await handleTranscription(audioBlob);
-      };
-
-      recorder.start();
-      setMediaRecorder(recorder);
+          const audioFile = new File([audioBlob], `voice-${Date.now()}.webm`, { type: mimeType });
+          await handleTranscription(audioFile);
+        };
+        recorder.start();
+        window._webRecorder = recorder;
+      }
       setIsRecording(true);
     } catch (error) {
       console.error("Microphone error:", error);
-      alert("Could not access microphone");
+      setFeedbackMessage("❌ Could not access microphone");
     }
   };
 
-  const stopRecording = () => {
-    if (mediaRecorder && mediaRecorder.state !== "inactive") {
-      mediaRecorder.stop();
+  const stopRecording = async () => {
+    if (!isRecording) return;
+    setIsRecording(false);
+
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const result = await VoiceRecorder.stopRecording();
+        const { recordDataBase64, mimeType } = result.value;
+        // Convert base64 to File
+        const byteChars = atob(recordDataBase64);
+        const byteArr = new Uint8Array(byteChars.length);
+        for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
+        const ext = mimeType.includes('aac') ? 'aac' : mimeType.includes('mp4') ? 'mp4' : 'webm';
+        const audioFile = new File([byteArr], `voice-${Date.now()}.${ext}`, { type: mimeType });
+        await handleTranscription(audioFile);
+      } catch (error) {
+        console.error("Stop recording error:", error);
+        setFeedbackMessage("❌ Failed to process recording");
+      }
+    } else {
+      if (window._webRecorder && window._webRecorder.state !== 'inactive') {
+        window._webRecorder.stop();
+      }
     }
   };
 
-  const handleTranscription = async (audioBlob) => {
+  const handleTranscription = async (audioFile) => {
     setIsProcessing(true);
     setProcessingMessage("Transcribing...");
-
     try {
-      // CRITICAL FIX: Convert Blob to File object
-      const audioFile = new File([audioBlob], `voice-${Date.now()}.webm`, {
-        type: audioBlob.type
-      });
+      const uploadResult = await base44.integrations.Core.UploadFile({ file: audioFile });
+      if (!uploadResult?.file_url) throw new Error('Failed to upload audio');
 
-      console.log('🎤 [VOICE ASSISTANT] Uploading audio:', {
-        name: audioFile.name,
-        size: audioFile.size,
-        type: audioFile.type
-      });
-
-      const uploadResult = await base44.integrations.Core.UploadFile({
-        file: audioFile
-      });
-
-      console.log('✅ [VOICE ASSISTANT] Upload result:', uploadResult);
-
-      if (!uploadResult?.file_url) {
-        throw new Error('Failed to upload audio');
-      }
-
-      const response = await base44.functions.invoke('transcribeAudio', {
-        file_url: uploadResult.file_url
-      });
-
-      console.log('✅ [VOICE ASSISTANT] Transcription:', response);
-
+      const response = await base44.functions.invoke('transcribeAudio', { file_url: uploadResult.file_url });
       if (response?.data?.success && response?.data?.transcription) {
         await processVoiceCommand(response.data.transcription);
       } else {
@@ -128,46 +120,29 @@ export default function UniversalVoiceAssistant({ theme, currentPageName }) {
     // Navigation commands
     if (lowerCommand.includes('go to') || lowerCommand.includes('open') || lowerCommand.includes('show me')) {
       const pages = {
-        'home': 'Home',
-        'tasks': 'Tasks',
-        'task': 'Tasks',
-        'focus': 'FocusTimer',
-        'timer': 'FocusTimer',
-        'support': 'SupportSpace',
-        'parking lot': 'ParkingLot',
-        'ideas': 'ParkingLot',
-        'progress': 'Progress',
-        'insights': 'Insights',
-        'accountability': 'Accountability',
-        'partners': 'Accountability',
-        'leaderboard': 'Leaderboard',
-        'profile': 'Profile',
-        'settings': 'ProfileSettings'
+        'home': 'Home', 'tasks': 'Tasks', 'task': 'Tasks', 'focus': 'FocusTimer',
+        'timer': 'FocusTimer', 'support': 'SupportSpace', 'parking lot': 'ParkingLot',
+        'ideas': 'ParkingLot', 'progress': 'Progress', 'insights': 'Insights',
+        'accountability': 'Accountability', 'partners': 'Accountability',
+        'leaderboard': 'Leaderboard', 'profile': 'Profile', 'settings': 'ProfileSettings'
       };
-
       for (const [keyword, page] of Object.entries(pages)) {
         if (lowerCommand.includes(keyword)) {
           setFeedbackMessage(`✅ Opening ${keyword}...`);
           setIsProcessing(false);
-          setTimeout(() => {
-            setIsOpen(false);
-            navigate(createPageUrl(page));
-          }, 1000);
+          setTimeout(() => { setIsOpen(false); navigate(createPageUrl(page)); }, 1000);
           return;
         }
       }
     }
 
     // Task creation
-    if (lowerCommand.includes('remind me') ||
-        lowerCommand.includes('create a task') ||
-        lowerCommand.includes('add a task') ||
-        lowerCommand.includes('make a task') ||
+    if (lowerCommand.includes('remind me') || lowerCommand.includes('create a task') ||
+        lowerCommand.includes('add a task') || lowerCommand.includes('make a task') ||
         lowerCommand.includes('new task')) {
 
       setIsProcessing(true);
       setProcessingMessage("Creating your task...");
-
       try {
         const user = await User.me();
         const now = new Date();
@@ -176,52 +151,12 @@ export default function UniversalVoiceAssistant({ theme, currentPageName }) {
         tomorrow.setDate(tomorrow.getDate() + 1);
 
         const prompt = `Extract task details from: "${command}"
-
 Current context:
 - Current time: ${now.toLocaleTimeString()}
 - Today: ${today.toISOString().split('T')[0]}
 - Tomorrow: ${tomorrow.toISOString().split('T')[0]}
 
 CRITICAL: Keep ALL important details in the task title. Only remove filler words.
-
-Example:
-"Remind me to call mom and ask about dinner plans"
-→ "Call mom and ask about dinner plans" (NOT just "Call mom")
-
-CRITICAL PARSING RULES:
-
-1. RELATIVE TIME ("in X minutes/hours"):
-   - "in 5 minutes", "in 10 minutes" → Calculate exact future time, set reminder_interval to "once"
-   - "in 1 hour", "in 2 hours" → Calculate exact future time, set reminder_interval to "once"
-   - These are ONE-TIME reminders at a future point
-
-2. RECURRING TIME ("every X"):
-   - "every 30 minutes" → reminder_interval: "30min", no specific time
-   - "every 2 hours" → reminder_interval: "2hours", no specific time
-   - "every day" → reminder_interval: "daily"
-
-3. SPECIFIC TIME:
-   - "at 6 pm tomorrow" → reminder_time: "18:00", specific_date: tomorrow, reminder_interval: "once"
-   - "at 3:30" → reminder_time: "15:30", reminder_interval: "once"
-
-4. TASK TITLE:
-   - Remove "remind me to/in/at", "every", time phrases
-   - Keep ALL other details - don't shorten unnecessarily
-
-Examples:
-"Remind me in 5 minutes to call mom" →
-  title: "Call mom"
-  relative_minutes: 5
-  reminder_interval: "once"
-
-"Remind me every 30 minutes to stretch" →
-  title: "Stretch"
-  reminder_interval: "30min"
-
-"Remind me to call the dentist and schedule an appointment" →
-  title: "Call dentist and schedule an appointment"
-  reminder_interval: "2hours"
-
 Return JSON:
 {
   "title": "complete task description",
@@ -235,58 +170,32 @@ Return JSON:
 
         const result = await base44.functions.invoke('extractTaskFromVoice', { prompt });
         const taskData = result?.data?.taskData;
-
         let nextReminderTime = null;
 
-        // Handle relative time (in X minutes/hours)
         if (taskData.relative_minutes && taskData.relative_minutes > 0) {
           nextReminderTime = new Date(now.getTime() + taskData.relative_minutes * 60 * 1000);
-          console.log(`🕐 [VOICE TASK] Relative time: ${taskData.relative_minutes} minutes from now = ${nextReminderTime.toLocaleString()}`);
-        }
-        // Handle specific date + time
-        else if (taskData.reminder_time) {
+        } else if (taskData.reminder_time) {
           const [hours, minutes] = taskData.reminder_time.split(':');
-
           if (taskData.specific_date) {
             nextReminderTime = new Date(taskData.specific_date);
             nextReminderTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
           } else {
             nextReminderTime = new Date();
             nextReminderTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-
-            if (nextReminderTime <= new Date()) {
-              nextReminderTime.setDate(nextReminderTime.getDate() + 1);
-            }
+            if (nextReminderTime <= new Date()) nextReminderTime.setDate(nextReminderTime.getDate() + 1);
           }
-
-          console.log(`🕐 [VOICE TASK] Setting reminder for ${nextReminderTime.toLocaleString()}`);
-        }
-        // Handle recurring reminders without specific time
-        else if (taskData.reminder_interval && taskData.reminder_interval !== 'once') {
+        } else if (taskData.reminder_interval && taskData.reminder_interval !== 'once') {
           nextReminderTime = new Date(now.getTime());
-
-          switch (taskData.reminder_interval) {
-            case '10min':
-              nextReminderTime.setMinutes(nextReminderTime.getMinutes() + 10);
-              break;
-            case '20min':
-              nextReminderTime.setMinutes(nextReminderTime.getMinutes() + 20);
-              break;
-            case '30min':
-              nextReminderTime.setMinutes(nextReminderTime.getMinutes() + 30);
-              break;
-            case '1hour':
-              nextReminderTime.setHours(nextReminderTime.getHours() + 1);
-              break;
-            case '2hours':
-              nextReminderTime.setHours(nextReminderTime.getHours() + 2);
-              break;
-            case 'daily':
-              nextReminderTime.setDate(nextReminderTime.getDate() + 1);
-              break;
-            case 'every_other_day':
-              nextReminderTime.setDate(nextReminderTime.getDate() + 2);
-              break;
+          const intervalMap = { '10min': 10, '20min': 20, '30min': 30 };
+          const hourMap = { '1hour': 1, '2hours': 2 };
+          if (intervalMap[taskData.reminder_interval]) {
+            nextReminderTime.setMinutes(nextReminderTime.getMinutes() + intervalMap[taskData.reminder_interval]);
+          } else if (hourMap[taskData.reminder_interval]) {
+            nextReminderTime.setHours(nextReminderTime.getHours() + hourMap[taskData.reminder_interval]);
+          } else if (taskData.reminder_interval === 'daily') {
+            nextReminderTime.setDate(nextReminderTime.getDate() + 1);
+          } else if (taskData.reminder_interval === 'every_other_day') {
+            nextReminderTime.setDate(nextReminderTime.getDate() + 2);
           }
         }
 
@@ -308,14 +217,8 @@ Return JSON:
               body: createdTask.title,
               sendAtISO: nextReminderTime.toISOString(),
               taskId: createdTask.id,
-              data: {
-                screen: "/Tasks",
-                taskId: createdTask.id,
-                urgency: createdTask.urgency,
-                type: 'task_reminder'
-              }
+              data: { screen: "/Tasks", taskId: createdTask.id, urgency: createdTask.urgency, type: 'task_reminder' }
             });
-            console.log(`✅ [VOICE TASK] Scheduled reminder for "${createdTask.title}" at ${nextReminderTime.toLocaleString()}`);
           } catch (error) {
             console.error("Failed to schedule reminder:", error);
           }
@@ -323,11 +226,7 @@ Return JSON:
 
         setFeedbackMessage(`✅ Created: "${taskData.title}"`);
         setIsProcessing(false);
-
-        setTimeout(() => {
-          window.location.reload();
-        }, 1500);
-
+        setTimeout(() => { window.location.reload(); }, 1500);
         return;
       } catch (error) {
         console.error("Error creating task:", error);
@@ -338,29 +237,16 @@ Return JSON:
     }
 
     // Parking lot idea
-    if (lowerCommand.includes('save this idea') ||
-        lowerCommand.includes('parking lot') ||
+    if (lowerCommand.includes('save this idea') || lowerCommand.includes('parking lot') ||
         lowerCommand.includes('remember this')) {
-
       setIsProcessing(true);
       setProcessingMessage("Saving idea...");
-
       try {
         const ideaText = command.replace(/save this idea|parking lot|remember this/gi, '').trim();
-
-        await ParkingLotIdea.create({
-          idea: ideaText,
-          converted_to_task: false
-        });
-
+        await ParkingLotIdea.create({ idea: ideaText, converted_to_task: false });
         setFeedbackMessage("✅ Idea saved to parking lot!");
         setIsProcessing(false);
-
-        setTimeout(() => {
-          setIsOpen(false);
-          navigate(createPageUrl("ParkingLot"));
-        }, 1500);
-
+        setTimeout(() => { setIsOpen(false); navigate(createPageUrl("ParkingLot")); }, 1500);
         return;
       } catch (error) {
         console.error("Error saving idea:", error);
@@ -370,15 +256,12 @@ Return JSON:
       }
     }
 
-    // If nothing matched
     setFeedbackMessage("❓ I didn't quite catch that. Try:\n• 'Remind me to...'\n• 'Go to tasks'\n• 'Save this idea...'");
     setIsProcessing(false);
   };
 
   const handleClose = () => {
-    if (isRecording) {
-      stopRecording();
-    }
+    if (isRecording) stopRecording();
     setIsOpen(false);
     setFeedbackMessage("");
     setProcessingMessage("");
@@ -386,46 +269,28 @@ Return JSON:
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className={`max-w-md ${
-        theme === 'dark' ? 'bg-gray-800' : 'bg-white'
-      }`}>
+      <DialogContent className={`max-w-md ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
         <div className="flex flex-col items-center justify-center p-6 space-y-6">
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={handleClose}
-            className="absolute top-4 right-4"
-          >
+          <Button size="icon" variant="ghost" onClick={handleClose} className="absolute top-4 right-4">
             <X className="w-5 h-5" />
           </Button>
 
           <div className={`w-24 h-24 rounded-full flex items-center justify-center ${
-            isRecording
-              ? 'bg-red-500 animate-pulse'
-              : isProcessing
-                ? 'bg-blue-500'
-                : theme === 'minimalist'
-                  ? 'bg-purple-600'
-                  : theme === 'dark'
-                    ? 'bg-purple-600'
-                    : 'bg-gradient-to-br from-purple-600 to-pink-600'
+            isRecording ? 'bg-red-500 animate-pulse'
+              : isProcessing ? 'bg-blue-500'
+              : theme === 'colorful' ? 'bg-gradient-to-br from-purple-600 to-pink-600'
+              : 'bg-purple-600'
           }`}>
             {isProcessing ? (
               <Loader2 className="w-12 h-12 text-white animate-spin" />
-            ) : isRecording ? (
-              <Mic className="w-12 h-12 text-white animate-pulse" />
             ) : (
-              <Mic className="w-12 h-12 text-white" />
+              <Mic className={`w-12 h-12 text-white ${isRecording ? 'animate-pulse' : ''}`} />
             )}
           </div>
 
           <div className="text-center">
             <h3 className={`text-xl font-bold mb-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-              {isProcessing
-                ? processingMessage
-                : isRecording
-                  ? "Listening..."
-                  : "Voice Assistant"}
+              {isProcessing ? processingMessage : isRecording ? "Listening..." : "Voice Assistant"}
             </h3>
             {feedbackMessage ? (
               <p className={`text-sm whitespace-pre-line ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
@@ -433,9 +298,7 @@ Return JSON:
               </p>
             ) : (
               <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                {isRecording
-                  ? "Tap to stop recording"
-                  : "Tap to start speaking"}
+                {isRecording ? "Tap to stop recording" : "Tap to start speaking"}
               </p>
             )}
           </div>
@@ -445,25 +308,15 @@ Return JSON:
               size="lg"
               onClick={isRecording ? stopRecording : startRecording}
               className={`w-full ${
-                isRecording
-                  ? 'bg-red-600 hover:bg-red-700'
-                  : theme === 'minimalist'
-                    ? 'bg-purple-600 hover:bg-purple-700'
-                    : theme === 'dark'
-                      ? 'bg-purple-600 hover:bg-purple-700'
-                      : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700'
+                isRecording ? 'bg-red-600 hover:bg-red-700'
+                  : theme === 'colorful' ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700'
+                  : 'bg-purple-600 hover:bg-purple-700'
               }`}
             >
               {isRecording ? (
-                <>
-                  <Square className="w-5 h-5 mr-2" />
-                  Stop Recording
-                </>
+                <><Square className="w-5 h-5 mr-2" />Stop Recording</>
               ) : (
-                <>
-                  <Mic className="w-5 h-5 mr-2" />
-                  Start Recording
-                </>
+                <><Mic className="w-5 h-5 mr-2" />Start Recording</>
               )}
             </Button>
           )}

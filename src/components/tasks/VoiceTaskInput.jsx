@@ -1,145 +1,92 @@
-import React, { useState, useRef } from "react";
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Mic, Square, Loader2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { VoiceRecorder } from 'capacitor-voice-recorder';
+import { Capacitor } from '@capacitor/core';
 
 export default function VoiceTaskInput({ onTranscription, theme, inline = true }) {
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const mediaRecorderRef = useRef(null);
-  const chunksRef = useRef([]);
 
   const startRecording = async () => {
     try {
-      console.log('[VOICE INPUT] Requesting microphone access...');
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          sampleRate: 44100
-        } 
-      });
-      
-      console.log('[VOICE INPUT] Microphone access granted');
-      
-      let mimeType = 'audio/webm;codecs=opus';
-      if (!MediaRecorder.isTypeSupported(mimeType)) {
-        mimeType = 'audio/webm';
-      }
-      if (!MediaRecorder.isTypeSupported(mimeType)) {
-        mimeType = 'audio/mp4';
-      }
-      if (!MediaRecorder.isTypeSupported(mimeType)) {
-        mimeType = 'audio/ogg;codecs=opus';
-      }
-      
-      console.log('[VOICE INPUT] Using MIME type:', mimeType);
-
-      const mediaRecorder = new MediaRecorder(stream, { 
-        mimeType: mimeType,
-        audioBitsPerSecond: 128000
-      });
-      
-      mediaRecorderRef.current = mediaRecorder;
-      chunksRef.current = [];
-
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          console.log('[VOICE INPUT] Received audio chunk:', event.data.size, 'bytes');
-          chunksRef.current.push(event.data);
+      if (Capacitor.isNativePlatform()) {
+        const { value: hasPermission } = await VoiceRecorder.hasAudioRecordingPermission();
+        if (!hasPermission) {
+          const { value: granted } = await VoiceRecorder.requestAudioRecordingPermission();
+          if (!granted) return;
         }
-      };
-
-      mediaRecorder.onstop = async () => {
-        console.log('[VOICE INPUT] Recording stopped, processing...');
-        const audioBlob = new Blob(chunksRef.current, { type: mimeType });
-        console.log('[VOICE INPUT] Audio blob created:', audioBlob.size, 'bytes');
-        
-        stream.getTracks().forEach(track => track.stop());
-        
-        if (audioBlob.size === 0) {
-          console.error('[VOICE INPUT] No audio data recorded');
-          alert("No audio was recorded. Please try again.");
-          return;
-        }
-        
-        await transcribeAudio(audioBlob, mimeType);
-      };
-
-      mediaRecorder.start();
-      setIsRecording(true);
-      console.log('[VOICE INPUT] Recording started');
-    } catch (error) {
-      console.error('[VOICE INPUT] Error accessing microphone:', error);
-      alert("Could not access microphone. Please check permissions.");
-    }
-  };
-
-  const stopRecording = () => {
-    console.log('[VOICE INPUT] Stopping recording...');
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-    }
-  };
-
-  const transcribeAudio = async (audioBlob, mimeType) => {
-    setIsProcessing(true);
-
-    try {
-      console.log('[VOICE INPUT] Uploading audio file...');
-      
-      // Convert Blob to File with proper name and type
-      let extension = 'webm';
-      if (mimeType.includes('mp4')) extension = 'mp4';
-      if (mimeType.includes('ogg')) extension = 'ogg';
-      
-      const audioFile = new File([audioBlob], `recording.${extension}`, { type: mimeType });
-      
-      console.log('[VOICE INPUT] Created File object:', audioFile.name, audioFile.size, 'bytes');
-      
-      // Upload the audio file to get a URL
-      const uploadResult = await base44.integrations.Core.UploadFile({
-        file: audioFile
-      });
-
-      if (!uploadResult?.file_url) {
-        throw new Error('Failed to upload audio file');
-      }
-
-      console.log('[VOICE INPUT] Audio uploaded, file_url:', uploadResult.file_url);
-
-      // Send the file URL to transcription function
-      const result = await base44.functions.invoke('transcribeAudio', {
-        file_url: uploadResult.file_url
-      });
-
-      console.log('[VOICE INPUT] Transcription response:', result);
-
-      // Handle both .data and direct response patterns
-      const responseData = result?.data || result;
-      
-      if (responseData?.success && responseData?.transcription) {
-        console.log('[VOICE INPUT] ✅ Transcription successful:', responseData.transcription);
-        try {
-          console.log('[VOICE INPUT] 🎯 Calling onTranscription callback...');
-          await onTranscription(responseData.transcription);
-          console.log('[VOICE INPUT] ✅ Callback completed');
-        } catch (callbackError) {
-          console.error('[VOICE INPUT] ❌ Callback error:', callbackError);
-          alert("Error processing transcription: " + callbackError.message);
-        }
+        await VoiceRecorder.startRecording();
+        setIsRecording(true);
       } else {
-        console.error('[VOICE INPUT] ❌ Transcription failed:', responseData);
+        // Web fallback
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        let mimeType = 'audio/webm;codecs=opus';
+        if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'audio/webm';
+        if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'audio/mp4';
+        const recorder = new MediaRecorder(stream, { mimeType });
+        const chunks = [];
+        recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+        recorder.onstop = async () => {
+          const audioBlob = new Blob(chunks, { type: mimeType });
+          stream.getTracks().forEach(t => t.stop());
+          if (audioBlob.size === 0) return;
+          const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
+          const audioFile = new File([audioBlob], `recording.${ext}`, { type: mimeType });
+          await transcribeAudio(audioFile);
+        };
+        recorder.start();
+        window._webRecorderVoiceInput = recorder;
+        setIsRecording(true);
+      }
+    } catch (error) {
+      console.error('[VOICE INPUT] Error starting recording:', error);
+    }
+  };
+
+  const stopRecording = async () => {
+    setIsRecording(false);
+
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const result = await VoiceRecorder.stopRecording();
+        const { recordDataBase64, mimeType } = result.value;
+        const byteChars = atob(recordDataBase64);
+        const byteArr = new Uint8Array(byteChars.length);
+        for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
+        const ext = mimeType.includes('aac') ? 'aac' : mimeType.includes('mp4') ? 'mp4' : 'webm';
+        const audioFile = new File([byteArr], `recording.${ext}`, { type: mimeType });
+        await transcribeAudio(audioFile);
+      } catch (error) {
+        console.error('[VOICE INPUT] Stop recording error:', error);
+      }
+    } else {
+      if (window._webRecorderVoiceInput && window._webRecorderVoiceInput.state !== 'inactive') {
+        window._webRecorderVoiceInput.stop();
+      }
+    }
+  };
+
+  const transcribeAudio = async (audioFile) => {
+    setIsProcessing(true);
+    try {
+      const uploadResult = await base44.integrations.Core.UploadFile({ file: audioFile });
+      if (!uploadResult?.file_url) throw new Error('Failed to upload audio file');
+
+      const result = await base44.functions.invoke('transcribeAudio', { file_url: uploadResult.file_url });
+      const responseData = result?.data || result;
+
+      if (responseData?.success && responseData?.transcription) {
+        await onTranscription(responseData.transcription);
+      } else {
         const errorMsg = responseData?.error || "Failed to transcribe audio. Please try again.";
         alert(errorMsg);
       }
     } catch (error) {
       console.error('[VOICE INPUT] Error transcribing audio:', error);
-      const errorMsg = error.message || "Failed to transcribe audio. Please try again.";
-      alert(errorMsg);
+      alert(error.message || "Failed to transcribe audio. Please try again.");
     }
-
     setIsProcessing(false);
   };
 
@@ -172,28 +119,17 @@ export default function VoiceTaskInput({ onTranscription, theme, inline = true }
       onClick={isRecording ? stopRecording : startRecording}
       disabled={isProcessing}
       className={`w-full ${
-        theme === 'minimalist'
-          ? 'bg-purple-600 hover:bg-purple-700'
-          : theme === 'dark'
-            ? 'bg-purple-600 hover:bg-purple-700'
-            : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700'
+        theme === 'colorful'
+          ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700'
+          : 'bg-purple-600 hover:bg-purple-700'
       }`}
     >
       {isProcessing ? (
-        <>
-          <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-          Processing...
-        </>
+        <><Loader2 className="w-5 h-5 mr-2 animate-spin" />Processing...</>
       ) : isRecording ? (
-        <>
-          <Square className="w-5 h-5 mr-2" />
-          Stop Recording
-        </>
+        <><Square className="w-5 h-5 mr-2" />Stop Recording</>
       ) : (
-        <>
-          <Mic className="w-5 h-5 mr-2" />
-          Tap to Speak
-        </>
+        <><Mic className="w-5 h-5 mr-2" />Tap to Speak</>
       )}
     </Button>
   );
