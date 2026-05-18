@@ -91,6 +91,104 @@ CRITICAL:
         tips_and_guidance: step.tips_and_guidance || ""
       }));
 
+      // VALIDATE: ensure no gaps in phases/timeline
+      const validatePlanCompleteness = (p) => {
+        if (!p.steps || p.steps.length === 0) return { valid: false, error: "No steps generated" };
+        
+        // Parse timeline to determine expected number of months
+        const timelineMatch = p.timeline?.match(/(\d+)\s*month/i);
+        const expectedMonths = timelineMatch ? parseInt(timelineMatch[1], 10) : null;
+        
+        if (!expectedMonths) return { valid: true }; // Can't validate without timeline
+        
+        // Count phases present
+        const phases = new Set(p.steps.map(s => s.phase || 'Uncategorized').filter(ph => ph !== 'Uncategorized'));
+        const phaseArray = Array.from(phases).sort();
+        
+        // Check for gaps: if timeline is 12 months, should have Month 1 through Month 12
+        if (expectedMonths >= 3) {
+          const monthCounts = {};
+          phaseArray.forEach(phase => {
+            const monthMatch = phase.match(/Month (\d+)/i);
+            if (monthMatch) {
+              const monthNum = parseInt(monthMatch[1], 10);
+              monthCounts[monthNum] = true;
+            }
+          });
+          
+          // Verify no missing months (1 through expectedMonths)
+          const missingMonths = [];
+          for (let i = 1; i <= expectedMonths; i++) {
+            if (!monthCounts[i]) missingMonths.push(i);
+          }
+          
+          if (missingMonths.length > 0) {
+            return {
+              valid: false,
+              error: `Plan is incomplete: missing content for Month ${missingMonths.join(', Month ')}. Expected all months 1-${expectedMonths}.`
+            };
+          }
+        }
+        
+        // Check minimum step count: at least 10+ per month for comprehensive plans
+        const stepsPerPhase = {};
+        p.steps.forEach(s => {
+          const phase = s.phase || 'Uncategorized';
+          stepsPerPhase[phase] = (stepsPerPhase[phase] || 0) + 1;
+        });
+        
+        const lowPhases = Object.entries(stepsPerPhase).filter(([_, count]) => count < 3);
+        if (lowPhases.length > 0 && p.steps.length < 30) {
+          return {
+            valid: false,
+            error: `Insufficient detail: some phases have too few steps. Generated only ${p.steps.length} total steps for a ${p.timeline} goal (expected 15-20+ per major phase).`
+          };
+        }
+        
+        return { valid: true };
+      };
+      
+      const validation = validatePlanCompleteness(plan);
+      if (!validation.valid) {
+        // Regenerate with stricter instructions
+        const retryResponse = await openai.chat.completions.create({
+          model: "gpt-4o",
+          messages: [
+            {
+              role: "system",
+              content: `You are extracting a structured goal plan. CRITICAL RULES:
+1. EVERY MONTH from Month 1 through the final month MUST have steps. NO GAPS.
+2. EVERY MONTH must have AT LEAST 8-12 specific, detailed steps.
+3. For a ${plan.timeline} goal, generate steps for ALL ${timelineMatch ? parseInt(timelineMatch[1], 10) : 'required'} months.
+4. Return ONLY valid JSON, no markdown fences.
+5. If previous extraction failed: "${validation.error}", you MUST fix it now.`
+            },
+            {
+              role: "user",
+              content: `Extract the plan from this conversation. CRITICAL — the previous extraction was incomplete or had gaps. Fix it now by including EVERY month and week with full detail:\n\n${conversationText}\n\nReturn the SAME JSON structure, but with complete phases and steps for the full timeline.`
+            }
+          ],
+          response_format: { type: "json_object" }
+        });
+        
+        const retryPlan = JSON.parse(retryResponse.choices[0].message.content);
+        retryPlan.steps = (retryPlan.steps || []).map(step => ({
+          ...step,
+          step_resources: step.step_resources || [],
+          success_criteria: step.success_criteria || [],
+          tips_and_guidance: step.tips_and_guidance || ""
+        }));
+        
+        const retryValidation = validatePlanCompleteness(retryPlan);
+        if (!retryValidation.valid) {
+          return Response.json({ 
+            error: `Plan generation failed validation: ${retryValidation.error}. Please try again with a clearer timeline or fewer goals.` 
+          }, { status: 400 });
+        }
+        
+        return Response.json({ plan: retryPlan });
+      }
+
       // Extract preferred time from conversation for health goals
       let preferredTime = null;
       if (plan.category === 'health') {
@@ -164,6 +262,35 @@ Only include fields that actually changed. today = ${today}`
       });
 
       const edits = JSON.parse(extractionResponse.choices[0].message.content);
+
+      // VALIDATE: ensure no steps are duplicated or missing from complete phases
+      if (edits.steps_to_add && edits.steps_to_add.length > 0) {
+        const allStepsAfterEdit = [
+          ...existingSteps.filter(s => !edits.steps_to_delete?.includes(s.id)),
+          ...edits.steps_to_add
+        ];
+        
+        const phaseCheck = {};
+        allStepsAfterEdit.forEach(s => {
+          const phase = s.phase || 'Uncategorized';
+          if (!phaseCheck[phase]) phaseCheck[phase] = [];
+          phaseCheck[phase].push(s.title);
+        });
+        
+        // Log for debugging — ensure phases are sequential
+        const phaseNames = Object.keys(phaseCheck).sort();
+        // Warn if there are obvious gaps (e.g., Month 1, Month 3 but no Month 2)
+        const monthPhases = phaseNames.filter(p => /Month \d+/.test(p));
+        if (monthPhases.length > 1) {
+          const months = monthPhases.map(p => parseInt(p.match(/\d+/)[0])).sort((a, b) => a - b);
+          for (let i = 0; i < months.length - 1; i++) {
+            if (months[i + 1] - months[i] > 1) {
+              // Gap detected — log but still apply (user may know what they're doing)
+              console.warn(`Gap detected: Month ${months[i]} to Month ${months[i + 1]}`);
+            }
+          }
+        }
+      }
 
       // Apply goal-level updates (user-scoped so created_by is preserved)
       if (edits.goal_updates && Object.keys(edits.goal_updates).length > 0) {

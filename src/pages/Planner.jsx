@@ -106,12 +106,52 @@ export default function Planner() {
     }
   }, [isLoading, editingGoal, goals, userCity]);
 
+  const validatePlanSteps = (plan) => {
+    if (!plan.steps || plan.steps.length === 0) {
+      throw new Error("No steps found in plan. Please try again.");
+    }
+
+    // Check for month gaps
+    const timelineMatch = plan.timeline?.match(/(\d+)\s*month/i);
+    const expectedMonths = timelineMatch ? parseInt(timelineMatch[1], 10) : null;
+    
+    if (expectedMonths && expectedMonths >= 3) {
+      const monthCounts = {};
+      plan.steps.forEach(s => {
+        const monthMatch = (s.phase || '').match(/Month (\d+)/i);
+        if (monthMatch) {
+          monthCounts[parseInt(monthMatch[1], 10)] = true;
+        }
+      });
+      
+      const missing = [];
+      for (let i = 1; i <= expectedMonths; i++) {
+        if (!monthCounts[i]) missing.push(i);
+      }
+      
+      if (missing.length > 0) {
+        throw new Error(`Plan incomplete: missing Month ${missing.join(', Month ')}. Expected all ${expectedMonths} months.`);
+      }
+    }
+    
+    // Warn if too few steps
+    if (plan.steps.length < 15) {
+      console.warn(`Warning: Only ${plan.steps.length} steps for ${plan.timeline} goal (expected 15+). Plan may lack detail.`);
+    }
+  };
+
   const handleSaveNewGoal = async () => {
     setIsSaving(true);
     try {
       const allMessages = messagesRef.current.filter(m => m.role !== "system");
       const res = await base44.functions.invoke("goalPlannerChat", { messages: allMessages, mode: "extract_plan" });
+      
+      if (res.data?.error) {
+        throw new Error(res.data.error);
+      }
+      
       const plan = res.data.plan;
+      validatePlanSteps(plan);
 
       const goal = await base44.entities.Goal.create({
         title: plan.title,
