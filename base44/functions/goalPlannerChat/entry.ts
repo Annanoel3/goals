@@ -31,7 +31,14 @@ Deno.serve(async (req) => {
 
 ${conversationText}
 
-Return JSON (no markdown) in EXACTLY this structure. IMPORTANT: Create AT LEAST 15-20+ detailed subtasks PER MILESTONE. CRITICAL: If the user said "by end of year" or "by [month]", calculate the EXACT number of months from today (${today}) to that date and use that as the timeline. Do NOT use a generic number.
+Return JSON (no markdown) in EXACTLY this structure. CRITICAL STRUCTURAL RULE FOR GOALS 3+ MONTHS:
+- Calculate the EXACT number of months from today (${today}) to target date.
+- If the plan is 3+ months, organize steps as: Month 1 Week 1, Month 1 Week 2, Month 1 Week 3, Month 1 Week 4, Month 2 Week 1, etc.
+- Each week must have 3-5 actionable steps (consistent distribution).
+- NO SKIPPED WEEKS OR MONTHS. If the plan spans 6 months, generate all 24 weeks (6 × 4).
+- For goals under 3 months, weeks are optional — just use "Month 1", "Month 2" phases directly.
+
+IMPORTANT: Create AT LEAST 15-20+ detailed subtasks PER MILESTONE. CRITICAL: If the user said "by end of year" or "by [month]", calculate the EXACT number of months from today (${today}) to that date and use that as the timeline. Do NOT use a generic number.
 {
   "title": "concise goal title",
   "description": "what the user wants to achieve",
@@ -91,7 +98,7 @@ CRITICAL:
         tips_and_guidance: step.tips_and_guidance || ""
       }));
 
-      // VALIDATE: ensure no gaps in phases/timeline
+      // VALIDATE: ensure no gaps in phases/timeline with week structure for 3+ month goals
       const validatePlanCompleteness = (p) => {
         if (!p.steps || p.steps.length === 0) return { valid: false, error: "No steps generated" };
         
@@ -105,8 +112,72 @@ CRITICAL:
         const phases = new Set(p.steps.map(s => s.phase || 'Uncategorized').filter(ph => ph !== 'Uncategorized'));
         const phaseArray = Array.from(phases).sort();
         
-        // Check for gaps: if timeline is 12 months, should have Month 1 through Month 12
+        // For 3+ month goals: enforce week structure (Month X Week Y)
         if (expectedMonths >= 3) {
+          const monthWeekCounts = {};
+          let hasWeekStructure = false;
+          
+          phaseArray.forEach(phase => {
+            const weekMatch = phase.match(/Month (\d+)[\s,].*Week (\d+)/i);
+            const monthMatch = phase.match(/Month (\d+)/i);
+            
+            if (weekMatch) {
+              hasWeekStructure = true;
+              const monthNum = parseInt(weekMatch[1], 10);
+              const weekNum = parseInt(weekMatch[2], 10);
+              if (!monthWeekCounts[monthNum]) monthWeekCounts[monthNum] = new Set();
+              monthWeekCounts[monthNum].add(weekNum);
+            } else if (monthMatch && !weekMatch) {
+              // Has month but no week structure — this is a problem for 3+ month goals
+              const monthNum = parseInt(monthMatch[1], 10);
+              if (!monthWeekCounts[monthNum]) monthWeekCounts[monthNum] = new Set();
+              monthWeekCounts[monthNum].add(0); // Placeholder for "no week"
+            }
+          });
+          
+          // If any weeks are present, ALL months must use week structure
+          if (hasWeekStructure) {
+            for (let month = 1; month <= expectedMonths; month++) {
+              if (!monthWeekCounts[month]) {
+                return {
+                  valid: false,
+                  error: `Plan structure incomplete: Month ${month} is missing (expected all months 1-${expectedMonths} with weeks).`
+                };
+              }
+              const weeksInMonth = monthWeekCounts[month];
+              // Each month should have ~4 weeks
+              if (weeksInMonth.has(0) || weeksInMonth.size < 3) {
+                return {
+                  valid: false,
+                  error: `Month ${month} has incomplete week structure. Expected 4 weeks per month for proper pacing.`
+                };
+              }
+            }
+          } else {
+            // No week structure detected — check months at least
+            const monthCounts = {};
+            phaseArray.forEach(phase => {
+              const monthMatch = phase.match(/Month (\d+)/i);
+              if (monthMatch) {
+                const monthNum = parseInt(monthMatch[1], 10);
+                monthCounts[monthNum] = true;
+              }
+            });
+            
+            const missingMonths = [];
+            for (let i = 1; i <= expectedMonths; i++) {
+              if (!monthCounts[i]) missingMonths.push(i);
+            }
+            
+            if (missingMonths.length > 0) {
+              return {
+                valid: false,
+                error: `Plan is incomplete: missing content for Month ${missingMonths.join(', Month ')}. Expected all months 1-${expectedMonths}.`
+              };
+            }
+          }
+        } else {
+          // For shorter goals (< 3 months), just check months are present
           const monthCounts = {};
           phaseArray.forEach(phase => {
             const monthMatch = phase.match(/Month (\d+)/i);
@@ -116,7 +187,6 @@ CRITICAL:
             }
           });
           
-          // Verify no missing months (1 through expectedMonths)
           const missingMonths = [];
           for (let i = 1; i <= expectedMonths; i++) {
             if (!monthCounts[i]) missingMonths.push(i);
@@ -125,23 +195,23 @@ CRITICAL:
           if (missingMonths.length > 0) {
             return {
               valid: false,
-              error: `Plan is incomplete: missing content for Month ${missingMonths.join(', Month ')}. Expected all months 1-${expectedMonths}.`
+              error: `Plan is incomplete: missing Month ${missingMonths.join(', Month ')}.`
             };
           }
         }
         
-        // Check minimum step count: at least 10+ per month for comprehensive plans
+        // Check minimum step count
         const stepsPerPhase = {};
         p.steps.forEach(s => {
           const phase = s.phase || 'Uncategorized';
           stepsPerPhase[phase] = (stepsPerPhase[phase] || 0) + 1;
         });
         
-        const lowPhases = Object.entries(stepsPerPhase).filter(([_, count]) => count < 3);
-        if (lowPhases.length > 0 && p.steps.length < 30) {
+        const avgStepsPerMonth = expectedMonths ? p.steps.length / expectedMonths : 0;
+        if (avgStepsPerMonth < 5) {
           return {
             valid: false,
-            error: `Insufficient detail: some phases have too few steps. Generated only ${p.steps.length} total steps for a ${p.timeline} goal (expected 15-20+ per major phase).`
+            error: `Insufficient detail: generated only ${p.steps.length} total steps for ${expectedMonths} months (~${Math.round(avgStepsPerMonth)} per month). Expected 15-20+ per month.`
           };
         }
         
