@@ -123,16 +123,17 @@ CRITICAL:
 5b. RESOURCE LINK RULES — CRITICAL — BROKEN LINKS ARE WORSE THAN NO LINKS:
    - NEVER guess or fabricate article URLs (e.g. additudemag.com/some-article, psychologytoday.com/blog/...). These will 404. FORBIDDEN.
    - NEVER construct a URL by guessing a path on a domain you know exists. Only use URLs you are certain work.
-   - SAFE URL FORMATS (always use these):
-     * YouTube search: https://www.youtube.com/results?search_query=TOPIC+tutorial
-     * Amazon book search: https://www.amazon.com/s?k=BOOK+TITLE+AUTHOR
-     * Google search: https://www.google.com/search?q=RESOURCE+NAME (use this as fallback for articles/tools)
-     * Google Maps: https://www.google.com/maps/search/RESOURCE+TYPE+NEAR+CITY
-     * Udemy search: https://www.udemy.com/courses/search/?q=TOPIC
-     * Coursera search: https://www.coursera.org/search?query=TOPIC
-     * App official homepage (root domain only, e.g. https://www.duolingo.com) — ONLY if you are 100% certain the domain is correct.
-   - FORBIDDEN: Any URL with a path segment you invented (e.g. /blog/article-name, /adhd-tips, /productivity/2024). If unsure of the exact path, use the Google search fallback instead.
-   - If you have no safe URL: leave url as "" — a missing URL is far better than a broken one.
+   - SAFE URL FORMATS (always use these — replace ALL CAPS placeholders with real, specific values):
+     * YouTube search: https://www.youtube.com/results?search_query=beginner+guitar+chords (use the actual topic, not "TOPIC")
+     * Amazon book search: https://www.amazon.com/s?k=Atomic+Habits+James+Clear (use the actual title and author)
+     * Google search fallback: https://www.google.com/search?q=CHADD+ADHD+support+groups+Austin+TX (use specific real terms)
+     * Google Maps: https://www.google.com/maps/search/ADHD+coaching+Austin+Texas (use specific real terms — NEVER write "RESOURCE+TYPE+NEAR+CITY" literally)
+     * Udemy search: https://www.udemy.com/courses/search/?q=python+for+beginners (use actual topic)
+     * Coursera search: https://www.coursera.org/search?query=data+science (use actual topic)
+     * App root domain only (e.g. https://www.duolingo.com) — ONLY if 100% certain.
+   - FORBIDDEN: Placeholder text in URLs like "TOPIC", "RESOURCE+NAME", "RESOURCE+TYPE", "NEAR+CITY", "BOOK+TITLE+AUTHOR". Every URL must have real, specific search terms filled in.
+   - FORBIDDEN: Any URL path you invented (e.g. /blog/article-name, /adhd-tips). If unsure of the exact path, use the Google search fallback instead.
+   - If you have no safe URL: leave url as "" — a blank URL is far better than a useless placeholder link.
 6. If local resources were discussed (clubs, classes, meetups, venues), include them as step_resources with type "other" or "website" alongside online resources. Use Google Maps search URLs for local venues.
 7. This removes all excuses — users have everything they need to execute.`
           }
@@ -624,15 +625,16 @@ PHASE 2 — DRAFT THE FULL PLAN (only after sufficient info gathered):
 7b. RESOURCE LINK RULES — CRITICAL — BROKEN LINKS ARE WORSE THAN NO LINKS:
    - NEVER guess or fabricate article/blog URLs. If you're thinking of linking to additudemag.com, psychologytoday.com, medium.com, or any site with a guessed path — DON'T. Use a Google search URL instead.
    - NEVER construct a URL by inventing a path (e.g. /blog/article-name, /tips/productivity). Only use paths you are 100% certain exist.
-   - SAFE URL FORMATS (always use these):
-     * YouTube search: https://www.youtube.com/results?search_query=TOPIC+tutorial
-     * Amazon book search: https://www.amazon.com/s?k=BOOK+TITLE+AUTHOR
-     * Google search fallback: https://www.google.com/search?q=RESOURCE+NAME (use for any article, blog post, or tool you can't link directly)
-     * Google Maps: https://www.google.com/maps/search/RESOURCE+TYPE+NEAR+CITY
-     * Udemy search: https://www.udemy.com/courses/search/?q=TOPIC
-     * Coursera search: https://www.coursera.org/search?query=TOPIC
+   - SAFE URL FORMATS — replace ALL CAPS with real specific values, NEVER leave placeholder text:
+     * YouTube search: https://www.youtube.com/results?search_query=beginner+guitar+lesson (use the real topic)
+     * Amazon book search: https://www.amazon.com/s?k=The+Happiness+Advantage+Shawn+Achor (use real title + author)
+     * Google search fallback: https://www.google.com/search?q=CHADD+ADHD+support+Austin+TX (use specific real terms)
+     * Google Maps: https://www.google.com/maps/search/ADHD+coaching+Austin+Texas (use specific real terms)
+     * Udemy: https://www.udemy.com/courses/search/?q=guitar+for+beginners (real topic)
+     * Coursera: https://www.coursera.org/search?query=machine+learning (real topic)
      * App root domain only (e.g. https://www.duolingo.com) — ONLY if 100% certain.
-   - If no safe URL exists: leave url as "" — a blank URL is far better than a 404.
+   - FORBIDDEN: Any URL containing literal placeholder words like "TOPIC", "RESOURCE", "CITY", "AUTHOR", "NAME". Every URL must have real words filled in.
+   - If no safe URL exists: leave url as "" — a blank is far better than a 404 or a useless placeholder.
 8. Cover the full timeline with clear phases.
 9. NEVER ask follow-up questions mid-plan like "do these resonate?" or "what type of resources do you prefer?" — commit to the full plan using everything the user already told you.
 9b. CRITICAL — END YOUR PLAN DRAFT WITH AN APPROVAL QUESTION: After presenting the complete plan, you MUST end with a direct question asking if it looks good, e.g. "Does this plan look good to you?" or "How does this look — ready to save it?" This is REQUIRED. Never end the plan presentation with a statement like "let me know what you think" or "I'll now draft" without a direct question.
