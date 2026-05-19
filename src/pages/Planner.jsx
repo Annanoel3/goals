@@ -350,9 +350,9 @@ export default function Planner() {
               </div>
             )}
 
-            {/* Plan preview before approval - show ONLY when backend confirms plan is complete */}
+            {/* Plan preview before approval */}
             {pendingAction === 'plan_proposed' && !isLoading && !saved && !editingGoal && (
-              <div className="flex flex-col items-center gap-3 pt-2">
+              <div className="flex flex-col items-center gap-3 pt-4 pb-4">
                 <Button
                   onClick={handleSaveNewGoal}
                   className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white rounded-2xl px-6 py-2.5 shadow-lg shadow-violet-100 font-semibold"
@@ -371,18 +371,20 @@ export default function Planner() {
             )}
 
             {/* New goal approval */}
-            {pendingAction === 'plan_approved' && !saved && (
-              <div className="flex justify-center py-2">
-                {isSaving ? (
-                  <GoalPlanLoadingAnimation />
-                ) : (
-                  <Button
-                    onClick={handleSaveNewGoal}
-                    className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white rounded-2xl px-6 py-2.5 shadow-lg shadow-violet-100 font-semibold"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />Save This Goal
-                  </Button>
-                )}
+            {pendingAction === 'plan_approved' && !saved && !isSaving && (
+              <div className="flex justify-center py-4">
+                <Button
+                  onClick={handleSaveNewGoal}
+                  className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white rounded-2xl px-6 py-2.5 shadow-lg shadow-violet-100 font-semibold"
+                >
+                  <Plus className="w-4 h-4 mr-2" />Save This Goal
+                </Button>
+              </div>
+            )}
+
+            {isSaving && (pendingAction === 'plan_approved' || pendingAction === 'plan_proposed') && (
+              <div className="flex justify-center py-4">
+                <GoalPlanLoadingAnimation />
               </div>
             )}
 
@@ -403,24 +405,33 @@ export default function Planner() {
             )}
 
             {saved && (
-              <div className="flex flex-col items-center gap-3 py-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                <div className="flex items-center gap-2 bg-green-50 text-green-700 px-5 py-2.5 rounded-2xl text-sm font-semibold border border-green-200">
-                  <Check className="w-4 h-4" />
-                  {pendingAction === 'edit_approved' ? 'Changes applied!' : 'Goal saved!'}
-                </div>
-                {pendingAction !== 'edit_approved' && (
-                  <div className="bg-violet-50 border border-violet-100 rounded-2xl px-5 py-4 max-w-sm text-center">
-                    <p className="text-sm text-violet-800 font-medium mb-1">Your plan is a living document 🌱</p>
-                    <p className="text-xs text-violet-600 leading-relaxed mb-3">Come back anytime to adjust difficulty, add resources, skip ahead, extend the timeline, or completely restructure a phase. Just tell me what's working and what isn't.</p>
-                    <div className="flex gap-2 justify-center">
-                      <Button size="sm" className="rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs" onClick={() => navigate(`/goal/${pendingGoalId}`)}>
-                        Go to Goal
-                      </Button>
-                      <Button size="sm" variant="outline" className="rounded-xl text-xs border-violet-200 text-violet-700 hover:bg-violet-50" onClick={handleNewPlan}>
-                        Plan Another
-                      </Button>
+              <div className="flex flex-col items-center gap-3 py-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                {pendingAction === 'edit_approved' ? (
+                  <>
+                    <div className="flex items-center gap-2 bg-green-50 text-green-700 px-5 py-2.5 rounded-2xl text-sm font-semibold border border-green-200">
+                      <Check className="w-4 h-4" />
+                      Changes applied!
                     </div>
-                  </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-2 bg-green-50 text-green-700 px-5 py-2.5 rounded-2xl text-sm font-semibold border border-green-200">
+                      <Check className="w-4 h-4" />
+                      Goal created! 🎉
+                    </div>
+                    <div className="bg-violet-50 border border-violet-100 rounded-2xl px-5 py-4 max-w-sm text-center">
+                      <p className="text-sm text-violet-800 font-medium mb-1">Your plan is a living document 🌱</p>
+                      <p className="text-xs text-violet-600 leading-relaxed mb-3">Come back anytime to adjust difficulty, add resources, skip ahead, extend the timeline, or completely restructure a phase. Just tell me what's working and what isn't.</p>
+                      <div className="flex gap-2 justify-center">
+                        <Button size="sm" className="rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold" onClick={() => navigate(`/goal/${pendingGoalId}`)}>
+                          Go to Goal →
+                        </Button>
+                        <Button size="sm" variant="outline" className="rounded-xl text-xs border-violet-200 text-violet-700 hover:bg-violet-50 font-semibold" onClick={handleNewPlan}>
+                          Plan Another
+                        </Button>
+                      </div>
+                    </div>
+                  </>
                 )}
               </div>
             )}
