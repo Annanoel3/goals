@@ -81,6 +81,19 @@ export default function GoalDetail() {
     stepsByPhase[phase].push(s);
   });
 
+  // Sort phases: Month 1 Week 1, Month 1 Week 2, ..., Month 2 Week 1, etc.
+  const phaseSort = (a, b) => {
+    const parse = (ph) => {
+      const m = ph.match(/Month\s*(\d+)/i);
+      const w = ph.match(/Week\s*(\d+)/i);
+      const month = m ? parseInt(m[1], 10) : 999;
+      const week = w ? parseInt(w[1], 10) : 0;
+      return month * 100 + week;
+    };
+    return parse(a) - parse(b);
+  };
+  const sortedPhases = Object.keys(stepsByPhase).sort(phaseSort);
+
   return (
     <div className="min-h-screen pb-32 px-4 pt-6">
       <div className="max-w-2xl mx-auto">
@@ -151,8 +164,9 @@ export default function GoalDetail() {
 
         {/* Steps - Month/Week Hierarchy */}
          <div className="space-y-3">
-           {Object.entries(stepsByPhase).map(([phase, phaseSteps]) => {
-             const isPhaseOpen = expandedPhases[phase];
+           {sortedPhases.map(phase => {
+              const phaseSteps = stepsByPhase[phase];
+              const isPhaseOpen = expandedPhases[phase];
              // Group steps by week within each month
              const stepsByWeek = {};
              phaseSteps.forEach(s => {
