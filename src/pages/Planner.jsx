@@ -87,7 +87,9 @@ export default function Planner() {
 
       setMessages(prev => [...prev, { role: "assistant", content: message }]);
 
-      if (action === 'plan_approved' || message?.includes('PLAN_APPROVED')) {
+      if (action === 'plan_proposed') {
+        setPendingAction('plan_proposed');
+      } else if (action === 'plan_approved' || message?.includes('PLAN_APPROVED')) {
         setPendingAction('plan_approved');
       } else if (action === 'edit_approved' || message?.includes('EDIT_APPROVED')) {
         setPendingAction('edit_approved');
@@ -333,8 +335,8 @@ export default function Planner() {
               </div>
             )}
 
-            {/* Plan preview before approval - show when AI presents the draft */}
-            {messages.length > 0 && !isLoading && !pendingAction && !saved && !editingGoal && (
+            {/* Plan preview before approval - show ONLY when plan is proposed */}
+            {pendingAction === 'plan_proposed' && !isLoading && !saved && !editingGoal && (
               <div className="flex flex-col items-center gap-3 pt-2">
                 <Button
                   onClick={handleSaveNewGoal}

@@ -627,7 +627,7 @@ Always be specific, warm, encouraging, and treat the plan as a living document t
       return Response.json({ message: reply.replace(/EDIT_APPROVED\s*/i, '').trim(), action: 'edit_approved', goal_id });
     }
     if (reply.includes('PLAN_APPROVED')) {
-      return Response.json({ message: reply.replace(/PLAN_APPROVED\s*/i, '').trim(), action: 'plan_approved' });
+      return Response.json({ message: reply.replace(/PLAN_APPROVED\s*/i, '').trim(), action: 'plan_proposed' });
     }
     const editMatch = reply.match(/EDIT_APPROVED:([^\s]+)/i);
     if (editMatch) {
