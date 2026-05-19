@@ -15,6 +15,7 @@ export default function Planner() {
   const [pendingAction, setPendingAction] = useState(null); // 'plan_approved' | 'edit_approved'
   const [pendingGoalId, setPendingGoalId] = useState(null);
   const [saved, setSaved] = useState(false);
+  const [autoSave, setAutoSave] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [mediaRecorder, setMediaRecorder] = useState(null);
   const [goals, setGoals] = useState([]);
@@ -27,6 +28,14 @@ export default function Planner() {
   const { toast } = useToast();
 
   useEffect(() => { messagesRef.current = messages; }, [messages]);
+
+  // Auto-save when plan is approved
+  useEffect(() => {
+    if (autoSave && pendingAction === 'plan_approved' && !saved && !isSaving) {
+      setAutoSave(false);
+      handleSaveNewGoal();
+    }
+  }, [autoSave, pendingAction, saved, isSaving]);
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -76,6 +85,7 @@ export default function Planner() {
     setPendingAction(null);
     setPendingGoalId(null);
     setSaved(false);
+    setAutoSave(false);
     setInput("");
     setEditingGoal(null);
   };
@@ -103,9 +113,12 @@ export default function Planner() {
       setMessages(prev => [...prev, { role: "assistant", content: message }]);
 
       if (action === 'plan_proposed') {
-        setPendingAction('plan_proposed');
+        // Auto-save immediately — no button needed
+        setPendingAction('plan_approved');
+        setAutoSave(true);
       } else if (action === 'plan_approved' || message?.includes('PLAN_APPROVED')) {
         setPendingAction('plan_approved');
+        setAutoSave(true);
       } else if (action === 'edit_approved' || message?.includes('EDIT_APPROVED')) {
         setPendingAction('edit_approved');
         const resolvedGoalId = goal_id || editingGoal?.id;
@@ -350,39 +363,8 @@ export default function Planner() {
               </div>
             )}
 
-            {/* Plan preview before approval */}
-            {pendingAction === 'plan_proposed' && !isLoading && !saved && !editingGoal && (
-              <div className="flex flex-col items-center gap-3 pt-4 pb-4">
-                <Button
-                  onClick={handleSaveNewGoal}
-                  className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white rounded-2xl px-6 py-2.5 shadow-lg shadow-violet-100 font-semibold"
-                >
-                  <Check className="w-4 h-4 mr-2" />
-                  Looks good!
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => sendMessage("I'd like to work on it some more")}
-                  className="rounded-2xl px-6 py-2.5 border-2 border-gray-300 text-gray-700 hover:bg-gray-50 font-semibold"
-                >
-                  I'd like to work on it some more
-                </Button>
-              </div>
-            )}
-
-            {/* New goal approval */}
-            {pendingAction === 'plan_approved' && !saved && !isSaving && (
-              <div className="flex justify-center py-4">
-                <Button
-                  onClick={handleSaveNewGoal}
-                  className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white rounded-2xl px-6 py-2.5 shadow-lg shadow-violet-100 font-semibold"
-                >
-                  <Plus className="w-4 h-4 mr-2" />Save This Goal
-                </Button>
-              </div>
-            )}
-
-            {isSaving && (pendingAction === 'plan_approved' || pendingAction === 'plan_proposed') && (
+            {/* Auto-saving indicator */}
+            {isSaving && (pendingAction === 'plan_approved') && (
               <div className="flex justify-center py-4">
                 <GoalPlanLoadingAnimation />
               </div>
@@ -525,6 +507,19 @@ function renderInlineText(text) {
     }
     return part;
   });
+}
+
+function renderMarkdownLine(line, i) {
+  const h3Match = line.match(/^###\s+(.*)/);
+  const h4Match = line.match(/^####\s+(.*)/);
+  const h2Match = line.match(/^##\s+(.*)/);
+  const h1Match = line.match(/^#\s+(.*)/);
+  if (h1Match) return <h2 key={i} className="text-base font-bold text-gray-900 mt-3 mb-1">{renderInlineText(h1Match[1])}</h2>;
+  if (h2Match) return <h3 key={i} className="text-sm font-bold text-gray-800 mt-2.5 mb-1">{renderInlineText(h2Match[1])}</h3>;
+  if (h3Match) return <h4 key={i} className="text-sm font-semibold text-gray-800 mt-2 mb-0.5">{renderInlineText(h3Match[1])}</h4>;
+  if (h4Match) return <p key={i} className="text-xs font-semibold text-gray-600 mt-1">{renderInlineText(h4Match[1])}</p>;
+  if (line.trim() === '') return <br key={i} />;
+  return <span key={i} className="block">{renderInlineText(line)}</span>;
 }
 
 // Parse plan text into Month > Week > Tasks hierarchy
@@ -714,7 +709,7 @@ function MessageBubble({ msg }) {
           isPlanMessage(msg.content) ? (
             <PlanView text={msg.content} />
           ) : (
-            <span className="whitespace-pre-wrap">{renderInlineText(msg.content)}</span>
+            <div>{msg.content.split('\n').map((line, i) => renderMarkdownLine(line, i))}</div>
           )
         )}
       </div>
