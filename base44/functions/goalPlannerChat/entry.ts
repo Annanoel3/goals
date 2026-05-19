@@ -42,12 +42,32 @@ ${monthsHint}
 
 Return JSON (no markdown) in EXACTLY this structure. CRITICAL STRUCTURAL RULE FOR ALL GOALS 1+ MONTHS:
 - Calculate the EXACT number of months from today (${today}) to target date.
-- EVERY SINGLE MONTH must have EXACTLY 4 weeks: Month 1 Week 1, Month 1 Week 2, Month 1 Week 3, Month 1 Week 4, Month 2 Week 1, Month 2 Week 2, Month 2 Week 3, Month 2 Week 4, Month 3 Week 1 ... and so on for EVERY month.
-- Each week must have 3-5 actionable steps (consistent distribution).
-- NO SKIPPED WEEKS OR MONTHS. If the plan spans 6 months, generate all 24 weeks (6 × 4). If it spans 12 months, generate all 48 weeks (12 × 4).
-- NEVER combine weeks or months: "Week 1-2", "Weeks 3-4", "Months 4-6" are STRICTLY FORBIDDEN. Each phase must be exactly ONE week (e.g. "Month 1, Week 1", "Month 2, Week 3", "Month 5, Week 2"). No ranges, no spans, no combined periods ever.
-- FORBIDDEN: Providing weeks for only Month 1 and then switching to month-only labels for subsequent months (e.g. "Month 2", "Month 3"). EVERY month must have all 4 weeks broken out individually.
+- EVERY SINGLE MONTH must have EXACTLY 4 weeks: Month 1 Week 1, Month 1 Week 2, Month 1 Week 3, Month 1 Week 4, Month 2 Week 1 ... and so on for EVERY month.
+- FORBIDDEN: Providing weeks for only Month 1 then switching to month-only labels (e.g. "Month 2", "Month 3"). EVERY month must have all 4 weeks individually.
+- NEVER combine weeks or months: "Week 1-2", "Weeks 3-4", "Months 4-6" are STRICTLY FORBIDDEN. Each phase = exactly ONE week. No ranges ever.
 - For goals under 1 month, just use "Week 1", "Week 2" phases directly.
+
+GRANULARITY RULES — choose the right level of detail per goal type:
+
+TYPE A — DAILY PRACTICE GOALS (instruments, language learning, fitness/exercise, meditation, journaling, coding practice, drawing, singing, martial arts, sport drills):
+  - Each week must include a DAILY breakdown: Monday through Sunday (or Day 1–7), each with a specific task.
+  - Example for "Learn Guitar, Month 1 Week 1":
+      Monday: Practice open chords G, C, D for 20 min
+      Tuesday: Repeat Monday's chords + practice transitions
+      Wednesday: Learn Em and Am chords
+      ...and so on through Sunday.
+  - Mark these steps as is_daily_habit: true.
+  - The step title should be the day (e.g. "Monday – Chord Practice") and description contains what to do.
+
+TYPE B — MILESTONE/PROJECT GOALS (save money, find a job, start a business, write a book, improve relationships, mental health, happiness, productivity, home projects):
+  - Each week needs only 2-4 key actionable tasks — NOT a daily breakdown.
+  - Steps should be concrete milestones or actions, not daily habits.
+  - Example for "Be Happier, Month 2 Week 1":
+      Step: "Schedule one social activity this week"
+      Step: "Journal about 3 things you're grateful for (3x this week)"
+      Step: "Read Chapter 4 of The Happiness Advantage"
+
+DECISION RULE: Look at the goal's category and description. If it involves a SKILL that requires daily repetition to build muscle memory or habit → TYPE A. If it's about achieving outcomes through periodic actions and milestones → TYPE B. When in doubt, lean TYPE B (fewer, clearer steps per week).
 
 IMPORTANT: Create AT LEAST 15-20+ detailed subtasks PER MILESTONE. CRITICAL: If the user said "by end of year" or "by [month]", calculate the EXACT number of months from today (${today}) to that date and use that as the timeline. Do NOT use a generic number.
 {
@@ -572,10 +592,14 @@ PHASE 1 — GATHER INFO FIRST (STRICTLY REQUIRED before drafting any plan):
 PHASE 2 — DRAFT THE FULL PLAN (only after sufficient info gathered):
 4. STRICT PHASE NAMING RULES — VIOLATIONS ARE NOT ACCEPTABLE:
    - NEVER combine weeks: "Week 1-2", "Week 3-4", "Weeks 5-6" are ALL FORBIDDEN. Every week is its own entry: "Month 1, Week 1", "Month 1, Week 2", etc.
-   - NEVER combine months: "Months 4-6", "Month 4-7", "Months 4-7" are ALL FORBIDDEN. Every month is its own entry: "Month 4", "Month 5", "Month 6".
-   - NEVER use ranges of any kind. Each phase label must refer to exactly ONE week or ONE month, never a span.
-   - Correct format examples: "Month 1, Week 1" / "Month 1, Week 2" / "Month 2, Week 1" / "Month 3" — each is a single, discrete unit.
-   - If you need more content, add more steps to individual weeks/months. Never merge them.
+   - NEVER combine months. Every month is its own entry: "Month 4", "Month 5", "Month 6".
+   - NEVER use ranges. Each phase = exactly ONE week.
+   - EVERY month must have all 4 weeks. Never give Month 1 four weeks and then just "Month 2" with no weeks.
+
+   GRANULARITY — choose the right level based on goal type:
+   - DAILY PRACTICE GOALS (instrument, language, fitness, coding, drawing, martial arts): break each week into daily tasks (Monday–Sunday or Day 1–7). Mark as is_daily_habit: true.
+   - MILESTONE/PROJECT GOALS (happiness, finance, career, relationships, business): 2-4 key actions per week — no daily breakdown needed.
+   - Rule of thumb: Does this skill require daily repetition to build? → daily. Is it about outcomes through periodic effort? → weekly milestones.
 5. Create a detailed phased plan with milestones (Month 1, Month 2, Week 1, etc.) that EXACTLY fits the user's stated timeline. If they say "by December 2026" (7 months), your plan must FULLY cover all 7 months — not 6, not 5, but all 7. Every month must have content. Condense, prioritize, and fit everything within the full window — do not stop early.
    CRITICAL ENFORCEMENT: If the timeline spans 12 months, there MUST be 12 months of content (Month 1 through Month 12). If the user says "by end of year" and today is May, calculate the exact months remaining and FILL EVERY SINGLE MONTH/WEEK with relevant steps. No shortcuts, no stopping at 5 months when the timeline is longer. The plan must span the entire stated duration.
 5. Include specific, actionable steps — not vague suggestions. NEVER present only 2-3 ideas and ask if they resonate. Always present the COMPLETE plan.
