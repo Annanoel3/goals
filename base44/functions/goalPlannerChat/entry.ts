@@ -42,10 +42,11 @@ ${monthsHint}
 
 Return JSON (no markdown) in EXACTLY this structure. CRITICAL STRUCTURAL RULE FOR ALL GOALS 1+ MONTHS:
 - Calculate the EXACT number of months from today (${today}) to target date.
-- Organize steps as: Month 1 Week 1, Month 1 Week 2, Month 1 Week 3, Month 1 Week 4, Month 2 Week 1, etc.
+- EVERY SINGLE MONTH must have EXACTLY 4 weeks: Month 1 Week 1, Month 1 Week 2, Month 1 Week 3, Month 1 Week 4, Month 2 Week 1, Month 2 Week 2, Month 2 Week 3, Month 2 Week 4, Month 3 Week 1 ... and so on for EVERY month.
 - Each week must have 3-5 actionable steps (consistent distribution).
-- NO SKIPPED WEEKS OR MONTHS. If the plan spans 6 months, generate all 24 weeks (6 × 4).
-- NEVER combine weeks or months: "Week 1-2", "Weeks 3-4", "Months 4-6" are STRICTLY FORBIDDEN. Each phase must be exactly ONE week or ONE month (e.g. "Month 1, Week 1", "Month 2, Week 3"). No ranges, no spans, no combined periods ever.
+- NO SKIPPED WEEKS OR MONTHS. If the plan spans 6 months, generate all 24 weeks (6 × 4). If it spans 12 months, generate all 48 weeks (12 × 4).
+- NEVER combine weeks or months: "Week 1-2", "Weeks 3-4", "Months 4-6" are STRICTLY FORBIDDEN. Each phase must be exactly ONE week (e.g. "Month 1, Week 1", "Month 2, Week 3", "Month 5, Week 2"). No ranges, no spans, no combined periods ever.
+- FORBIDDEN: Providing weeks for only Month 1 and then switching to month-only labels for subsequent months (e.g. "Month 2", "Month 3"). EVERY month must have all 4 weeks broken out individually.
 - For goals under 1 month, just use "Week 1", "Week 2" phases directly.
 
 IMPORTANT: Create AT LEAST 15-20+ detailed subtasks PER MILESTONE. CRITICAL: If the user said "by end of year" or "by [month]", calculate the EXACT number of months from today (${today}) to that date and use that as the timeline. Do NOT use a generic number.
@@ -154,47 +155,24 @@ CRITICAL:
             }
           });
           
-          // If any weeks are present, ALL months must use week structure
-          if (hasWeekStructure) {
-            for (let month = 1; month <= expectedMonths; month++) {
-              if (!monthWeekCounts[month]) {
-                return {
-                  valid: false,
-                  error: `Plan structure incomplete: Month ${month} is missing (expected all months 1-${expectedMonths} with weeks).`
-                };
-              }
-              const weeksInMonth = monthWeekCounts[month];
-              // Each month should have ~4 weeks
-              if (weeksInMonth.has(0) || weeksInMonth.size < 3) {
-                return {
-                  valid: false,
-                  error: `Month ${month} has incomplete week structure. Expected 4 weeks per month for proper pacing.`
-                };
-              }
-            }
-          } else {
-            // No week structure detected — check months at least
-            const monthCounts = {};
-            phaseArray.forEach(phase => {
-              const monthMatch = phase.match(/Month (\d+)/i);
-              if (monthMatch) {
-                const monthNum = parseInt(monthMatch[1], 10);
-                monthCounts[monthNum] = true;
-              }
-            });
-            
-            const missingMonths = [];
-            for (let i = 1; i <= expectedMonths; i++) {
-              if (!monthCounts[i]) missingMonths.push(i);
-            }
-            
-            if (missingMonths.length > 0) {
+          // ALL months MUST use week structure (weeks are required for every month)
+          for (let month = 1; month <= expectedMonths; month++) {
+            if (!monthWeekCounts[month]) {
               return {
                 valid: false,
-                error: `Plan is incomplete: missing content for Month ${missingMonths.join(', Month ')}. Expected all months 1-${expectedMonths}.`
+                error: `Plan structure incomplete: Month ${month} is missing entirely (expected all months 1-${expectedMonths} with 4 weeks each).`
+              };
+            }
+            const weeksInMonth = monthWeekCounts[month];
+            // Each month should have ~4 weeks (no month-only entries, no < 3 weeks)
+            if (weeksInMonth.has(0) || weeksInMonth.size < 3) {
+              return {
+                valid: false,
+                error: `Month ${month} only has ${weeksInMonth.size} week(s). Every month must have 4 weeks broken out individually (Month ${month} Week 1 through Week 4).`
               };
             }
           }
+          
         } else if (expectedMonths < 1) {
           // For goals under 1 month, just use weeks (Week 1, Week 2, etc.)
           const weekCounts = {};
