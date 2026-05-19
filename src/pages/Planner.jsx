@@ -513,7 +513,6 @@ function EmptyState({ onExampleClick }) {
 function renderInlineText(text) {
   const urlRegex = /(https?:\/\/[^\s]+)/g;
   const parts = text.split(/(\*\*[^*]+\*\*|https?:\/\/[^\s]+)/g);
-  // Strip trailing punctuation from URLs
   const cleanUrl = (url) => url.replace(/[.,;:!?)]+$/, '');
   return parts.map((part, i) => {
     if (part.startsWith('**') && part.endsWith('**')) return <strong key={i}>{part.slice(2, -2)}</strong>;
@@ -528,32 +527,163 @@ function renderInlineText(text) {
   });
 }
 
-function CollapsibleSection({ title, body }) {
+// Parse plan text into Month > Week > Tasks hierarchy
+function parsePlanHierarchy(text) {
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+  const months = [];
+  let currentMonth = null;
+  let currentWeek = null;
+  let preamble = [];
+
+  const isMonthHeader = (l) => /^(#{1,3}\s+)?(\*\*)?(Month\s+\d+)(\*\*)?/i.test(l);
+  const isWeekHeader = (l) => /^(#{1,3}\s+)?(\*\*)?(Month\s+\d+[,\s]+Week\s+\d+|Week\s+\d+)(\*\*)?/i.test(l);
+  const isTaskLine = (l) => /^[-•*]\s+/.test(l) || /^\d+\.\s+/.test(l) || /^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|Day\s*\d+)/i.test(l);
+
+  const cleanHeader = (l) => l.replace(/^#{1,3}\s+/, '').replace(/\*\*/g, '').replace(/:$/, '').trim();
+  const cleanTask = (l) => l.replace(/^[-•*]\s+/, '').replace(/^\d+\.\s+/, '').trim();
+
+  for (const line of lines) {
+    if (isWeekHeader(line) && !isMonthHeader(line)) {
+      // Pure week header like "Week 1" (no month prefix) — attach to current month
+      if (currentMonth) {
+        currentWeek = { title: cleanHeader(line), tasks: [] };
+        currentMonth.weeks.push(currentWeek);
+      }
+    } else if (isMonthHeader(line)) {
+      // Could be "Month 1" or "Month 1, Week 1" combined
+      const combinedWeek = /Month\s+\d+[,\s]+Week\s+\d+/i.test(line);
+      if (combinedWeek) {
+        // Extract month number to find/create the month
+        const mNum = line.match(/Month\s+(\d+)/i)?.[1];
+        const mTitle = `Month ${mNum}`;
+        if (!currentMonth || currentMonth.title !== mTitle) {
+          currentMonth = { title: mTitle, weeks: [] };
+          months.push(currentMonth);
+        }
+        currentWeek = { title: cleanHeader(line), tasks: [] };
+        currentMonth.weeks.push(currentWeek);
+      } else {
+        currentMonth = { title: cleanHeader(line), weeks: [] };
+        currentWeek = null;
+        months.push(currentMonth);
+      }
+    } else if (isTaskLine(line)) {
+      const task = cleanTask(line);
+      if (!task) continue;
+      if (currentWeek) {
+        currentWeek.tasks.push(task);
+      } else if (currentMonth) {
+        // Task belongs to month but no week yet — create implicit week
+        if (currentMonth.weeks.length === 0) {
+          currentWeek = { title: 'Overview', tasks: [] };
+          currentMonth.weeks.push(currentWeek);
+        } else {
+          currentWeek = currentMonth.weeks[currentMonth.weeks.length - 1];
+        }
+        currentWeek.tasks.push(task);
+      }
+    } else {
+      // Plain text — if no months yet, it's preamble
+      if (months.length === 0) {
+        preamble.push(line);
+      } else if (currentWeek) {
+        // Sub-description for current task or context — append to last task or week notes
+        if (currentWeek.tasks.length > 0) {
+          currentWeek.tasks[currentWeek.tasks.length - 1] += ' — ' + line;
+        }
+      }
+    }
+  }
+
+  return { months, preamble: preamble.join('\n') };
+}
+
+function WeekDropdown({ week }) {
   const [open, setOpen] = React.useState(false);
-  // First ~8 words for the preview
-  const previewWords = body.trim().split(/\s+/).slice(0, 8).join(' ');
-  const hasMore = body.trim().split(/\s+/).length > 8;
+  const [checked, setChecked] = React.useState({});
+
+  const toggleCheck = (i) => setChecked(prev => ({ ...prev, [i]: !prev[i] }));
+  const completedCount = Object.values(checked).filter(Boolean).length;
 
   return (
-    <div className="border border-gray-100 rounded-xl mb-2 overflow-hidden bg-gray-50">
+    <div className="border border-gray-100 rounded-xl overflow-hidden mb-1.5">
       <button
         onClick={() => setOpen(v => !v)}
-        className="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left hover:bg-gray-100 transition-colors"
+        className="w-full flex items-center justify-between gap-2 px-3 py-2 text-left bg-white hover:bg-gray-50 transition-colors"
       >
-        <span className="font-semibold text-gray-800 text-sm">{title}</span>
-        {open ? <ChevronUp className="w-4 h-4 text-gray-400 flex-shrink-0" /> : <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />}
+        <span className="font-medium text-gray-700 text-xs">{week.title}</span>
+        <div className="flex items-center gap-2">
+          {week.tasks.length > 0 && (
+            <span className="text-[10px] text-gray-400">{completedCount}/{week.tasks.length}</span>
+          )}
+          {open ? <ChevronUp className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />}
+        </div>
       </button>
-      {!open && hasMore && (
-        <div className="px-3 pb-2 relative pointer-events-none">
-          <p className="text-xs text-gray-400 leading-relaxed">
-            {previewWords}…
-          </p>
+      {open && (
+        <div className="px-3 pb-3 pt-1 bg-gray-50 border-t border-gray-100 space-y-2">
+          {week.tasks.length === 0 ? (
+            <p className="text-xs text-gray-400 italic">No tasks listed</p>
+          ) : week.tasks.map((task, i) => (
+            <label key={i} className="flex items-start gap-2 cursor-pointer group">
+              <div
+                onClick={() => toggleCheck(i)}
+                className={`mt-0.5 w-4 h-4 flex-shrink-0 rounded border transition-colors ${
+                  checked[i] ? 'bg-violet-600 border-violet-600' : 'border-gray-300 bg-white group-hover:border-violet-400'
+                } flex items-center justify-center`}
+              >
+                {checked[i] && <Check className="w-2.5 h-2.5 text-white" />}
+              </div>
+              <span className={`text-xs leading-relaxed ${checked[i] ? 'line-through text-gray-400' : 'text-gray-700'}`}>
+                {renderInlineText(task)}
+              </span>
+            </label>
+          ))}
         </div>
       )}
-      {open && (
-        <div className="px-3 pb-3 text-sm text-gray-700 leading-relaxed whitespace-pre-wrap border-t border-gray-100 pt-2">
-          {renderInlineText(body.trim())}
+    </div>
+  );
+}
+
+function MonthDropdown({ month }) {
+  const [open, setOpen] = React.useState(false);
+  const totalTasks = month.weeks.reduce((acc, w) => acc + w.tasks.length, 0);
+
+  return (
+    <div className="border border-violet-100 rounded-xl overflow-hidden mb-2 shadow-sm">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center justify-between gap-2 px-4 py-3 text-left bg-white hover:bg-violet-50/50 transition-colors"
+      >
+        <span className="font-semibold text-gray-800 text-sm">{month.title}</span>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-gray-400">{month.weeks.length} weeks · {totalTasks} tasks</span>
+          {open ? <ChevronUp className="w-4 h-4 text-violet-400 flex-shrink-0" /> : <ChevronDown className="w-4 h-4 text-violet-400 flex-shrink-0" />}
         </div>
+      </button>
+      {open && (
+        <div className="px-3 pb-3 pt-2 bg-violet-50/30 border-t border-violet-100">
+          {month.weeks.length === 0 ? (
+            <p className="text-xs text-gray-400 italic px-1">No weeks found</p>
+          ) : month.weeks.map((week, i) => (
+            <WeekDropdown key={i} week={week} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PlanView({ text }) {
+  const { months, preamble } = parsePlanHierarchy(text);
+  return (
+    <div>
+      {preamble && (
+        <p className="text-sm text-gray-800 leading-relaxed mb-3 whitespace-pre-wrap">{renderInlineText(preamble)}</p>
+      )}
+      {months.length > 0 ? (
+        months.map((month, i) => <MonthDropdown key={i} month={month} />)
+      ) : (
+        <span className="whitespace-pre-wrap text-sm">{renderInlineText(text)}</span>
       )}
     </div>
   );
@@ -562,48 +692,8 @@ function CollapsibleSection({ title, body }) {
 function MessageBubble({ msg }) {
   const isUser = msg.role === "user";
 
-  // Parse assistant messages: detect numbered/titled sections like "1. Title:\n   - ..."
-  const parseBlocks = (text) => {
-    // Match patterns like: "**Month 1:**" or "### Week 1" — NOT simple numbered list items
-    const sectionRegex = /^(#{1,3}\s+[^\n]+|\*\*[^\n*]+\*\*:?)$/;
-    const lines = text.split('\n');
-    const blocks = [];
-    let i = 0;
-
-    while (i < lines.length) {
-      const line = lines[i].trim();
-      if (sectionRegex.test(line)) {
-        // Collect body lines until the next section header or end
-        const title = line.replace(/^\*\*|\*\*:?$|^#{1,3}\s+/g, '').replace(/:$/, '').trim();
-        let bodyLines = [];
-        i++;
-        while (i < lines.length && !sectionRegex.test(lines[i].trim())) {
-          bodyLines.push(lines[i]);
-          i++;
-        }
-        const body = bodyLines.join('\n').trim();
-        if (body) {
-          blocks.push({ type: 'section', title, body });
-        } else {
-          blocks.push({ type: 'text', content: line });
-        }
-      } else {
-        // Accumulate plain text lines
-        let textLines = [];
-        while (i < lines.length && !sectionRegex.test(lines[i].trim())) {
-          textLines.push(lines[i]);
-          i++;
-        }
-        const content = textLines.join('\n').trim();
-        if (content) blocks.push({ type: 'text', content });
-      }
-    }
-    return blocks;
-  };
-
-  const hasSections = (text) => {
-    // Only treat as sections if there are Month/Week style headers (plan breakdown), not numbered lists
-    return /^\*\*[^\n*]+\*\*:?$/m.test(text) || /^#{1,3}\s+/m.test(text);
+  const isPlanMessage = (text) => {
+    return /Month\s+\d+/i.test(text) && /Week\s+\d+/i.test(text);
   };
 
   return (
@@ -613,20 +703,14 @@ function MessageBubble({ msg }) {
           <Sparkles className="w-3.5 h-3.5 text-white" />
         </div>
       )}
-      <div className={`max-w-[82%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+      <div className={`max-w-[88%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
         isUser
           ? 'bg-gradient-to-br from-violet-600 to-indigo-600 text-white rounded-br-sm shadow-md shadow-violet-100 whitespace-pre-wrap'
           : 'bg-white border border-gray-100 text-gray-800 rounded-bl-sm shadow-sm'
       }`}>
         {isUser ? renderInlineText(msg.content) : (
-          hasSections(msg.content) ? (
-            <div>
-              {parseBlocks(msg.content).map((block, i) =>
-                block.type === 'section'
-                  ? <CollapsibleSection key={i} title={block.title} body={block.body} />
-                  : <p key={i} className="text-sm text-gray-800 leading-relaxed mb-2 whitespace-pre-wrap">{renderInlineText(block.content)}</p>
-              )}
-            </div>
+          isPlanMessage(msg.content) ? (
+            <PlanView text={msg.content} />
           ) : (
             <span className="whitespace-pre-wrap">{renderInlineText(msg.content)}</span>
           )

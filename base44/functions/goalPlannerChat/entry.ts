@@ -659,25 +659,65 @@ Always be specific, warm, encouraging, and treat the plan as a living document t
       messages: [
         { role: "system", content: systemPrompt },
         ...messages
-      ]
+      ],
+      tools: [
+        {
+          type: "function",
+          function: {
+            name: "web_search",
+            description: "Search the web for current, accurate information. Use this whenever you need factual data, current best practices, research-backed advice, specific resources, prices, local services, or any topic where you are not 100% certain of the accuracy. Do NOT give advice or plans based purely on imagination — search first.",
+            parameters: {
+              type: "object",
+              properties: {
+                query: { type: "string", description: "The search query" }
+              },
+              required: ["query"]
+            }
+          }
+        }
+      ],
+      tool_choice: "auto"
     });
 
-    const reply = completion.choices[0].message.content;
+    // If the model wants to search the web, execute and continue
+    let finalReply;
+    const firstChoice = completion.choices[0];
+    if (firstChoice.finish_reason === 'tool_calls' && firstChoice.message.tool_calls?.length > 0) {
+      const toolMessages = [{ role: "system", content: systemPrompt }, ...messages, firstChoice.message];
+      for (const call of firstChoice.message.tool_calls) {
+        const query = JSON.parse(call.function.arguments).query;
+        let searchResult = '';
+        try {
+          const searchRes = await base44.asServiceRole.integrations.Core.InvokeLLM({
+            prompt: `Search the web and return a concise factual summary about: "${query}". Include specific facts, numbers, resources, and current best practices. Be specific and accurate.`,
+            add_context_from_internet: true
+          });
+          searchResult = typeof searchRes === 'string' ? searchRes : (searchRes?.text || searchRes?.content || JSON.stringify(searchRes));
+        } catch (_) {
+          searchResult = 'Search unavailable — use best available knowledge.';
+        }
+        toolMessages.push({ role: "tool", tool_call_id: call.id, content: searchResult });
+      }
+      const followUp = await openai.chat.completions.create({ model: "gpt-4o", messages: toolMessages });
+      finalReply = followUp.choices[0].message.content;
+    } else {
+      finalReply = firstChoice.message.content;
+    }
 
     // Parse response type
-    if (isEditSession && reply.includes('EDIT_APPROVED')) {
-      return Response.json({ message: reply.replace(/EDIT_APPROVED\s*/i, '').trim(), action: 'edit_approved', goal_id });
+    if (isEditSession && finalReply.includes('EDIT_APPROVED')) {
+      return Response.json({ message: finalReply.replace(/EDIT_APPROVED\s*/i, '').trim(), action: 'edit_approved', goal_id });
     }
-    if (reply.includes('PLAN_APPROVED')) {
-      return Response.json({ message: reply.replace(/PLAN_APPROVED\s*/i, '').trim(), action: 'plan_proposed' });
+    if (finalReply.includes('PLAN_APPROVED')) {
+      return Response.json({ message: finalReply.replace(/PLAN_APPROVED\s*/i, '').trim(), action: 'plan_proposed' });
     }
-    const editMatch = reply.match(/EDIT_APPROVED:([^\s]+)/i);
+    const editMatch = finalReply.match(/EDIT_APPROVED:([^\s]+)/i);
     if (editMatch) {
       const editGoalId = editMatch[1];
-      return Response.json({ message: reply.replace(/EDIT_APPROVED:[^\s]+\s*/i, '').trim(), action: 'edit_approved', goal_id: editGoalId });
+      return Response.json({ message: finalReply.replace(/EDIT_APPROVED:[^\s]+\s*/i, '').trim(), action: 'edit_approved', goal_id: editGoalId });
     }
 
-    return Response.json({ message: reply, action: 'chat' });
+    return Response.json({ message: finalReply, action: 'chat' });
 
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
