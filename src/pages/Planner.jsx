@@ -564,8 +564,8 @@ function MessageBubble({ msg }) {
 
   // Parse assistant messages: detect numbered/titled sections like "1. Title:\n   - ..."
   const parseBlocks = (text) => {
-    // Match patterns like: "1. Title:" or "**Month 1:**" or "### Week 1" etc.
-    const sectionRegex = /^(\d+\.\s+[^\n:]+:?|#{1,3}\s+[^\n]+|\*\*[^\n*]+\*\*:?)$/;
+    // Match patterns like: "**Month 1:**" or "### Week 1" — NOT simple numbered list items
+    const sectionRegex = /^(#{1,3}\s+[^\n]+|\*\*[^\n*]+\*\*:?)$/;
     const lines = text.split('\n');
     const blocks = [];
     let i = 0;
@@ -602,7 +602,8 @@ function MessageBubble({ msg }) {
   };
 
   const hasSections = (text) => {
-    return /^\d+\.\s+[^\n:]+:?$/m.test(text) || /^#{1,3}\s+/m.test(text);
+    // Only treat as sections if there are Month/Week style headers (plan breakdown), not numbered lists
+    return /^\*\*[^\n*]+\*\*:?$/m.test(text) || /^#{1,3}\s+/m.test(text);
   };
 
   return (
