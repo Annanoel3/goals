@@ -18,18 +18,27 @@ Deno.serve(async (req) => {
       const conversationText = messages.map(m => `${m.role === 'user' ? 'User' : 'Planner'}: ${m.content}`).join('\n\n');
       const today = new Date().toISOString().split('T')[0];
 
+      // Pre-scan the conversation to detect the timeline so we can enforce it in the extraction prompt
+      const timelineDetect = conversationText.match(/(\d+)[- ]month/i);
+      const detectedMonths = timelineDetect ? parseInt(timelineDetect[1], 10) : null;
+      const monthsHint = detectedMonths
+        ? `CRITICAL: The plan discussed in this conversation spans ${detectedMonths} months. You MUST generate steps for ALL ${detectedMonths} months (Month 1 through Month ${detectedMonths}). Do NOT stop at Month 2 or any earlier month.`
+        : `CRITICAL: Identify the full timeline from the conversation and generate steps for every single month/week discussed.`;
+
       const extractionResponse = await openai.chat.completions.create({
         model: "gpt-4o",
         messages: [
           {
             role: "system",
-            content: `You are extracting a structured goal plan from a planning conversation. Return ONLY valid JSON, no markdown fences.`
+            content: `You are extracting a structured goal plan from a planning conversation. Return ONLY valid JSON, no markdown fences. ${monthsHint}`
           },
           {
             role: "user",
             content: `Extract the FINAL agreed plan from this conversation:
 
 ${conversationText}
+
+${monthsHint}
 
 Return JSON (no markdown) in EXACTLY this structure. CRITICAL STRUCTURAL RULE FOR ALL GOALS 1+ MONTHS:
 - Calculate the EXACT number of months from today (${today}) to target date.
@@ -238,7 +247,7 @@ CRITICAL:
             },
             {
               role: "user",
-              content: `Extract the plan from this conversation. CRITICAL — the previous extraction was incomplete or had gaps. Fix it now by including EVERY month and week with full detail:\n\n${conversationText}\n\nReturn the SAME JSON structure, but with complete phases and steps for the full timeline.`
+              content: `Extract the plan from this conversation. CRITICAL — the previous extraction was incomplete or had gaps. Fix it now by including EVERY month and week with full detail:\n\n${conversationText}\n\n${monthsHint}\n\nReturn the SAME JSON structure, but with complete phases and steps for ALL ${detectedMonths || 'stated'} months.`
             }
           ],
           response_format: { type: "json_object" }
