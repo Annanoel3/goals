@@ -335,11 +335,8 @@ export default function Planner() {
               </div>
             )}
 
-            {/* Plan preview before approval - show when plan is proposed OR when the last AI message looks like a full plan */}
-            {!isLoading && !saved && !editingGoal && (pendingAction === 'plan_proposed' || (!pendingAction && (() => {
-              const lastAssistant = [...messages].reverse().find(m => m.role === 'assistant');
-              return lastAssistant && (lastAssistant.content.match(/Month \d+/gi) || []).length >= 3;
-            })())) && (
+            {/* Plan preview before approval - show ONLY when backend confirms plan is complete */}
+            {pendingAction === 'plan_proposed' && !isLoading && !saved && !editingGoal && (
               <div className="flex flex-col items-center gap-3 pt-2">
                 <Button
                   onClick={handleSaveNewGoal}
