@@ -535,37 +535,48 @@ function parsePlanHierarchy(text) {
   let currentWeek = null;
   let preamble = [];
 
-  const isMonthHeader = (l) => /^(#{1,3}\s+)?(\*\*)?(Month\s+\d+)(\*\*)?/i.test(l);
-  const isWeekHeader = (l) => /^(#{1,3}\s+)?(\*\*)?(Month\s+\d+[,\s]+Week\s+\d+|Week\s+\d+)(\*\*)?/i.test(l);
+  // "Month 1, Week 2" or "Month 1 Week 2" — combined header
+  const isCombinedHeader = (l) => /Month\s+\d+[,\s]+Week\s+\d+/i.test(l.replace(/\*\*/g, ''));
+  // Pure "Month 1" header (no week)
+  const isPureMonthHeader = (l) => /^(#{1,3}\s+)?(\*\*)?Month\s+\d+(\*\*)?[:\s]*$/i.test(l.replace(/\*\*/g, '').trim());
+  // Pure "Week 1" or "Week 1:" standalone
+  const isPureWeekHeader = (l) => /^(#{1,3}\s+)?(\*\*)?Week\s+\d+(\*\*)?[:\s]*$/i.test(l.replace(/\*\*/g, '').trim());
   const isTaskLine = (l) => /^[-•*]\s+/.test(l) || /^\d+\.\s+/.test(l) || /^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|Day\s*\d+)/i.test(l);
 
   const cleanHeader = (l) => l.replace(/^#{1,3}\s+/, '').replace(/\*\*/g, '').replace(/:$/, '').trim();
   const cleanTask = (l) => l.replace(/^[-•*]\s+/, '').replace(/^\d+\.\s+/, '').trim();
 
+  const getOrCreateMonth = (mNum) => {
+    const mTitle = `Month ${mNum}`;
+    let month = months.find(m => m.title === mTitle);
+    if (!month) {
+      month = { title: mTitle, weeks: [] };
+      months.push(month);
+    }
+    return month;
+  };
+
   for (const line of lines) {
-    if (isWeekHeader(line) && !isMonthHeader(line)) {
-      // Pure week header like "Week 1" (no month prefix) — attach to current month
-      if (currentMonth) {
+    if (isCombinedHeader(line)) {
+      // "Month 1, Week 2" — find/create month and add week to it
+      const mNum = line.match(/Month\s+(\d+)/i)?.[1];
+      if (mNum) {
+        currentMonth = getOrCreateMonth(mNum);
         currentWeek = { title: cleanHeader(line), tasks: [] };
         currentMonth.weeks.push(currentWeek);
       }
-    } else if (isMonthHeader(line)) {
-      // Could be "Month 1" or "Month 1, Week 1" combined
-      const combinedWeek = /Month\s+\d+[,\s]+Week\s+\d+/i.test(line);
-      if (combinedWeek) {
-        // Extract month number to find/create the month
-        const mNum = line.match(/Month\s+(\d+)/i)?.[1];
-        const mTitle = `Month ${mNum}`;
-        if (!currentMonth || currentMonth.title !== mTitle) {
-          currentMonth = { title: mTitle, weeks: [] };
-          months.push(currentMonth);
-        }
+    } else if (isPureMonthHeader(line)) {
+      // Standalone "Month 1" header
+      const mNum = line.match(/Month\s+(\d+)/i)?.[1];
+      if (mNum) {
+        currentMonth = getOrCreateMonth(mNum);
+        currentWeek = null;
+      }
+    } else if (isPureWeekHeader(line)) {
+      // Standalone "Week 1" — attach to current month
+      if (currentMonth) {
         currentWeek = { title: cleanHeader(line), tasks: [] };
         currentMonth.weeks.push(currentWeek);
-      } else {
-        currentMonth = { title: cleanHeader(line), weeks: [] };
-        currentWeek = null;
-        months.push(currentMonth);
       }
     } else if (isTaskLine(line)) {
       const task = cleanTask(line);
@@ -573,25 +584,16 @@ function parsePlanHierarchy(text) {
       if (currentWeek) {
         currentWeek.tasks.push(task);
       } else if (currentMonth) {
-        // Task belongs to month but no week yet — create implicit week
-        if (currentMonth.weeks.length === 0) {
-          currentWeek = { title: 'Overview', tasks: [] };
-          currentMonth.weeks.push(currentWeek);
-        } else {
-          currentWeek = currentMonth.weeks[currentMonth.weeks.length - 1];
-        }
+        // Task under month but no week — create implicit week
+        currentWeek = { title: 'Tasks', tasks: [] };
+        currentMonth.weeks.push(currentWeek);
         currentWeek.tasks.push(task);
       }
     } else {
-      // Plain text — if no months yet, it's preamble
       if (months.length === 0) {
         preamble.push(line);
-      } else if (currentWeek) {
-        // Sub-description for current task or context — append to last task or week notes
-        if (currentWeek.tasks.length > 0) {
-          currentWeek.tasks[currentWeek.tasks.length - 1] += ' — ' + line;
-        }
       }
+      // Ignore plain text lines inside months (they're usually just context)
     }
   }
 
