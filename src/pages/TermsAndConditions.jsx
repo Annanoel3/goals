@@ -47,8 +47,8 @@ export default function TermsAndConditions() {
       paddingBottom: 'max(3rem, calc(3rem + env(safe-area-inset-bottom)))'
     }}>
       <div className="max-w-2xl mx-auto px-4 py-6">
-        <Button 
-          variant="ghost" 
+        <Button
+          variant="ghost"
           onClick={() => navigate('/settings')}
           className="mb-6 p-3 h-12 text-base rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
         >
@@ -61,13 +61,13 @@ export default function TermsAndConditions() {
           <h1 className="text-2xl font-bold">Terms & Conditions</h1>
         </div>
         <p className={`text-xs mb-8 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-          Last updated: May 2026 · ADHDone
+          Last updated: May 2026 · Goals
         </p>
 
         <div className={`rounded-2xl border divide-y ${cardBg} ${divider}`}>
 
           <div className="p-5">
-            <P theme={theme}>By using ADHDone, you agree to these Terms and Conditions. If you don't agree, please do not use the app.</P>
+            <P theme={theme}>By using Goals, you agree to these Terms and Conditions. If you don't agree, please do not use the app.</P>
           </div>
 
           <div className="p-5">
@@ -96,12 +96,10 @@ export default function TermsAndConditions() {
             <Section title="3. Acceptable Use" theme={theme}>
               <P theme={theme}>You agree NOT to:</P>
               <List theme={theme} items={[
-                "Post harmful, abusive, harassing, or illegal content",
-                "Impersonate any person or entity",
-                "Spam, phish, or engage in fraudulent activities",
                 "Attempt to access other users' accounts or our systems without authorization",
-                "Upload viruses or malicious code",
-                "Use the app for commercial purposes without our consent",
+                "Upload viruses, malicious code, or harmful content",
+                "Use the app for commercial purposes without our prior written consent",
+                "Reverse engineer, decompile, or disassemble any part of the app",
               ]} />
             </Section>
           </div>
@@ -109,8 +107,8 @@ export default function TermsAndConditions() {
           <div className="p-5">
             <Section title="4. Subscriptions & Payments" theme={theme}>
               <List theme={theme} items={[
-                "New users receive a free trial period. You may cancel anytime during the trial without charge.",
-                "After the trial, a subscription is required to continue using ADHDone.",
+                "New users may receive a free trial period. You may cancel anytime during the trial without charge.",
+                "After the trial, a subscription is required to continue using Goals.",
                 "Subscriptions are billed through Apple App Store or Google Play and auto-renew unless canceled at least 24 hours before renewal.",
                 "Cancel anytime through your App Store or Google Play account settings.",
                 "Refunds are subject to App Store or Google Play policies.",
@@ -119,21 +117,27 @@ export default function TermsAndConditions() {
           </div>
 
           <div className="p-5">
-            <Section title="5. Disclaimer" theme={theme}>
-              <P theme={theme}>ADHDone is provided "as is" without warranties of any kind. We do not guarantee uninterrupted or error-free service and are not responsible for data loss or damages arising from your use of the app.</P>
-              <P theme={theme}><strong>Not a medical service:</strong> ADHDone is a productivity tool and is not a substitute for professional medical advice, diagnosis, or treatment. Always consult a qualified healthcare provider regarding medical conditions.</P>
+            <Section title="5. AI-Generated Content" theme={theme}>
+              <P theme={theme}>Goals uses AI to generate goal plans, coaching suggestions, and step breakdowns. AI-generated content is provided for informational and motivational purposes only. You are responsible for reviewing and acting on any AI suggestions. We do not guarantee the accuracy or suitability of AI-generated plans for your specific situation.</P>
             </Section>
           </div>
 
           <div className="p-5">
-            <Section title="6. Limitation of Liability" theme={theme}>
-              <P theme={theme}>To the maximum extent permitted by law, ADHDone and its owners shall not be liable for any indirect, incidental, or consequential damages resulting from your use or inability to use the app, unauthorized access to your data, or content posted by other users.</P>
+            <Section title="6. Disclaimer" theme={theme}>
+              <P theme={theme}>Goals is provided "as is" without warranties of any kind. We do not guarantee uninterrupted or error-free service and are not responsible for data loss or damages arising from your use of the app.</P>
+              <P theme={theme}><strong>Not a medical or therapeutic service:</strong> Goals is a personal productivity and planning tool. It is not a substitute for professional medical, psychological, or therapeutic advice. Always consult a qualified professional for health-related decisions.</P>
             </Section>
           </div>
 
           <div className="p-5">
-            <Section title="7. Termination" theme={theme}>
-              <P theme={theme}>We may suspend or terminate your account at any time for violations of these terms, abusive behavior, or to protect our users and services. You may delete your account at any time.</P>
+            <Section title="7. Limitation of Liability" theme={theme}>
+              <P theme={theme}>To the maximum extent permitted by law, Goals and its owners shall not be liable for any indirect, incidental, or consequential damages resulting from your use or inability to use the app, or unauthorized access to your data.</P>
+            </Section>
+          </div>
+
+          <div className="p-5">
+            <Section title="8. Termination" theme={theme}>
+              <P theme={theme}>We may suspend or terminate your account at any time for violations of these terms or to protect our services. You may delete your account at any time.</P>
               <div className="mt-2">
                 <Button onClick={() => navigate(createPageUrl("DeleteAccount"))} variant="outline" size="sm" className="text-red-600 border-red-600 hover:bg-red-50">
                   Delete My Account
@@ -143,14 +147,20 @@ export default function TermsAndConditions() {
           </div>
 
           <div className="p-5">
-            <Section title="8. Changes to Terms" theme={theme}>
+            <Section title="9. Intellectual Property" theme={theme}>
+              <P theme={theme}>© 2026 Goals. All rights reserved. The Goals application, including its design, code, branding, and user interface, is protected by applicable copyright and intellectual property laws. You may not copy, distribute, or create derivative works without prior written consent.</P>
+            </Section>
+          </div>
+
+          <div className="p-5">
+            <Section title="10. Changes to Terms" theme={theme}>
               <P theme={theme}>We may update these terms occasionally. We'll notify you of material changes in the app. Continued use after changes means you accept the updated terms.</P>
             </Section>
           </div>
 
           <div className="p-5">
-            <Section title="9. Governing Law" theme={theme}>
-              <P theme={theme}>These terms are governed by applicable law where ADHDone is registered. Any disputes shall be resolved in the courts of that jurisdiction.</P>
+            <Section title="11. Governing Law" theme={theme}>
+              <P theme={theme}>These terms are governed by applicable law where Goals is registered. Any disputes shall be resolved in the courts of that jurisdiction.</P>
             </Section>
           </div>
 
@@ -164,7 +174,7 @@ export default function TermsAndConditions() {
                 mediocreatbestdev@outlook.com
               </a>
             </P>
-            <p className={`text-xs mt-3 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>© 2026 ADHDone. All rights reserved.</p>
+            <p className={`text-xs mt-3 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>© 2026 Goals. All rights reserved.</p>
           </div>
 
           <div className="p-5">

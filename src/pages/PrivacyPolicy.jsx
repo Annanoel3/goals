@@ -47,8 +47,8 @@ export default function PrivacyPolicy() {
       paddingBottom: 'max(3rem, calc(3rem + env(safe-area-inset-bottom)))'
     }}>
       <div className="max-w-2xl mx-auto px-4 py-6">
-        <Button 
-          variant="ghost" 
+        <Button
+          variant="ghost"
           onClick={() => navigate('/settings')}
           className="mb-6 p-3 h-12 text-base rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
         >
@@ -66,22 +66,20 @@ export default function PrivacyPolicy() {
 
         <div className={`rounded-2xl border divide-y ${cardBg} ${divider}`}>
 
-          <div className="p-5 space-y-3">
-            <P theme={theme}>Goals is a comprehensive goal planning and progress tracking application. This policy explains what data we collect, how we use it, and how we protect it.</P>
+          <div className="p-5">
+            <P theme={theme}>Goals is a personal goal planning and progress tracking app. This policy explains what data we collect, how we use it, and how we protect it.</P>
           </div>
 
           <div className="p-5">
             <Section title="What We Collect" theme={theme}>
               <List theme={theme} items={[
                 "Name and email address",
-                "Profile picture and bio (optional)",
-                "Tasks, reminders, notes, and parking lot ideas you create",
-                "Energy logs and mood check-ins",
-                "Achievements, streaks, and progress data",
-                "Messages with accountability partners",
-                "Support Space conversations",
-                "Focus room participation",
-                "Device type and push notification tokens (for reminders)",
+                "Profile picture (optional)",
+                "Goals, milestones, steps, tasks, and notes you create",
+                "Progress data including completions and streaks",
+                "Mood and energy check-ins you log",
+                "Achievements you unlock",
+                "Device push notification tokens (for reminders you set)",
                 "Subscription status via Apple App Store or Google Play (we never store card details)",
               ]} />
             </Section>
@@ -90,45 +88,31 @@ export default function PrivacyPolicy() {
           <div className="p-5">
             <Section title="How We Use Your Data" theme={theme}>
               <List theme={theme} items={[
-                "To run the app and manage your tasks and reminders",
-                "To send push notifications for reminders you've set",
-                "To enable accountability partner features and chat",
-                "To track your streaks and progress",
-                "To provide AI-powered support in the Support Space",
-                "To moderate community content for safety",
+                "To run the app and manage your goals, tasks, and reminders",
+                "To send push notifications for reminders and habits you've set",
+                "To track your progress, streaks, and achievements",
+                "To provide AI-powered goal planning and coaching",
                 "To process your subscription and verify purchases",
               ]} />
             </Section>
           </div>
 
           <div className="p-5">
-            <Section title="Community Safety" theme={theme}>
-              <P theme={theme}>
-                All messages in chat are scanned by AI for inappropriate content and personal information sharing. Messages are not manually read unless reported. Users can report and block others at any time. We take reports seriously and review them promptly.
-              </P>
-              <P theme={theme}>
-                Goals cannot guarantee the actions of other users. If you encounter suspicious behavior, block and report the user immediately.
-              </P>
-            </Section>
-          </div>
-
-          <div className="p-5">
             <Section title="Data Sharing" theme={theme}>
-              <P theme={theme}>We do not sell your data. We only share it in these cases:</P>
+              <P theme={theme}>We do not sell your data. We only share it in these limited cases:</P>
               <List theme={theme} items={[
-                "With accountability partners — when you connect with someone, they can see your shared check-ins and messages",
                 "With service providers — cloud hosting, push notifications (OneSignal), and payment processors, solely to operate the app",
-                "When legally required — court orders or to protect user safety",
+                "When legally required — such as a court order or to protect user safety",
               ]} />
             </Section>
           </div>
 
           <div className="p-5">
-            <Section title="Your Rights" theme={theme}>
+            <Section title="Your Privacy Rights" theme={theme}>
               <List theme={theme} items={[
                 "Access and edit your data anytime in the app",
                 "Disable push notifications in your device settings",
-                "Request deletion of your data or account",
+                "Request deletion of your data or account at any time",
               ]} />
               <div className="flex flex-wrap gap-2 mt-4">
                 <Button onClick={() => navigate(createPageUrl("DeleteData"))} variant="outline" size="sm" className="text-blue-600 border-blue-600 hover:bg-blue-50">
@@ -150,18 +134,6 @@ export default function PrivacyPolicy() {
           <div className="p-5">
             <Section title="Your Content" theme={theme}>
               <P theme={theme}>You own everything you create in Goals. By using the app, you grant us a limited license to store and process your content solely to provide the service to you.</P>
-            </Section>
-          </div>
-
-          <div className="p-5">
-            <Section title="Copyright & Intellectual Property" theme={theme}>
-              <P theme={theme}>© 2026 Goals. All rights reserved. The Goals application, including its design, code, branding, and user interface, is protected by applicable copyright, trademark, and intellectual property laws.</P>
-              <List theme={theme} items={[
-                "You retain full ownership of all content you upload to Goals, including photos and task descriptions. By using the app, you grant Goals a limited, non-exclusive license to store and process your content solely to provide the service.",
-                "Third-party names, trademarks, and brand names referenced in Goals are the property of their respective owners. Goals is not affiliated with or endorsed by any third party.",
-                "You may not copy, reproduce, distribute, or create derivative works from any part of Goals without prior written consent.",
-              ]} />
-              <P theme={theme}>For licensing inquiries, contact us at <a href="mailto:mediocreatbestdev@outlook.com" className="text-blue-500 hover:underline">mediocreatbestdev@outlook.com</a>.</P>
             </Section>
           </div>
 
