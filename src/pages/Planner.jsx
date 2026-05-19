@@ -487,12 +487,17 @@ function EmptyState({ onExampleClick }) {
 function renderInlineText(text) {
   const urlRegex = /(https?:\/\/[^\s]+)/g;
   const parts = text.split(/(\*\*[^*]+\*\*|https?:\/\/[^\s]+)/g);
+  // Strip trailing punctuation from URLs
+  const cleanUrl = (url) => url.replace(/[.,;:!?)]+$/, '');
   return parts.map((part, i) => {
     if (part.startsWith('**') && part.endsWith('**')) return <strong key={i}>{part.slice(2, -2)}</strong>;
-    if (part.match(urlRegex)) return (
-      <a key={i} href={part} target="_blank" rel="noopener noreferrer"
-        className="underline hover:opacity-80 transition-opacity font-semibold break-all">{part}</a>
-    );
+    if (part.match(urlRegex)) {
+      const href = cleanUrl(part);
+      return (
+        <a key={i} href={href} target="_blank" rel="noopener noreferrer"
+          className="underline hover:opacity-80 transition-opacity font-semibold break-all">{href}</a>
+      );
+    }
     return part;
   });
 }

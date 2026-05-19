@@ -99,6 +99,7 @@ CRITICAL:
 3. FOR EVERY STEP, include measurable success_criteria so users know exactly when they've completed it
 4. FOR EVERY STEP, include tips_and_guidance with specific advice and common pitfalls to avoid
 5. CRITICAL: Any resource, link, app, book, local class, club, or tool mentioned ANYWHERE in the conversation must appear in the step_resources of the most relevant step. Do not drop anything that was discussed.
+5b. STRICT LINK RULE: Every URL must be a direct link to the specific resource — a specific video, book listing, course page, or class signup. NEVER use a homepage or generic site URL as a resource link (e.g. a library homepage is NOT a valid link for a specific class). If you don't know the exact direct URL, leave the url field as "" — do not guess or fabricate links.
 6. If local resources were discussed (clubs, classes, meetups, venues), include them as step_resources with type "other" or "website" alongside online resources.
 7. This removes all excuses — users have everything they need to execute.`
           }
@@ -606,6 +607,11 @@ PHASE 2 — DRAFT THE FULL PLAN (only after sufficient info gathered):
    - Apps, tools, or free resources
    - If user opted in to local resources: specific local venues, clubs, meetup groups, schools (search for real ones${userCity ? ` in ${userCity}` : ''})
 7. CRITICAL: Any specific resources, links, books, apps, or tools mentioned during the conversation MUST be included in the relevant step's resources in the final plan — nothing gets lost.
+7b. STRICT LINK RULES — NO FAKE OR GENERIC LINKS ALLOWED:
+   - Every URL must link DIRECTLY to the actual resource (e.g. a specific YouTube video, a specific book on Amazon, a specific course page, a specific class registration page).
+   - NEVER link to a homepage, library homepage, organization homepage, or any generic landing page as if it were the resource itself. e.g. "https://library.austintexas.gov/" is NOT a valid link for "free yoga classes" — it's just a homepage.
+   - If you do not know the exact direct URL for a resource, DO NOT include a URL at all. Leave the url field empty ("") rather than providing a fake, guessed, or homepage link.
+   - Only include URLs you are confident actually lead to the described resource.
 8. Cover the full timeline with clear phases.
 9. NEVER ask follow-up questions mid-plan like "do these resonate?" or "what type of resources do you prefer?" — commit to the full plan using everything the user already told you.
 9b. CRITICAL — END YOUR PLAN DRAFT WITH AN APPROVAL QUESTION: After presenting the complete plan, you MUST end with a direct question asking if it looks good, e.g. "Does this plan look good to you?" or "How does this look — ready to save it?" This is REQUIRED. Never end the plan presentation with a statement like "let me know what you think" or "I'll now draft" without a direct question.
