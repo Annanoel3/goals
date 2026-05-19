@@ -225,16 +225,16 @@ CRITICAL:
       if (!validation.valid) {
         // Regenerate with stricter instructions
         const retryResponse = await openai.chat.completions.create({
-          model: "gpt-4o",
-          messages: [
-            {
-              role: "system",
-              content: `You are extracting a structured goal plan. CRITICAL RULES:
-1. EVERY MONTH from Month 1 through the final month MUST have steps. NO GAPS.
-2. EVERY MONTH must have AT LEAST 8-12 specific, detailed steps.
-3. For a ${plan.timeline} goal, generate steps for ALL ${timelineMatch ? parseInt(timelineMatch[1], 10) : 'required'} months.
-4. Return ONLY valid JSON, no markdown fences.
-5. If previous extraction failed: "${validation.error}", you MUST fix it now.`
+           model: "gpt-4o",
+           messages: [
+             {
+               role: "system",
+               content: `You are extracting a structured goal plan. CRITICAL RULES:
+        1. EVERY MONTH from Month 1 through the final month MUST have steps. NO GAPS.
+        2. EVERY MONTH must have AT LEAST 8-12 specific, detailed steps.
+        3. For a ${plan.timeline} goal, generate steps for ALL ${expectedMonths} months.
+        4. Return ONLY valid JSON, no markdown fences.
+        5. If previous extraction failed: "${validation.error}", you MUST fix it now.`
             },
             {
               role: "user",
