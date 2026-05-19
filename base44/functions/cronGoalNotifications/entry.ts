@@ -24,13 +24,18 @@ async function sendPush({ externalId, title, body, data }) {
   return json?.id || null;
 }
 
+function daysAgo(dateStr, n) {
+  const d = new Date(dateStr + 'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate() - n);
+  return d.toISOString().split('T')[0];
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
 
     const now = new Date();
-    // Use UTC — cron fires at 8am UTC (adjust in automation if needed)
-    const todayStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
+    const todayStr = now.toISOString().split('T')[0];
     const todayUTC = new Date(todayStr + 'T00:00:00Z');
     const dayOfWeek = todayUTC.getDay(); // 0=Sun, 1=Mon
     const dayOfMonth = todayUTC.getDate();
@@ -38,15 +43,18 @@ Deno.serve(async (req) => {
     const isMonday = dayOfWeek === 1;
     const isFirstOfMonth = dayOfMonth === 1;
 
+    // Pre-load all users once
+    const allUsers = await base44.asServiceRole.entities.User.list();
+    const userByEmail = {};
+    for (const u of allUsers) userByEmail[u.email] = u;
+
     const goals = await base44.asServiceRole.entities.Goal.list();
-    const results = { month_notifs: 0, week_notifs: 0, step_notifs: 0, followup_notifs: 0 };
+    const results = { month_notifs: 0, week_notifs: 0, step_notifs: 0, followup_day1: 0, followup_day3: 0, engagement_notifs: 0 };
 
     for (const goal of goals) {
       if (goal.status !== 'active') continue;
 
-      // Get user
-      const allUsers = await base44.asServiceRole.entities.User.list();
-      const user = allUsers.find(u => u.email === goal.created_by);
+      const user = userByEmail[goal.created_by];
       if (!user) continue;
       const externalId = user.email;
 
@@ -56,13 +64,11 @@ Deno.serve(async (req) => {
 
       // ── 1. MONTH START: first of month → summarize upcoming month ────────────
       if (isFirstOfMonth) {
-        // Find which month we're in based on current date vs goal creation
         const createdDate = new Date(goal.created_date);
         const monthsElapsed = Math.floor((now - createdDate) / (1000 * 60 * 60 * 24 * 30.44));
         const currentMonthNum = monthsElapsed + 1;
         const currentMonthLabel = `Month ${currentMonthNum}`;
 
-        // Find steps belonging to this month
         const monthSteps = pendingSteps.filter(s =>
           s.phase && new RegExp(`Month\\s*${currentMonthNum}\\b`, 'i').test(s.phase)
         );
@@ -74,12 +80,7 @@ Deno.serve(async (req) => {
             externalId,
             title: `${currentMonthLabel} starts today! 🗓️`,
             body: `Here's what's coming up for "${goal.title}":\n${stepTitles}${more}`,
-            data: {
-              screen: 'GoalStepNotification',
-              action: 'goal_month',
-              goal_id: goal.id,
-              month_label: currentMonthLabel,
-            }
+            data: { screen: 'GoalStepNotification', action: 'goal_month', goal_id: goal.id, month_label: currentMonthLabel }
           });
           results.month_notifs++;
         }
@@ -87,7 +88,6 @@ Deno.serve(async (req) => {
 
       // ── 2. WEEK START: Monday → summarize upcoming week ───────────────────────
       if (isMonday) {
-        // Calculate current week based on goal start
         const createdDate = new Date(goal.created_date);
         const weeksElapsed = Math.floor((now - createdDate) / (1000 * 60 * 60 * 24 * 7));
         const currentWeekNum = (weeksElapsed % 4) + 1;
@@ -95,7 +95,8 @@ Deno.serve(async (req) => {
         const currentWeekLabel = `Month ${currentMonthNum2}, Week ${currentWeekNum}`;
 
         const weekSteps = pendingSteps.filter(s =>
-          s.phase && s.phase.toLowerCase().includes(`month ${currentMonthNum2}`) &&
+          s.phase &&
+          s.phase.toLowerCase().includes(`month ${currentMonthNum2}`) &&
           s.phase.toLowerCase().includes(`week ${currentWeekNum}`)
         );
 
@@ -106,12 +107,7 @@ Deno.serve(async (req) => {
             externalId,
             title: `New week, new steps! 💪`,
             body: `${currentWeekLabel} of "${goal.title}":\n${stepTitles}${more}`,
-            data: {
-              screen: 'GoalStepNotification',
-              action: 'goal_week',
-              goal_id: goal.id,
-              week_label: currentWeekLabel,
-            }
+            data: { screen: 'GoalStepNotification', action: 'goal_week', goal_id: goal.id, week_label: currentWeekLabel }
           });
           results.week_notifs++;
         }
@@ -120,24 +116,16 @@ Deno.serve(async (req) => {
       // ── 3. MORNING REMINDER: step due today ───────────────────────────────────
       const todaySteps = pendingSteps.filter(s => s.due_date === todayStr);
       for (const step of todaySteps) {
-        // Don't double-notify if already sent today (check notification ids count)
         const alreadySent = step.onesignal_notification_ids?.length > 0;
-        // Only skip if sent today — we check by seeing if last id was set after midnight today
-        // Simple guard: don't send if step has ids and wasn't modified today
         if (alreadySent) continue;
 
         const notifId = await sendPush({
           externalId,
-          title: `Today's step: ${step.title}`,
+          title: `Today: ${step.title}`,
           body: step.description
             ? `${step.description.slice(0, 100)}${step.description.length > 100 ? '…' : ''}`
             : `Tap to view details and mark complete.`,
-          data: {
-            screen: 'GoalStepNotification',
-            action: 'goal_step',
-            goal_id: goal.id,
-            step_id: step.id,
-          }
+          data: { screen: 'GoalStepNotification', action: 'goal_step', goal_id: goal.id, step_id: step.id }
         });
 
         if (notifId) {
@@ -149,24 +137,60 @@ Deno.serve(async (req) => {
         }
       }
 
-      // ── 4. FOLLOW-UP: step was due YESTERDAY and still not done ──────────────
-      const yesterdayDate = new Date(todayUTC.getTime() - 24 * 60 * 60 * 1000);
-      const yesterdayStr = yesterdayDate.toISOString().split('T')[0];
-
-      const overdueYesterdaySteps = pendingSteps.filter(s => s.due_date === yesterdayStr);
-      for (const step of overdueYesterdaySteps) {
+      // ── 4. DAY-1 FOLLOW-UP: step due yesterday, still pending ────────────────
+      const oneDayAgoStr = daysAgo(todayStr, 1);
+      const overdueDayOne = pendingSteps.filter(s => s.due_date === oneDayAgoStr);
+      for (const step of overdueDayOne) {
         await sendPush({
           externalId,
-          title: `Did you get to this? 🤔`,
-          body: `"${step.title}" was due yesterday. Tap to mark it done or reschedule.`,
-          data: {
-            screen: 'GoalStepNotification',
-            action: 'goal_step_followup',
-            goal_id: goal.id,
-            step_id: step.id,
-          }
+          title: `Quick check-in 👋`,
+          body: `Did you get to "${step.title}" yesterday? Tap to mark it done or keep it on your radar.`,
+          data: { screen: 'GoalStepNotification', action: 'goal_step_followup', goal_id: goal.id, step_id: step.id }
         });
-        results.followup_notifs++;
+        results.followup_day1++;
+      }
+
+      // ── 5. DAY-3 FOLLOW-UP: step due 3 days ago, still pending ───────────────
+      const threeDaysAgoStr = daysAgo(todayStr, 3);
+      const overdueDay3 = pendingSteps.filter(s => s.due_date === threeDaysAgoStr);
+      for (const step of overdueDay3) {
+        await sendPush({
+          externalId,
+          title: `Still on your list: "${step.title}"`,
+          body: `This step has been waiting 3 days. Want to mark it done, adjust it, or move on? Your call.`,
+          data: { screen: 'GoalStepNotification', action: 'goal_step_followup', goal_id: goal.id, step_id: step.id }
+        });
+        results.followup_day3++;
+      }
+
+      // ── 6. 2-WEEK ENGAGEMENT CHECK: if many steps missed in last 14 days ─────
+      // Only fire on Mondays to avoid spam
+      if (isMonday) {
+        const fourteenDaysAgoStr = daysAgo(todayStr, 14);
+        // Count steps that were due in the last 14 days but not completed
+        const recentDueSteps = steps.filter(s =>
+          s.due_date >= fourteenDaysAgoStr &&
+          s.due_date < todayStr
+        );
+        const completedRecently = recentDueSteps.filter(s => s.status === 'completed' || s.status === 'skipped').length;
+        const totalRecentDue = recentDueSteps.length;
+
+        // Only nudge if there were steps due AND fewer than 30% were completed
+        if (totalRecentDue >= 3 && completedRecently / totalRecentDue < 0.3) {
+          await sendPush({
+            externalId,
+            title: `Let's recalibrate your plan 🔄`,
+            body: `You've had a tough couple of weeks on "${goal.title}" — and that's okay. Life happens. Your AI coach has some ideas to get things flowing again. Tap to chat.`,
+            data: {
+              screen: 'GoalStepNotification',
+              action: 'goal_plan_nudge',
+              goal_id: goal.id,
+              // nudge_message will be shown as a pre-filled AI message in the Planner
+              nudge_message: `I noticed you've had a challenging couple of weeks with "${goal.title}" — only ${completedRecently} of ${totalRecentDue} recent steps completed. No judgment at all — life gets busy. I have a few ideas:\n\n1. **Lighten the load** — reduce the number of weekly steps so it feels manageable\n2. **Extend the timeline** — spread things out so you're not racing against deadlines\n3. **Simplify the steps** — break them into smaller, more bite-sized actions\n4. **Swap out steps that aren't working** for ones that better fit your current life\n\nWhat feels right? Or tell me what's been getting in the way — I'll reshape the plan around that.`
+            }
+          });
+          results.engagement_notifs++;
+        }
       }
     }
 

@@ -44,6 +44,21 @@ export default function Planner() {
         if (goal) startEditSession(goal);
       });
     }
+
+    // If navigated here with ?nudge=goalId&message=..., auto-start edit session with AI nudge message
+    const nudgeGoalId = searchParams.get('nudge');
+    const nudgeMessage = searchParams.get('message');
+    if (nudgeGoalId && nudgeMessage) {
+      base44.entities.Goal.list().then(all => {
+        const goal = all.find(g => g.id === nudgeGoalId);
+        if (goal) {
+          setEditingGoal(goal);
+          setMessages([{ role: "assistant", content: decodeURIComponent(nudgeMessage) }]);
+          setPendingAction(null);
+          setSaved(false);
+        }
+      });
+    }
   }, []);
 
   const startEditSession = (goal) => {

@@ -120,8 +120,18 @@ CRITICAL:
 3. FOR EVERY STEP, include measurable success_criteria so users know exactly when they've completed it
 4. FOR EVERY STEP, include tips_and_guidance with specific advice and common pitfalls to avoid
 5. CRITICAL: Any resource, link, app, book, local class, club, or tool mentioned ANYWHERE in the conversation must appear in the step_resources of the most relevant step. Do not drop anything that was discussed.
-5b. STRICT LINK RULE: Every URL must be a direct link to the specific resource — a specific video, book listing, course page, or class signup. NEVER use a homepage or generic site URL as a resource link (e.g. a library homepage is NOT a valid link for a specific class). If you don't know the exact direct URL, leave the url field as "" — do not guess or fabricate links.
-6. If local resources were discussed (clubs, classes, meetups, venues), include them as step_resources with type "other" or "website" alongside online resources.
+5b. RESOURCE LINK RULES — READ CAREFULLY:
+   - ALWAYS try to include a real, working URL for every resource. An empty URL is a last resort, not a first choice.
+   - For YouTube videos: search your knowledge for the actual video. Use format: https://www.youtube.com/watch?v=VIDEO_ID — if you know the channel/video, use it. Many popular tutorial videos have stable URLs you know from training data.
+   - For books: use https://www.amazon.com/s?k=BOOK+TITLE+AUTHOR (search URL) — this always works and takes them to the right book.
+   - For courses: link to the actual course page on Udemy/Coursera/Skillshare, not the homepage.
+   - For apps: link to the App Store or Play Store listing, or the official website's download page.
+   - For articles: link directly to the article URL, not the publication's homepage.
+   - For local resources: use Google Maps search URL format: https://www.google.com/maps/search/RESOURCE+TYPE+NEAR+CITY — always valid.
+   - FORBIDDEN: Linking to a homepage (youtube.com, amazon.com, coursera.org) without a path. Every URL must have a specific path after the domain.
+   - If you truly cannot construct a working direct URL: use a targeted search URL like https://www.google.com/search?q=RESOURCE+NAME — NEVER leave the url field blank if there is any reasonable search or listing URL you can provide.
+   - Bottom line: every step_resource entry should have a url. Empty string is only acceptable if the resource is purely physical/local with no online presence.
+6. If local resources were discussed (clubs, classes, meetups, venues), include them as step_resources with type "other" or "website" alongside online resources. Use Google Maps search URLs for local venues.
 7. This removes all excuses — users have everything they need to execute.`
           }
         ],
@@ -609,11 +619,15 @@ PHASE 2 — DRAFT THE FULL PLAN (only after sufficient info gathered):
    - Apps, tools, or free resources
    - If user opted in to local resources: specific local venues, clubs, meetup groups, schools (search for real ones${userCity ? ` in ${userCity}` : ''})
 7. CRITICAL: Any specific resources, links, books, apps, or tools mentioned during the conversation MUST be included in the relevant step's resources in the final plan — nothing gets lost.
-7b. STRICT LINK RULES — NO FAKE OR GENERIC LINKS ALLOWED:
-   - Every URL must link DIRECTLY to the actual resource (e.g. a specific YouTube video, a specific book on Amazon, a specific course page, a specific class registration page).
-   - NEVER link to a homepage, library homepage, organization homepage, or any generic landing page as if it were the resource itself. e.g. "https://library.austintexas.gov/" is NOT a valid link for "free yoga classes" — it's just a homepage.
-   - If you do not know the exact direct URL for a resource, DO NOT include a URL at all. Leave the url field empty ("") rather than providing a fake, guessed, or homepage link.
-   - Only include URLs you are confident actually lead to the described resource.
+7b. RESOURCE LINK RULES FOR PLAN DRAFT — MAXIMIZE REAL URLS:
+   - ALWAYS try to include a real, working URL. Empty URL is a last resort.
+   - YouTube: use https://www.youtube.com/results?search_query=TOPIC+tutorial if you don't know the exact video URL — always better than empty.
+   - Amazon books: https://www.amazon.com/s?k=BOOK+TITLE+AUTHOR — always works.
+   - Courses: link to the specific course page. If unsure of exact URL, use https://www.udemy.com/courses/search/?q=TOPIC or https://www.coursera.org/search?query=TOPIC
+   - Apps: official website or app store link.
+   - Local resources: https://www.google.com/maps/search/RESOURCE+TYPE+NEAR+CITY
+   - Generic fallback: https://www.google.com/search?q=RESOURCE+NAME — always use this rather than leaving blank.
+   - NEVER leave url as "" unless the resource is a purely physical/offline item with absolutely no online equivalent.
 8. Cover the full timeline with clear phases.
 9. NEVER ask follow-up questions mid-plan like "do these resonate?" or "what type of resources do you prefer?" — commit to the full plan using everything the user already told you.
 9b. CRITICAL — END YOUR PLAN DRAFT WITH AN APPROVAL QUESTION: After presenting the complete plan, you MUST end with a direct question asking if it looks good, e.g. "Does this plan look good to you?" or "How does this look — ready to save it?" This is REQUIRED. Never end the plan presentation with a statement like "let me know what you think" or "I'll now draft" without a direct question.

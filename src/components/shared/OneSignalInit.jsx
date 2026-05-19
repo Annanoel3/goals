@@ -12,7 +12,16 @@ function handleNotificationData(data, navigate) {
   const taskId = data.taskId || data.task_id;
   const screen = data.screen;
 
-  // Goal-related notifications
+  // Goal plan nudge → open Planner with pre-loaded AI message
+  if (data.action === 'goal_plan_nudge') {
+    const params = new URLSearchParams();
+    if (data.goal_id) params.set('nudge', data.goal_id);
+    if (data.nudge_message) params.set('message', encodeURIComponent(data.nudge_message));
+    navigate(`/Planner?${params.toString()}`);
+    return;
+  }
+
+  // Goal step/week/month notifications
   if (screen === 'GoalStepNotification') {
     const params = new URLSearchParams();
     params.set('action', data.action || 'goal_step');
