@@ -1,432 +1,203 @@
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Mail, AlertTriangle, Database, Shield, Clock } from "lucide-react";
+import { ArrowLeft, Mail, AlertTriangle, Database, Shield, Clock, Trash2, CheckCircle2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
+import { base44 } from "@/api/base44Client";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 export default function DeleteData() {
   const navigate = useNavigate();
   const [theme, setTheme] = useState(() => localStorage.getItem('adhd_theme') || 'minimalist');
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleted, setDeleted] = useState(false);
 
   useEffect(() => {
     const interval = setInterval(() => {
-      const newTheme = localStorage.getItem('adhd_theme') || 'minimalist';
-      setTheme(newTheme);
+      setTheme(localStorage.getItem('adhd_theme') || 'minimalist');
     }, 100);
     return () => clearInterval(interval);
   }, []);
+
+  const handleDeleteAllData = async () => {
+    setDeleting(true);
+    try {
+      const user = await base44.auth.me();
+      await Promise.all([
+        base44.entities.Task.filter({ created_by: user.email }).then(items =>
+          Promise.all(items.map(i => base44.entities.Task.delete(i.id)))
+        ),
+        base44.entities.Goal.filter({ created_by: user.email }).then(items =>
+          Promise.all(items.map(i => base44.entities.Goal.delete(i.id)))
+        ),
+        base44.entities.GoalStep.filter({ created_by: user.email }).then(items =>
+          Promise.all(items.map(i => base44.entities.GoalStep.delete(i.id)))
+        ),
+        base44.entities.ParkingLotIdea.filter({ created_by: user.email }).then(items =>
+          Promise.all(items.map(i => base44.entities.ParkingLotIdea.delete(i.id)))
+        ),
+        base44.entities.EnergyLog.filter({ created_by: user.email }).then(items =>
+          Promise.all(items.map(i => base44.entities.EnergyLog.delete(i.id)))
+        ),
+        base44.entities.DailySummary.filter({ created_by: user.email }).then(items =>
+          Promise.all(items.map(i => base44.entities.DailySummary.delete(i.id)))
+        ),
+        base44.entities.Achievement.filter({ created_by: user.email }).then(items =>
+          Promise.all(items.map(i => base44.entities.Achievement.delete(i.id)))
+        ),
+        base44.entities.MoodCheckIn.filter({ created_by: user.email }).then(items =>
+          Promise.all(items.map(i => base44.entities.MoodCheckIn.delete(i.id)))
+        ),
+      ]);
+      setDeleted(true);
+    } catch (error) {
+      console.error('Error deleting data:', error);
+    }
+    setDeleting(false);
+    setShowConfirm(false);
+  };
+
+  const cardBg = theme === 'dark' ? 'bg-gray-800' : 'bg-white';
 
   return (
     <div className="min-h-screen p-4 md:p-8" style={{
       paddingTop: 'max(1rem, calc(1rem + env(safe-area-inset-top)))',
       paddingBottom: 'max(2rem, calc(2rem + env(safe-area-inset-bottom)))'
     }}>
-      <div className="max-w-4xl mx-auto">
-        <Button
-          variant="ghost"
-          onClick={() => navigate(-1)}
-          className="mb-4"
-        >
+      <div className="max-w-2xl mx-auto">
+        <Button variant="ghost" onClick={() => navigate(-1)} className="mb-4">
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back
         </Button>
 
-        <Card className={`border-none shadow-lg mb-6 ${
-          theme === 'dark' ? 'bg-gray-800' : 'bg-white'
-        }`}>
+        <Card className={`border-none shadow-lg mb-6 ${cardBg}`}>
           <CardHeader>
             <CardTitle className={`text-3xl break-words ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-              ADHDone Data Deletion Request
+              Data & Account Deletion
             </CardTitle>
             <p className={`text-sm mt-2 break-words ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-              Developed by MediocreAtBestDev
+              Manage your personal data
             </p>
           </CardHeader>
           <CardContent className="space-y-6">
-            <p className={`break-words ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-              This page explains how to request deletion of some or all of your data while keeping your ADHDone account active. If you wish to delete your entire account, please visit our <a href={createPageUrl("DeleteAccount")} className={`underline break-words ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`}>Account Deletion page</a>.
-            </p>
 
-            <div className={`p-4 rounded-lg border-2 ${
-              theme === 'dark' 
-                ? 'bg-yellow-900/20 border-yellow-800' 
-                : 'bg-yellow-50 border-yellow-200'
-            }`}>
-              <div className="flex items-start gap-3">
-                <AlertTriangle className={`w-5 h-5 flex-shrink-0 mt-0.5 ${
-                  theme === 'dark' ? 'text-yellow-400' : 'text-yellow-600'
-                }`} />
-                <div>
-                  <h3 className={`font-semibold mb-1 break-words ${
-                    theme === 'dark' ? 'text-yellow-400' : 'text-yellow-900'
-                  }`}>
-                    Important: Data Deletion is Irreversible
-                  </h3>
-                  <p className={`text-sm break-words ${
-                    theme === 'dark' ? 'text-yellow-300' : 'text-yellow-800'
-                  }`}>
-                    Once your data is deleted, it cannot be recovered. Your account will remain active, but the deleted data will be permanently removed.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Prominent Steps Section */}
-            <div className={`p-6 rounded-xl border-2 ${
-              theme === 'dark' 
-                ? 'bg-blue-900/20 border-blue-700' 
-                : 'bg-blue-50 border-blue-300'
-            }`}>
-              <h2 className={`text-2xl font-bold mb-4 flex items-center gap-2 break-words ${
-                theme === 'dark' ? 'text-white' : 'text-gray-900'
-              }`}>
-                <Database className="w-6 h-6 flex-shrink-0" />
-                How to Delete Your Data
-              </h2>
-
-              <p className={`mb-4 break-words ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                Follow these simple steps to request data deletion:
-              </p>
-
-              <div className="space-y-4">
-                <div className={`p-4 rounded-lg ${
-                  theme === 'dark' 
-                    ? 'bg-gray-800 border border-gray-700' 
-                    : 'bg-white border border-gray-200'
-                }`}>
-                  <div className="flex items-start gap-3">
-                    <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold ${
-                      theme === 'dark' ? 'bg-blue-600 text-white' : 'bg-blue-600 text-white'
-                    }`}>
-                      1
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className={`font-semibold mb-2 break-words ${
-                        theme === 'dark' ? 'text-white' : 'text-gray-900'
-                      }`}>
-                        Send an Email to MediocreAtBestDev
-                      </h3>
-                      <p className={`mb-3 text-sm break-words ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                        Email us at <strong className="break-all">adhdone.space@gmail.com</strong> with the subject line "Data Deletion Request"
-                      </p>
-                      <div className={`flex items-center gap-2 p-3 rounded-lg ${
-                        theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'
-                      }`}>
-                        <Mail className={`w-5 h-5 flex-shrink-0 ${
-                          theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
-                        }`} />
-                        <a 
-                          href="mailto:adhdone.space@gmail.com?subject=Data%20Deletion%20Request"
-                          className={`font-medium break-all ${
-                            theme === 'dark' 
-                              ? 'text-blue-400 hover:text-blue-300' 
-                              : 'text-blue-600 hover:text-blue-700'
-                          }`}
-                        >
-                          adhdone.space@gmail.com
-                        </a>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className={`p-4 rounded-lg ${
-                  theme === 'dark' 
-                    ? 'bg-gray-800 border border-gray-700' 
-                    : 'bg-white border border-gray-200'
-                }`}>
-                  <div className="flex items-start gap-3">
-                    <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold ${
-                      theme === 'dark' ? 'bg-blue-600 text-white' : 'bg-blue-600 text-white'
-                    }`}>
-                      2
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className={`font-semibold mb-2 break-words ${
-                        theme === 'dark' ? 'text-white' : 'text-gray-900'
-                      }`}>
-                        Specify What Data to Delete
-                      </h3>
-                      <p className={`mb-2 text-sm break-words ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                        In your email, please include:
-                      </p>
-                      <ul className={`list-disc list-inside space-y-1 text-sm break-words ${
-                        theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-                      }`}>
-                        <li>The email address associated with your ADHDone account</li>
-                        <li>Your full name as registered in the app</li>
-                        <li>A clear description of which data you want deleted (see options below)</li>
-                        <li>Any specific date ranges or categories you want to keep or delete</li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-
-                <div className={`p-4 rounded-lg ${
-                  theme === 'dark' 
-                    ? 'bg-gray-800 border border-gray-700' 
-                    : 'bg-white border border-gray-200'
-                }`}>
-                  <div className="flex items-start gap-3">
-                    <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold ${
-                      theme === 'dark' ? 'bg-blue-600 text-white' : 'bg-blue-600 text-white'
-                    }`}>
-                      3
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className={`font-semibold mb-2 break-words ${
-                        theme === 'dark' ? 'text-white' : 'text-gray-900'
-                      }`}>
-                        We'll Verify and Confirm
-                      </h3>
-                      <p className={`text-sm break-words ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                        For your security, we may need to verify your identity. We'll confirm receipt of your request within 2 business days.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className={`p-4 rounded-lg ${
-                  theme === 'dark' 
-                    ? 'bg-gray-800 border border-gray-700' 
-                    : 'bg-white border border-gray-200'
-                }`}>
-                  <div className="flex items-start gap-3">
-                    <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold ${
-                      theme === 'dark' ? 'bg-blue-600 text-white' : 'bg-blue-600 text-white'
-                    }`}>
-                      4
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className={`font-semibold mb-2 flex items-center gap-2 break-words ${
-                        theme === 'dark' ? 'text-white' : 'text-gray-900'
-                      }`}>
-                        <Clock className="w-5 h-5 flex-shrink-0" />
-                        Data Deletion Processing
-                      </h3>
-                      <p className={`text-sm break-words ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                        Once verified, your data will be deleted within <strong>30 days</strong>. You'll receive a confirmation email when complete.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Types of Data Section */}
-            <div>
-              <h2 className={`text-2xl font-bold mb-4 flex items-center gap-2 break-words ${
-                theme === 'dark' ? 'text-white' : 'text-gray-900'
-              }`}>
-                <Shield className="w-6 h-6 flex-shrink-0" />
-                Types of Data You Can Request to Delete
-              </h2>
-
-              <p className={`mb-4 break-words ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                You can request deletion of any or all of the following data categories:
-              </p>
-
-              <div className="space-y-3">
-                <div className={`p-4 rounded-lg border ${
-                  theme === 'dark' 
-                    ? 'bg-gray-900/50 border-gray-700' 
-                    : 'bg-blue-50 border-blue-200'
-                }`}>
-                  <h4 className={`font-semibold mb-2 break-words ${
-                    theme === 'dark' ? 'text-blue-400' : 'text-blue-900'
-                  }`}>
-                    ✓ Tasks & Reminders
-                  </h4>
-                  <p className={`text-sm break-words ${
-                    theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-                  }`}>
-                    All tasks, sub-tasks, and associated reminders. You can request deletion of all tasks or tasks from specific date ranges.
-                  </p>
-                </div>
-
-                <div className={`p-4 rounded-lg border ${
-                  theme === 'dark' 
-                    ? 'bg-gray-900/50 border-gray-700' 
-                    : 'bg-blue-50 border-blue-200'
-                }`}>
-                  <h4 className={`font-semibold mb-2 break-words ${
-                    theme === 'dark' ? 'text-blue-400' : 'text-blue-900'
-                  }`}>
-                    ✓ Parking Lot Ideas
-                  </h4>
-                  <p className={`text-sm break-words ${
-                    theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-                  }`}>
-                    All ideas stored in your Parking Lot. You can choose to delete all ideas or only specific categories.
-                  </p>
-                </div>
-
-                <div className={`p-4 rounded-lg border ${
-                  theme === 'dark' 
-                    ? 'bg-gray-900/50 border-gray-700' 
-                    : 'bg-blue-50 border-blue-200'
-                }`}>
-                  <h4 className={`font-semibold mb-2 break-words ${
-                    theme === 'dark' ? 'text-blue-400' : 'text-blue-900'
-                  }`}>
-                    ✓ Progress Data
-                  </h4>
-                  <p className={`text-sm break-words ${
-                    theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-                  }`}>
-                    Energy logs, daily summaries, achievements, streaks, and weekly challenges. You can delete all or specific time periods.
-                  </p>
-                </div>
-
-                <div className={`p-4 rounded-lg border ${
-                  theme === 'dark' 
-                    ? 'bg-gray-900/50 border-gray-700' 
-                    : 'bg-blue-50 border-blue-200'
-                }`}>
-                  <h4 className={`font-semibold mb-2 break-words ${
-                    theme === 'dark' ? 'text-blue-400' : 'text-blue-900'
-                  }`}>
-                    ✓ Chat & Connection History
-                  </h4>
-                  <p className={`text-sm break-words ${
-                    theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-                  }`}>
-                    Messages with accountability partners and connection history. You can delete all messages or messages with specific partners.
-                  </p>
-                </div>
-
-                <div className={`p-4 rounded-lg border ${
-                  theme === 'dark' 
-                    ? 'bg-gray-900/50 border-gray-700' 
-                    : 'bg-blue-50 border-blue-200'
-                }`}>
-                  <h4 className={`font-semibold mb-2 break-words ${
-                    theme === 'dark' ? 'text-blue-400' : 'text-blue-900'
-                  }`}>
-                    ✓ Mood Check-ins
-                  </h4>
-                  <p className={`text-sm break-words ${
-                    theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-                  }`}>
-                    All mood check-in records and reactions from your accountability partners.
-                  </p>
-                </div>
-
-                <div className={`p-4 rounded-lg border ${
-                  theme === 'dark' 
-                    ? 'bg-gray-900/50 border-gray-700' 
-                    : 'bg-blue-50 border-blue-200'
-                }`}>
-                  <h4 className={`font-semibold mb-2 break-words ${
-                    theme === 'dark' ? 'text-blue-400' : 'text-blue-900'
-                  }`}>
-                    ✓ Support Space Conversations
-                  </h4>
-                  <p className={`text-sm break-words ${
-                    theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-                  }`}>
-                    All conversations with the AI support assistant in your private Support Space.
-                  </p>
-                </div>
-
-                <div className={`p-4 rounded-lg border ${
-                  theme === 'dark' 
-                    ? 'bg-gray-900/50 border-gray-700' 
-                    : 'bg-blue-50 border-blue-200'
-                }`}>
-                  <h4 className={`font-semibold mb-2 break-words ${
-                    theme === 'dark' ? 'text-blue-400' : 'text-blue-900'
-                  }`}>
-                    ✓ Focus Room History
-                  </h4>
-                  <p className={`text-sm break-words ${
-                    theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-                  }`}>
-                    Focus room participation history and session data.
-                  </p>
-                </div>
-              </div>
-
-              <div className={`p-4 rounded-lg border mt-4 ${
-                theme === 'dark' 
-                  ? 'bg-gray-900/50 border-gray-700' 
-                  : 'bg-gray-50 border-gray-200'
-              }`}>
-                <h4 className={`font-semibold mb-2 break-words ${
-                  theme === 'dark' ? 'text-white' : 'text-gray-900'
-                }`}>
-                  Note: Profile Information
-                </h4>
-                <p className={`text-sm break-words ${
-                  theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-                }`}>
-                  Your basic profile information (name, email, profile picture) must remain to keep your account active. If you want to delete your profile information, you'll need to request full <a href={createPageUrl("DeleteAccount")} className={`underline ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`}>account deletion</a> instead.
-                </p>
-              </div>
-            </div>
-
-            {/* Data Retention Notice */}
-            <div className={`p-4 rounded-lg border ${
-              theme === 'dark' 
-                ? 'bg-yellow-900/20 border-yellow-800' 
-                : 'bg-yellow-50 border-yellow-200'
-            }`}>
-              <h3 className={`font-semibold mb-2 break-words ${
-                theme === 'dark' ? 'text-yellow-400' : 'text-yellow-900'
-              }`}>
-                Data That Cannot Be Deleted
+            {/* Delete Account link */}
+            <div className={`p-4 rounded-lg border-2 ${theme === 'dark' ? 'bg-red-900/20 border-red-800' : 'bg-red-50 border-red-200'}`}>
+              <h3 className={`font-semibold mb-1 ${theme === 'dark' ? 'text-red-400' : 'text-red-900'}`}>
+                Want to delete your entire account?
               </h3>
-              <ul className={`list-disc list-inside space-y-2 text-sm break-words ${
-                theme === 'dark' ? 'text-yellow-300' : 'text-yellow-800'
-              }`}>
-                <li><strong>Financial transaction records</strong> - Required by law for tax and accounting purposes. <strong>Retention period: Up to 7 years</strong></li>
-                <li><strong>Anonymized feedback and reports</strong> - Used to improve app safety and may not contain your personally identifiable information. <strong>Retention period: Indefinite (anonymized)</strong></li>
-                <li><strong>System backups</strong> - May exist in backups for disaster recovery. <strong>Retention period: Up to 90 days</strong>, but will be inaccessible during normal operations</li>
-              </ul>
-            </div>
-
-            {/* Additional Information */}
-            <div className={`p-4 rounded-lg border ${
-              theme === 'dark' 
-                ? 'bg-gray-900/50 border-gray-700' 
-                : 'bg-gray-50 border-gray-200'
-            }`}>
-              <h3 className={`font-semibold mb-2 break-words ${
-                theme === 'dark' ? 'text-white' : 'text-gray-900'
-              }`}>
-                Additional Information
-              </h3>
-              <ul className={`list-disc list-inside space-y-2 text-sm break-words ${
-                theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-              }`}>
-                <li>You can request a copy of your data before deletion by including that request in your email</li>
-                <li>After data deletion, your account will remain active and you can continue using ADHDone</li>
-                <li>You can always create new data after deletion is complete</li>
-                <li>For questions about this process, contact MediocreAtBestDev at <span className="break-all">adhdone.space@gmail.com</span></li>
-              </ul>
-            </div>
-
-            {/* CTA Button */}
-            <div className="flex justify-center pt-4">
+              <p className={`text-sm mb-3 ${theme === 'dark' ? 'text-red-300' : 'text-red-800'}`}>
+                This will permanently remove your account and all associated data.
+              </p>
               <Button
-                onClick={() => window.location.href = 'mailto:adhdone.space@gmail.com?subject=Data%20Deletion%20Request&body=Hello%20MediocreAtBestDev%2C%0A%0AI%20would%20like%20to%20request%20the%20deletion%20of%20specific%20data%20from%20my%20ADHDone%20account.%0A%0AAccount%20Email%3A%20%5Byour%20email%5D%0AFull%20Name%3A%20%5Byour%20name%5D%0A%0AData%20I%20want%20to%20delete%3A%0A%5BPlease%20describe%20which%20data%20you%20want%20deleted%20-%20e.g.%2C%20%22All%20tasks%22%2C%20%22Chat%20history%20from%20January%202024%22%2C%20etc.%5D%0A%0AThank%20you.'}
-                size="lg"
-                className={`${
-                  theme === 'minimalist'
-                    ? 'bg-blue-600 hover:bg-blue-700'
-                    : theme === 'dark'
-                      ? 'bg-blue-600 hover:bg-blue-700'
-                      : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700'
-                } text-white`}
+                variant="outline"
+                size="sm"
+                onClick={() => navigate(createPageUrl("DeleteAccount"))}
+                className="text-red-600 border-red-400 hover:bg-red-50"
               >
-                <Mail className="w-5 h-5 mr-2" />
-                Request Data Deletion
+                Request Account Deletion →
               </Button>
             </div>
+
+            {/* In-app delete all data */}
+            <div className={`p-5 rounded-xl border-2 ${theme === 'dark' ? 'bg-orange-900/20 border-orange-700' : 'bg-orange-50 border-orange-300'}`}>
+              <h2 className={`text-xl font-bold mb-2 flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                <Trash2 className="w-5 h-5 flex-shrink-0" />
+                Delete All My Data (Keep Account)
+              </h2>
+              <p className={`text-sm mb-4 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                Instantly and permanently delete all your goals, tasks, parking lot ideas, progress data, achievements, and mood check-ins. Your account stays active but starts fresh.
+              </p>
+
+              {deleted ? (
+                <div className="flex items-center gap-2 text-green-600">
+                  <CheckCircle2 className="w-5 h-5" />
+                  <span className="font-medium">All data deleted successfully.</span>
+                </div>
+              ) : (
+                <Button
+                  onClick={() => setShowConfirm(true)}
+                  className="bg-orange-600 hover:bg-orange-700 text-white"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete All My Data
+                </Button>
+              )}
+            </div>
+
+            {/* Request partial deletion via email */}
+            <div className={`p-5 rounded-xl border-2 ${theme === 'dark' ? 'bg-blue-900/20 border-blue-700' : 'bg-blue-50 border-blue-300'}`}>
+              <h2 className={`text-xl font-bold mb-2 flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                <Database className="w-5 h-5 flex-shrink-0" />
+                Request Specific Data Deletion
+              </h2>
+              <p className={`text-sm mb-4 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                Need to delete specific categories or date ranges? Email us and we'll process your request within 30 days.
+              </p>
+              <p className={`text-sm mb-1 font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>
+                Include in your email:
+              </p>
+              <ul className={`text-sm list-disc list-inside mb-4 space-y-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                <li>The email address associated with your account</li>
+                <li>Which data you want deleted (e.g. "all tasks", "chat history")</li>
+                <li>Any specific date ranges</li>
+              </ul>
+              <Button
+                onClick={() => window.location.href = 'mailto:goals.space@gmail.com?subject=Data%20Deletion%20Request&body=Hello%2C%0A%0AI%20would%20like%20to%20request%20deletion%20of%20specific%20data%20from%20my%20account.%0A%0AAccount%20Email%3A%20%5Byour%20email%5D%0AFull%20Name%3A%20%5Byour%20name%5D%0A%0AData%20I%20want%20deleted%3A%0A%5BDescribe%20which%20data%20and%20any%20date%20ranges%5D%0A%0AThank%20you.'}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                <Mail className="w-4 h-4 mr-2" />
+                Email Deletion Request
+              </Button>
+            </div>
+
+            {/* Retention notice */}
+            <div className={`p-4 rounded-lg border ${theme === 'dark' ? 'bg-yellow-900/20 border-yellow-800' : 'bg-yellow-50 border-yellow-200'}`}>
+              <h3 className={`font-semibold mb-2 ${theme === 'dark' ? 'text-yellow-400' : 'text-yellow-900'}`}>
+                Data That Cannot Be Deleted
+              </h3>
+              <ul className={`list-disc list-inside space-y-1 text-sm ${theme === 'dark' ? 'text-yellow-300' : 'text-yellow-800'}`}>
+                <li><strong>Financial records</strong> — required by law, retained up to 7 years</li>
+                <li><strong>Anonymized reports</strong> — used for safety improvements, retained indefinitely</li>
+                <li><strong>System backups</strong> — disaster recovery only, purged within 90 days</li>
+              </ul>
+            </div>
+
           </CardContent>
         </Card>
       </div>
+
+      {/* Confirm Dialog */}
+      <Dialog open={showConfirm} onOpenChange={setShowConfirm}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete All Your Data?</DialogTitle>
+            <DialogDescription>
+              This will permanently delete all your goals, tasks, parking lot ideas, progress data, achievements, and mood check-ins. This cannot be undone. Your account will remain active.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-3 mt-4">
+            <Button variant="outline" onClick={() => setShowConfirm(false)} className="flex-1">
+              Cancel
+            </Button>
+            <Button
+              onClick={handleDeleteAllData}
+              disabled={deleting}
+              className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+            >
+              {deleting ? 'Deleting...' : 'Yes, Delete Everything'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

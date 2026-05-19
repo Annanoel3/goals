@@ -130,6 +130,12 @@ export default function Settings() {
       icon: Bug,
       label: 'Feedback',
       onClick: () => navigate('/reportbug')
+    },
+    {
+      icon: Shield,
+      label: 'Delete Account or Data',
+      onClick: () => navigate('/deleteaccount'),
+      danger: true
     }
   ];
 
@@ -233,8 +239,8 @@ export default function Settings() {
                       : 'hover:bg-gray-50'
                   }`}
                 >
-                  <Icon className="w-5 h-5" />
-                  <span>{item.label}</span>
+                  <Icon className={`w-5 h-5 ${item.danger ? 'text-red-500' : ''}`} />
+                  <span className={item.danger ? 'text-red-500' : ''}>{item.label}</span>
                 </Button>
               );
             })}
