@@ -61,13 +61,13 @@ export default function PrivacyPolicy() {
           <h1 className="text-2xl font-bold">Privacy Policy</h1>
         </div>
         <p className={`text-xs mb-8 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-          Last updated: May 2026 · ADHDone
+          Last updated: May 2026 · Goals
         </p>
 
         <div className={`rounded-2xl border divide-y ${cardBg} ${divider}`}>
 
           <div className="p-5 space-y-3">
-            <P theme={theme}>ADHDone is a productivity and task management app designed for people with ADHD. This policy explains what data we collect, how we use it, and how we protect it.</P>
+            <P theme={theme}>Goals is a comprehensive goal planning and progress tracking application. This policy explains what data we collect, how we use it, and how we protect it.</P>
           </div>
 
           <div className="p-5">
@@ -107,7 +107,7 @@ export default function PrivacyPolicy() {
                 All messages in chat are scanned by AI for inappropriate content and personal information sharing. Messages are not manually read unless reported. Users can report and block others at any time. We take reports seriously and review them promptly.
               </P>
               <P theme={theme}>
-                ADHDone cannot guarantee the actions of other users. If you encounter suspicious behavior, block and report the user immediately.
+                Goals cannot guarantee the actions of other users. If you encounter suspicious behavior, block and report the user immediately.
               </P>
             </Section>
           </div>
@@ -143,23 +143,23 @@ export default function PrivacyPolicy() {
 
           <div className="p-5">
             <Section title="Children" theme={theme}>
-              <P theme={theme}>ADHDone is not intended for children under 13. We do not knowingly collect data from children under 13. Contact us immediately if you believe this has occurred.</P>
+              <P theme={theme}>Goals is not intended for children under 13. We do not knowingly collect data from children under 13. Contact us immediately if you believe this has occurred.</P>
             </Section>
           </div>
 
           <div className="p-5">
             <Section title="Your Content" theme={theme}>
-              <P theme={theme}>You own everything you create in ADHDone. By using the app, you grant us a limited license to store and process your content solely to provide the service to you.</P>
+              <P theme={theme}>You own everything you create in Goals. By using the app, you grant us a limited license to store and process your content solely to provide the service to you.</P>
             </Section>
           </div>
 
           <div className="p-5">
             <Section title="Copyright & Intellectual Property" theme={theme}>
-              <P theme={theme}>© 2026 ADHDone. All rights reserved. The ADHDone application, including its design, code, branding, and user interface, is protected by applicable copyright, trademark, and intellectual property laws.</P>
+              <P theme={theme}>© 2026 Goals. All rights reserved. The Goals application, including its design, code, branding, and user interface, is protected by applicable copyright, trademark, and intellectual property laws.</P>
               <List theme={theme} items={[
-                "You retain full ownership of all content you upload to ADHDone, including photos and task descriptions. By using the app, you grant ADHDone a limited, non-exclusive license to store and process your content solely to provide the service.",
-                "Third-party names, trademarks, and brand names referenced in ADHDone are the property of their respective owners. ADHDone is not affiliated with or endorsed by any third party.",
-                "You may not copy, reproduce, distribute, or create derivative works from any part of ADHDone without prior written consent.",
+                "You retain full ownership of all content you upload to Goals, including photos and task descriptions. By using the app, you grant Goals a limited, non-exclusive license to store and process your content solely to provide the service.",
+                "Third-party names, trademarks, and brand names referenced in Goals are the property of their respective owners. Goals is not affiliated with or endorsed by any third party.",
+                "You may not copy, reproduce, distribute, or create derivative works from any part of Goals without prior written consent.",
               ]} />
               <P theme={theme}>For licensing inquiries, contact us at <a href="mailto:mediocreatbestdev@outlook.com" className="text-blue-500 hover:underline">mediocreatbestdev@outlook.com</a>.</P>
             </Section>
@@ -181,7 +181,7 @@ export default function PrivacyPolicy() {
                 mediocreatbestdev@outlook.com
               </a>
             </P>
-            <p className={`text-xs mt-3 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>© 2026 ADHDone. All rights reserved.</p>
+            <p className={`text-xs mt-3 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>© 2026 Goals. All rights reserved.</p>
           </div>
 
           <div className="p-5">

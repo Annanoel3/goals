@@ -37,7 +37,7 @@ export default function DeleteAccount() {
         }`}>
           <CardHeader>
             <CardTitle className={`text-3xl break-words ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-              ADHDone Account Deletion Request
+              Account Deletion Request
             </CardTitle>
             <p className={`text-sm mt-2 break-words ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
               Developed by MediocreAtBestDev
@@ -45,7 +45,7 @@ export default function DeleteAccount() {
           </CardHeader>
           <CardContent className="space-y-6">
             <p className={`break-words ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-              This page explains how to request deletion of your ADHDone account. If you only want to delete specific data while keeping your account active, please visit our <a href={createPageUrl("DeleteData")} className={`underline break-words ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`}>Data Deletion page</a>.
+              This page explains how to request deletion of your account. If you only want to delete specific data while keeping your account active, please visit our <a href={createPageUrl("DeleteData")} className={`underline break-words ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`}>Data Deletion page</a>.
             </p>
 
             <div className={`p-4 rounded-lg border-2 ${
@@ -108,7 +108,7 @@ export default function DeleteAccount() {
                         Send an Email to MediocreAtBestDev
                       </h3>
                       <p className={`mb-3 text-sm break-words ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                        Email us at <strong className="break-all">adhdone.space@gmail.com</strong> with the subject line "Account Deletion Request"
+                        Email us at <strong className="break-all">goals.space@gmail.com</strong> with the subject line "Account Deletion Request"
                       </p>
                       <div className={`flex items-center gap-2 p-3 rounded-lg ${
                         theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'
@@ -117,14 +117,14 @@ export default function DeleteAccount() {
                           theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
                         }`} />
                         <a 
-                          href="mailto:adhdone.space@gmail.com?subject=Account%20Deletion%20Request"
+                          href="mailto:goals.space@gmail.com?subject=Account%20Deletion%20Request"
                           className={`font-medium break-all ${
                             theme === 'dark' 
                               ? 'text-blue-400 hover:text-blue-300' 
                               : 'text-blue-600 hover:text-blue-700'
                           }`}
                         >
-                          adhdone.space@gmail.com
+                          goals.space@gmail.com
                         </a>
                       </div>
                     </div>
@@ -154,7 +154,7 @@ export default function DeleteAccount() {
                       <ul className={`list-disc list-inside space-y-1 text-sm break-words ${
                         theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
                       }`}>
-                        <li>The email address associated with your ADHDone account</li>
+                        <li>The email address associated with your account</li>
                         <li>Your full name as registered in the app</li>
                         <li>Confirmation that you want to permanently delete your account</li>
                       </ul>
@@ -380,7 +380,7 @@ export default function DeleteAccount() {
             {/* CTA Button */}
             <div className="flex justify-center pt-4">
               <Button
-                onClick={() => window.location.href = 'mailto:adhdone.space@gmail.com?subject=Account%20Deletion%20Request&body=Hello%20MediocreAtBestDev%2C%0A%0AI%20would%20like%20to%20request%20the%20deletion%20of%20my%20ADHDone%20account.%0A%0AAccount%20Email%3A%20%5Byour%20email%5D%0AFull%20Name%3A%20%5Byour%20name%5D%0A%0AI%20understand%20that%20this%20action%20is%20permanent%20and%20cannot%20be%20undone.%0A%0AThank%20you.'}
+                onClick={() => window.location.href = 'mailto:goals.space@gmail.com?subject=Account%20Deletion%20Request&body=Hello%20MediocreAtBestDev%2C%0A%0AI%20would%20like%20to%20request%20the%20deletion%20of%20my%20account.%0A%0AAccount%20Email%3A%20%5Byour%20email%5D%0AFull%20Name%3A%20%5Byour%20name%5D%0A%0AI%20understand%20that%20this%20action%20is%20permanent%20and%20cannot%20be%20undone.%0A%0AThank%20you.'}
                 size="lg"
                 className={`${
                   theme === 'minimalist'

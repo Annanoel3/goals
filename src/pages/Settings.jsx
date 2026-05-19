@@ -154,7 +154,7 @@ export default function Settings() {
             Settings
           </h1>
           <p className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-            Customize your ADHDone experience
+            Customize your experience
           </p>
         </div>
 
