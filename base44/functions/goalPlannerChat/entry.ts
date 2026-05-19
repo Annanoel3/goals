@@ -45,6 +45,7 @@ Return JSON (no markdown) in EXACTLY this structure. CRITICAL STRUCTURAL RULE FO
 - Organize steps as: Month 1 Week 1, Month 1 Week 2, Month 1 Week 3, Month 1 Week 4, Month 2 Week 1, etc.
 - Each week must have 3-5 actionable steps (consistent distribution).
 - NO SKIPPED WEEKS OR MONTHS. If the plan spans 6 months, generate all 24 weeks (6 × 4).
+- NEVER combine weeks or months: "Week 1-2", "Weeks 3-4", "Months 4-6" are STRICTLY FORBIDDEN. Each phase must be exactly ONE week or ONE month (e.g. "Month 1, Week 1", "Month 2, Week 3"). No ranges, no spans, no combined periods ever.
 - For goals under 1 month, just use "Week 1", "Week 2" phases directly.
 
 IMPORTANT: Create AT LEAST 15-20+ detailed subtasks PER MILESTONE. CRITICAL: If the user said "by end of year" or "by [month]", calculate the EXACT number of months from today (${today}) to that date and use that as the timeline. Do NOT use a generic number.
@@ -590,7 +591,13 @@ PHASE 1 — GATHER INFO FIRST (STRICTLY REQUIRED before drafting any plan):
    - Only ask ONCE and only for goals where in-person options genuinely add value.
 
 PHASE 2 — DRAFT THE FULL PLAN (only after sufficient info gathered):
-4. Create a detailed phased plan with milestones (Month 1, Month 2, Week 1, etc.) that EXACTLY fits the user's stated timeline. If they say "by December 2026" (7 months), your plan must FULLY cover all 7 months — not 6, not 5, but all 7. Every month must have content. Condense, prioritize, and fit everything within the full window — do not stop early.
+4. STRICT PHASE NAMING RULES — VIOLATIONS ARE NOT ACCEPTABLE:
+   - NEVER combine weeks: "Week 1-2", "Week 3-4", "Weeks 5-6" are ALL FORBIDDEN. Every week is its own entry: "Month 1, Week 1", "Month 1, Week 2", etc.
+   - NEVER combine months: "Months 4-6", "Month 4-7", "Months 4-7" are ALL FORBIDDEN. Every month is its own entry: "Month 4", "Month 5", "Month 6".
+   - NEVER use ranges of any kind. Each phase label must refer to exactly ONE week or ONE month, never a span.
+   - Correct format examples: "Month 1, Week 1" / "Month 1, Week 2" / "Month 2, Week 1" / "Month 3" — each is a single, discrete unit.
+   - If you need more content, add more steps to individual weeks/months. Never merge them.
+5. Create a detailed phased plan with milestones (Month 1, Month 2, Week 1, etc.) that EXACTLY fits the user's stated timeline. If they say "by December 2026" (7 months), your plan must FULLY cover all 7 months — not 6, not 5, but all 7. Every month must have content. Condense, prioritize, and fit everything within the full window — do not stop early.
    CRITICAL ENFORCEMENT: If the timeline spans 12 months, there MUST be 12 months of content (Month 1 through Month 12). If the user says "by end of year" and today is May, calculate the exact months remaining and FILL EVERY SINGLE MONTH/WEEK with relevant steps. No shortcuts, no stopping at 5 months when the timeline is longer. The plan must span the entire stated duration.
 5. Include specific, actionable steps — not vague suggestions. NEVER present only 2-3 ideas and ask if they resonate. Always present the COMPLETE plan.
 6. CRITICAL: For EVERY phase/week, include concrete resources:
