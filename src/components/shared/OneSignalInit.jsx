@@ -11,6 +11,20 @@ function handleNotificationData(data, navigate) {
   if (!data) return;
   const taskId = data.taskId || data.task_id;
   const screen = data.screen;
+
+  // Goal-related notifications
+  if (screen === 'GoalStepNotification') {
+    const params = new URLSearchParams();
+    params.set('action', data.action || 'goal_step');
+    if (data.goal_id) params.set('goal_id', data.goal_id);
+    if (data.step_id) params.set('step_id', data.step_id);
+    if (data.week_label) params.set('week_label', data.week_label);
+    if (data.month_label) params.set('month_label', data.month_label);
+    navigate(`/GoalStepNotification?${params.toString()}`);
+    return;
+  }
+
+  // Task notifications
   if (taskId && (screen === '/TaskNotification' || screen === 'TaskNotification')) {
     navigate(`/TaskNotification?taskId=${taskId}`);
   }
