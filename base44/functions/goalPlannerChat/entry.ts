@@ -128,14 +128,14 @@ CRITICAL:
      * YouTube search: https://www.youtube.com/results?search_query=beginner+guitar+chords (use the actual topic, not "TOPIC")
      * Amazon book search: https://www.amazon.com/s?k=Atomic+Habits+James+Clear (use the actual title and author)
      * Google search fallback: https://www.google.com/search?q=CHADD+ADHD+support+groups+Austin+TX (use specific real terms)
-     * Google Maps: https://www.google.com/maps/search/ADHD+coaching+Austin+Texas (use specific real terms — NEVER write "RESOURCE+TYPE+NEAR+CITY" literally)
      * Udemy search: https://www.udemy.com/courses/search/?q=python+for+beginners (use actual topic)
      * Coursera search: https://www.coursera.org/search?query=data+science (use actual topic)
      * App root domain only (e.g. https://www.duolingo.com) — ONLY if 100% certain.
-   - FORBIDDEN: Placeholder text in URLs like "TOPIC", "RESOURCE+NAME", "RESOURCE+TYPE", "NEAR+CITY", "BOOK+TITLE+AUTHOR". Every URL must have real, specific search terms filled in.
-   - FORBIDDEN: Any URL path you invented (e.g. /blog/article-name, /adhd-tips). If unsure of the exact path, use the Google search fallback instead.
-   - If you have no safe URL: leave url as "" — a blank URL is far better than a useless placeholder link.
-6. If local resources were discussed (clubs, classes, meetups, venues), include them as step_resources with type "other" or "website" alongside online resources. Use Google Maps search URLs for local venues.
+   - FORBIDDEN: Google Maps search links (https://www.google.com/maps/search/...) — lazy and unhelpful. For local resources, describe them specifically in the description field (e.g. "Search Psychology Today therapist finder at https://www.psychologytoday.com/us/therapists for ADHD coaches in Austin") and leave url as "".
+   - FORBIDDEN: Placeholder text in URLs like "TOPIC", "RESOURCE+NAME", "RESOURCE+TYPE", "NEAR+CITY". Every URL must use real specific values.
+   - FORBIDDEN: Any invented URL path (e.g. /blog/article-name, /adhd-tips). If unsure of the exact path, leave url as "".
+   - If you have no real URL: leave url as "" — blank is far better than a broken or lazy link.
+6. If local resources were discussed (clubs, classes, meetups, venues), describe them specifically in the description field of the step_resource. Do NOT use Google Maps search URLs.
 7. This removes all excuses — users have everything they need to execute.`
           }
         ],
@@ -634,12 +634,13 @@ PHASE 2 — DRAFT THE FULL PLAN (only after sufficient info gathered):
      * YouTube search: https://www.youtube.com/results?search_query=beginner+guitar+lesson (use the real topic)
      * Amazon book search: https://www.amazon.com/s?k=The+Happiness+Advantage+Shawn+Achor (use real title + author)
      * Google search fallback: https://www.google.com/search?q=CHADD+ADHD+support+Austin+TX (use specific real terms)
-     * Google Maps: https://www.google.com/maps/search/ADHD+coaching+Austin+Texas (use specific real terms)
      * Udemy: https://www.udemy.com/courses/search/?q=guitar+for+beginners (real topic)
      * Coursera: https://www.coursera.org/search?query=machine+learning (real topic)
      * App root domain only (e.g. https://www.duolingo.com) — ONLY if 100% certain.
-   - FORBIDDEN: Any URL containing literal placeholder words like "TOPIC", "RESOURCE", "CITY", "AUTHOR", "NAME". Every URL must have real words filled in.
-   - If no safe URL exists: leave url as "" — a blank is far better than a 404 or a useless placeholder.
+   - FORBIDDEN: Google Maps search links. Do NOT use https://www.google.com/maps/search/... — this is lazy and unhelpful. For local resources, name them specifically in the description (e.g. "Look up local ADHD coaches on Psychology Today: https://www.psychologytoday.com/us/therapists") and leave url as "".
+   - FORBIDDEN: Google search fallback links for local services — same reason. Put the actionable detail in the description field instead.
+   - FORBIDDEN: Any URL containing placeholder words like "TOPIC", "RESOURCE", "CITY", "AUTHOR", "NAME". Use real specific values only.
+   - If no real URL exists: leave url as "" — blank is far better than a lazy search link or a 404.
 8. Cover the full timeline with clear phases.
 9. NEVER ask follow-up questions mid-plan like "do these resonate?" or "what type of resources do you prefer?" — commit to the full plan using everything the user already told you.
 9b. CRITICAL — END YOUR PLAN DRAFT WITH AN APPROVAL QUESTION: After presenting the complete plan, you MUST end with a direct question asking if it looks good, e.g. "Does this plan look good to you?" or "How does this look — ready to save it?" This is REQUIRED. Never end the plan presentation with a statement like "let me know what you think" or "I'll now draft" without a direct question.
