@@ -41,7 +41,7 @@ ${conversationText}
 ${monthsHint}
 
 Return JSON (no markdown) in EXACTLY this structure. CRITICAL STRUCTURAL RULE FOR ALL GOALS 1+ MONTHS:
-- Calculate the EXACT number of months from today (${today}) to target date.
+- Use the number of months specified above — do NOT recalculate from dates.
 - EVERY SINGLE MONTH must have EXACTLY 4 weeks: Month 1 Week 1, Month 1 Week 2, Month 1 Week 3, Month 1 Week 4, Month 2 Week 1 ... and so on for EVERY month.
 - FORBIDDEN: Providing weeks for only Month 1 then switching to month-only labels (e.g. "Month 2", "Month 3"). EVERY month must have all 4 weeks individually.
 - NEVER combine weeks or months: "Week 1-2", "Weeks 3-4", "Months 4-6" are STRICTLY FORBIDDEN. Each phase = exactly ONE week. No ranges ever.
@@ -81,7 +81,7 @@ IMPORTANT: Create AT LEAST 15-20+ detailed subtasks PER MILESTONE. CRITICAL: If 
     {
       "title": "specific, granular subtask (e.g., 'Complete Lesson 2: Present Tense Conjugation')",
       "description": "detailed explanation of what to do and why",
-      "phase": "e.g. Month 1, Week 1 (use phases like Month 1, Month 2, etc.)",
+      "phase": "e.g. Month 1, Week 1 — ALWAYS include the week number, NEVER use 'Month X' alone",
       "priority": "low|medium|high|critical",
       "due_date": "YYYY-MM-DD (spread across the timeline, realistic pacing)",
       "order_index": 0,
@@ -255,7 +255,7 @@ CRITICAL:
                content: `You are extracting a structured goal plan. CRITICAL RULES:
         1. EVERY MONTH from Month 1 through the final month MUST have steps. NO GAPS.
         2. EVERY MONTH must have AT LEAST 8-12 specific, detailed steps.
-        3. For a ${plan.timeline} goal, generate steps for ALL ${expectedMonths} months.
+        3. For a ${plan.timeline} goal, generate steps for ALL ${detectedMonths} months.
         4. Return ONLY valid JSON, no markdown fences.
         5. If previous extraction failed: "${validation.error}", you MUST fix it now.`
             },
