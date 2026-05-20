@@ -20,34 +20,7 @@ Deno.serve(async (req) => {
 
       // Pre-scan the conversation to detect the timeline so we can enforce it in the extraction prompt
       const timelineDetect = conversationText.match(/(\d+)[- ]month/i);
-      let detectedMonths = timelineDetect ? parseInt(timelineDetect[1], 10) : null;
-
-      // If no explicit month count, try to calculate from "by end of year", "by December 2026", etc.
-      if (!detectedMonths) {
-        const todayDate = new Date(today);
-        const byDateMatch = conversationText.match(/by\s+(end of\s+)?(January|February|March|April|May|June|July|August|September|October|November|December)[\s,]+(\d{4})/i)
-          || conversationText.match(/by\s+(end of\s+)?(\d{4})/i)
-          || conversationText.match(/by\s+end\s+of\s+(?:the\s+)?year/i);
-        if (byDateMatch) {
-          const monthNames = ['january','february','march','april','may','june','july','august','september','october','november','december'];
-          let targetYear, targetMonth;
-          if (byDateMatch[0].toLowerCase().includes('end of year') || byDateMatch[0].toLowerCase().includes('end of the year')) {
-            targetYear = todayDate.getFullYear();
-            targetMonth = 11; // December
-          } else if (byDateMatch[3]) {
-            targetYear = parseInt(byDateMatch[3]);
-            targetMonth = monthNames.indexOf(byDateMatch[2].toLowerCase());
-          } else if (byDateMatch[2] && /^\d{4}$/.test(byDateMatch[2])) {
-            targetYear = parseInt(byDateMatch[2]);
-            targetMonth = 11;
-          }
-          if (targetYear && targetMonth !== undefined) {
-            const monthsDiff = (targetYear - todayDate.getFullYear()) * 12 + (targetMonth - todayDate.getMonth());
-            if (monthsDiff > 0) detectedMonths = monthsDiff;
-          }
-        }
-      }
-
+      const detectedMonths = timelineDetect ? parseInt(timelineDetect[1], 10) : null;
       const monthsHint = detectedMonths
         ? `CRITICAL: The plan discussed in this conversation spans ${detectedMonths} months. You MUST generate steps for ALL ${detectedMonths} months (Month 1 through Month ${detectedMonths}). Do NOT stop at Month 2 or any earlier month.`
         : `CRITICAL: Identify the full timeline from the conversation and generate steps for every single month/week discussed.`;
@@ -68,9 +41,9 @@ ${conversationText}
 ${monthsHint}
 
 Return JSON (no markdown) in EXACTLY this structure. CRITICAL STRUCTURAL RULE FOR ALL GOALS 1+ MONTHS:
-${detectedMonths ? `- THIS PLAN SPANS EXACTLY ${detectedMonths} MONTHS. You MUST produce steps for Month 1 through Month ${detectedMonths} — ALL ${detectedMonths} months. Missing ANY month is a critical failure.` : '- Calculate the EXACT number of months from today to target date and produce steps for EVERY month.'}
+- Calculate the EXACT number of months from today (${today}) to target date.
 - EVERY SINGLE MONTH must have EXACTLY 4 weeks: Month 1 Week 1, Month 1 Week 2, Month 1 Week 3, Month 1 Week 4, Month 2 Week 1 ... and so on for EVERY month.
-- FORBIDDEN: Providing weeks for only some months. EVERY month must have all 4 weeks individually.
+- FORBIDDEN: Providing weeks for only Month 1 then switching to month-only labels (e.g. "Month 2", "Month 3"). EVERY month must have all 4 weeks individually.
 - NEVER combine weeks or months: "Week 1-2", "Weeks 3-4", "Months 4-6" are STRICTLY FORBIDDEN. Each phase = exactly ONE week. No ranges ever.
 - For goals under 1 month, just use "Week 1", "Week 2" phases directly.
 
@@ -280,11 +253,11 @@ CRITICAL:
              {
                role: "system",
                content: `You are extracting a structured goal plan. CRITICAL RULES:
-        1. EVERY MONTH from Month 1 through Month ${detectedMonths || expectedMonths} MUST have steps. NO GAPS.
-        2. EVERY MONTH must have EXACTLY 4 weeks (Week 1–4), each with AT LEAST 2-4 specific steps.
-        3. This is a ${plan.timeline || `${detectedMonths || expectedMonths}-month`} goal — generate steps for ALL ${detectedMonths || expectedMonths} months.
+        1. EVERY MONTH from Month 1 through the final month MUST have steps. NO GAPS.
+        2. EVERY MONTH must have AT LEAST 8-12 specific, detailed steps.
+        3. For a ${plan.timeline} goal, generate steps for ALL ${expectedMonths} months.
         4. Return ONLY valid JSON, no markdown fences.
-        5. Previous extraction failed: "${validation.error}" — you MUST fix it now.`
+        5. If previous extraction failed: "${validation.error}", you MUST fix it now.`
             },
             {
               role: "user",
@@ -605,7 +578,7 @@ Always be specific, warm, and treat the plan as a living document.`;
 
       systemPrompt = `You are an expert goal planner, life coach, and ongoing accountability partner. Your job is to help users create brand-new detailed, actionable, realistic goal plans — AND continuously refine, adjust, and improve them over time.
 
-TODAY'S DATE: ${today}. CRITICAL: Always use this to calculate timelines accurately. When a user mentions a target date like "by December 2026", calculate the EXACT number of months from today to that date. Do NOT guess or use a generic number — compute it precisely (e.g. May 2026 → December 2026 = 7 months). "By end of year" when today is May 2026 = 7 months (June through December). ALWAYS show your month count calculation before drafting the plan so the user can verify it.
+TODAY'S DATE: ${today}. CRITICAL: Always use this to calculate timelines accurately. When a user mentions a target date like "by December 2026", calculate the exact number of months from today to that date. Do NOT guess or use a generic number — compute it precisely (e.g. May 2026 → December 2026 = 7 months).
 
 ${goalsSummary}
 ${userCity ? `USER'S CITY: ${userCity}` : ''}
