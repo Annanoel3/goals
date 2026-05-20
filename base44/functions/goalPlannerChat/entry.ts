@@ -19,12 +19,27 @@ Deno.serve(async (req) => {
       const today = new Date().toISOString().split('T')[0];
 
       // Pre-scan the conversation to detect the timeline so we can enforce it in the extraction prompt
-      const timelineDetect = conversationText.match(/(\d+)[- ]month/i);
-      const detectedMonths = timelineDetect ? parseInt(timelineDetect[1], 10) : null;
+  // Detect timeline from any natural language (months, deadlines, dates)
+  const _mNames = ['january','february','march','april','may','june','july','august','september','october','november','december'];
+  const _wNum = {one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10,eleven:11,twelve:12};
+  const _now = new Date();
+  let detectedMonths = null;
+  const _em = conversationText.match(/(\d+)[- ]month/i);
+  if (_em) detectedMonths = parseInt(_em[1], 10);
+  if (!detectedMonths) { const m = conversationText.match(/in\s+(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|\d+)\s+years?/i); if (m) detectedMonths = (parseInt(m[1])||_wNum[m[1].toLowerCase()]||1)*12; }
+  if (!detectedMonths) { const m = conversationText.match(/in\s+(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|\d+)\s+months?/i); if (m) detectedMonths = parseInt(m[1])||_wNum[m[1].toLowerCase()]||1; }
+  if (!detectedMonths) { const m = conversationText.match(/in\s+(\d+)\s+weeks?/i); if (m) detectedMonths = Math.max(1, Math.round(parseInt(m[1])/4)); }
+  if (!detectedMonths) { const m = conversationText.match(/by\s+(?:next\s+|this\s+|end\s+of\s+)?(january|february|march|april|may|june|july|august|september|october|november|december)/i); if (m) { const ti=_mNames.indexOf(m[1].toLowerCase()); const isNext=/next/i.test(m[0]); let ty=_now.getFullYear(); if(ti<=_now.getMonth()||isNext)ty++; detectedMonths=Math.max(1,(ty-_now.getFullYear())*12+(ti-_now.getMonth())); } }
+  if (!detectedMonths) { const m = conversationText.match(/(?:by|before)\s+(?:(?:the\s+)?end\s+of\s+)?(\d{4})/i); if (m) { const ty=parseInt(m[1]); if(ty>=_now.getFullYear()) detectedMonths=Math.max(1,(ty-_now.getFullYear())*12+(11-_now.getMonth())); } }
+  if (!detectedMonths && /(?:by|before)\s+(?:the\s+)?end\s+of\s+(?:this\s+)?year/i.test(conversationText)) detectedMonths = Math.max(1, 11-_now.getMonth());
+  if (!detectedMonths && /next\s+year/i.test(conversationText)) detectedMonths = Math.max(6, 12-_now.getMonth()+6);
       const monthsHint = detectedMonths
         ? `CRITICAL: The plan discussed in this conversation spans ${detectedMonths} months. You MUST generate steps for ALL ${detectedMonths} months (Month 1 through Month ${detectedMonths}). Do NOT stop at Month 2 or any earlier month.`
         : `CRITICAL: Identify the full timeline from the conversation and generate steps for every single month/week discussed.`;
 
+  const monthsRule = detectedMonths
+    ? `- Use EXACTLY ${detectedMonths} months for this plan. Do NOT recalculate or shorten it.`
+    : `- Identify the exact duration from the conversation (a deadline, date, or duration phrase). Use that many months — do NOT shorten it.`;
       const extractionResponse = await openai.chat.completions.create({
         model: "gpt-4o",
         messages: [
@@ -41,7 +56,7 @@ ${conversationText}
 ${monthsHint}
 
 Return JSON (no markdown) in EXACTLY this structure. CRITICAL STRUCTURAL RULE FOR ALL GOALS 1+ MONTHS:
-- Use the number of months specified above — do NOT recalculate from dates.
+        ${monthsRule}
 - EVERY SINGLE MONTH must have EXACTLY 4 weeks: Month 1 Week 1, Month 1 Week 2, Month 1 Week 3, Month 1 Week 4, Month 2 Week 1 ... and so on for EVERY month.
 - FORBIDDEN: Providing weeks for only Month 1 then switching to month-only labels (e.g. "Month 2", "Month 3"). EVERY month must have all 4 weeks individually.
 - NEVER combine weeks or months: "Week 1-2", "Weeks 3-4", "Months 4-6" are STRICTLY FORBIDDEN. Each phase = exactly ONE week. No ranges ever.
