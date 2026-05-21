@@ -154,6 +154,7 @@ CRITICAL:
 7. This removes all excuses — users have everything they need to execute.`
           }
         ],
+        max_tokens: 16000,
         response_format: { type: "json_object" }
       });
 
@@ -271,7 +272,8 @@ CRITICAL:
               content: `Extract the plan from this conversation. CRITICAL — the previous extraction was incomplete or had gaps. Fix it now by including EVERY month and week with full detail:\n\n${conversationText}\n\n${monthsHint}\n\nReturn the SAME JSON structure, but with complete phases and steps for ALL ${detectedMonths || 'stated'} months.`
             }
           ],
-          response_format: { type: "json_object" }
+          max_tokens: 16000,
+        response_format: { type: "json_object" }
         });
         
         const retryPlan = JSON.parse(retryResponse.choices[0].message.content);
@@ -361,6 +363,7 @@ Return JSON:
 Only include fields that actually changed. today = ${today}`
           }
         ],
+        max_tokens: 16000,
         response_format: { type: "json_object" }
       });
 
