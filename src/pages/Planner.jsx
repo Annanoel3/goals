@@ -538,7 +538,7 @@ function parsePlanHierarchy(text) {
   // "Month 1, Week 2" or "Month 1 Week 2" — combined header
   const isCombinedHeader = (l) => /Month\s+\d+[,\s]+Week\s+\d+/i.test(l.replace(/\*\*/g, ''));
   // Pure "Month 1" header (no week)
-  const isPureMonthHeader = (l) => /^(#{1,3}\s+)?(\*\*)?Month\s+\d+(\*\*)?[:\s]*$/i.test(l.replace(/\*\*/g, '').trim());
+  const isPureMonthHeader = (l) => /^(#{1,3}\s+)?(\*\*)?Month\s+\d+(\*\*)?(?:[:\s].*)?$/i.test(l.replace(/\*\*/g, '').trim());
   // Pure "Week 1" or "Week 1:" standalone
   const isPureWeekHeader = (l) => /^(#{1,3}\s+)?(\*\*)?Week\s+\d+(\*\*)?[:\s]*$/i.test(l.replace(/\*\*/g, '').trim());
   const isTaskLine = (l) => /^[-•*]\s+/.test(l) || /^\d+\.\s+/.test(l) || /^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|Day\s*\d+)/i.test(l);
