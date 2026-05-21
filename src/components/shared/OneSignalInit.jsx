@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { base44 } from '@/api/base44Client';
 
 // Helper function to detect if running in Capacitor mobile app
 function isRunningInCapacitor() {
@@ -39,6 +40,18 @@ function handleNotificationData(data, navigate) {
   }
 }
 
+async function handleButtonAction(actionId, data) {
+  try {
+    await base44.functions.getSpotifyAccessToken({
+      button_id: actionId,
+      step_id: data.step_id,
+      goal_id: data.goal_id,
+    });
+  } catch (err) {
+    console.error('[OneSignal] Button action failed:', err);
+  }
+}
+
 export default function OneSignalInit({ user }) {
   const navigate = useNavigate();
 
@@ -50,6 +63,8 @@ export default function OneSignalInit({ user }) {
       if (NotifyBridge) {
         NotifyBridge.addListener?.('notificationOpened', (event) => {
           const data = event?.notification?.data || event?.data;
+          const actionId = event?.actionId || event?.action?.actionId;
+          if (actionId && data && data.step_id) { handleButtonAction(actionId, data); return; }
           handleNotificationData(data, navigate);
         });
         // Also check for launch notification
@@ -122,6 +137,8 @@ export default function OneSignalInit({ user }) {
             // Handle notification clicks in web
             window.OneSignal.Notifications.addEventListener('click', (event) => {
               const data = event?.notification?.data;
+              const actionId = event?.actionSelected || event?.actionId;
+              if (actionId && data && data.step_id) { handleButtonAction(actionId, data); return; }
               handleNotificationData(data, navigate);
             });
           });
