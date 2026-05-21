@@ -610,14 +610,14 @@ function parsePlanHierarchy(text) {
 }
 
 const COMIC_GIFS = [
-  '__GIF_0__',
-  '__GIF_1__',
-  '__GIF_2__',
-  '__GIF_3__',
-  '__GIF_4__',
-  '__GIF_5__',
-  '__GIF_6__',
-  '__GIF_7__',
+  'https://rbxbrfewaxvhvlntxhuv.supabase.co/storage/v1/object/public/GIFs/Turtle.gif',
+  'https://rbxbrfewaxvhvlntxhuv.supabase.co/storage/v1/object/public/GIFs/bear.gif',
+  'https://rbxbrfewaxvhvlntxhuv.supabase.co/storage/v1/object/public/GIFs/bird.gif',
+  'https://rbxbrfewaxvhvlntxhuv.supabase.co/storage/v1/object/public/GIFs/Cat.gif',
+  'https://rbxbrfewaxvhvlntxhuv.supabase.co/storage/v1/object/public/GIFs/Dog.gif',
+  'https://rbxbrfewaxvhvlntxhuv.supabase.co/storage/v1/object/public/GIFs/mouse.gif',
+  'https://rbxbrfewaxvhvlntxhuv.supabase.co/storage/v1/object/public/GIFs/Squirrel.gif',
+  'https://rbxbrfewaxvhvlntxhuv.supabase.co/storage/v1/object/public/GIFs/Robot.gif',
 ];
 
 function GifCarousel({ gifs, onComplete }) {
