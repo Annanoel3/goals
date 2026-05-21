@@ -14,11 +14,11 @@ Deno.serve(async (req) => {
     const { messages, mode, goal_id, existing_goals } = body;
 
     // ── EXTRACT PLAN: parse conversation into structured JSON ──────────────────
-    if (mode === 'extract_plan') {
-      const conversationText = messages.map(m => `${m.role === 'user' ? 'User' : 'Planner'}: ${m.content}`).join('\n\n');
-      const today = new Date().toISOString().split('T')[0];
 
-      // Pre-scan the conversation to detect the timeline so we can enforce it in the extraction prompt
+    const conversationText = messages.map(m => `${m.role === 'user' ? 'User' : 'Planner'}: ${m.content}`).join('\n\n');
+    const today = new Date().toISOString().split('T')[0];
+
+    // Pre-scan the conversation to detect the timeline so we can enforce it in the extraction prompt
   // Detect timeline from any natural language (months, deadlines, dates)
   const _mNames = ['january','february','march','april','may','june','july','august','september','october','november','december'];
   const _wNum = {one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10,eleven:11,twelve:12};
@@ -33,13 +33,15 @@ Deno.serve(async (req) => {
   if (!detectedMonths) { const m = conversationText.match(/(?:by|before)\s+(?:(?:the\s+)?end\s+of\s+)?(\d{4})/i); if (m) { const ty=parseInt(m[1]); if(ty>=_now.getFullYear()) detectedMonths=Math.max(1,(ty-_now.getFullYear())*12+(11-_now.getMonth())); } }
   if (!detectedMonths && /(?:by|before)\s+(?:the\s+)?end\s+of\s+(?:(?:this|the)\s+)?year/i.test(conversationText)) detectedMonths = Math.max(1, 11-_now.getMonth());
   if (!detectedMonths && /next\s+year/i.test(conversationText)) detectedMonths = Math.max(6, 12-_now.getMonth()+6);
-      const monthsHint = detectedMonths
-        ? `CRITICAL: The plan discussed in this conversation spans ${detectedMonths} months. You MUST generate steps for ALL ${detectedMonths} months (Month 1 through Month ${detectedMonths}). Do NOT stop at Month 2 or any earlier month. Each month MUST contain exactly 4 weeks. Total phases required: ${detectedMonths * 4}.`
-        : `CRITICAL: Identify the full timeline from the conversation and generate steps for every single month/week discussed.`;
+    const monthsHint = detectedMonths
+      ? `CRITICAL: The plan discussed in this conversation spans ${detectedMonths} months. You MUST generate steps for ALL ${detectedMonths} months (Month 1 through Month ${detectedMonths}). Do NOT stop at Month 2 or any earlier month. Each month MUST contain exactly 4 weeks. Total phases required: ${detectedMonths * 4}.`
+      : `CRITICAL: Identify the full timeline from the conversation and generate steps for every single month/week discussed.`;
 
   const monthsRule = detectedMonths
-    ? `- Use EXACTLY ${detectedMonths} months for this plan. Do NOT recalculate or shorten it. MANDATORY WEEKS: Each of the ${detectedMonths} months MUST have exactly 4 weeks (Week 1, Week 2, Week 3, Week 4). Total required week-phases: ${detectedMonths * 4}. Never combine or skip weeks.`
-    : `- Identify the exact duration from the conversation (a deadline, date, or duration phrase). Use that many months — do NOT shorten it.`;
+  ? `- Use EXACTLY ${detectedMonths} months for this plan. Do NOT recalculate or shorten it. MANDATORY WEEKS: Each of the ${detectedMonths} months MUST have exactly 4 weeks (Week 1, Week 2, Week 3, Week 4). Total required week-phases: ${detectedMonths * 4}. Never combine or skip weeks.`
+  : `- Identify the exact duration from the conversation (a deadline, date, or duration phrase). Use that many months — do NOT shorten it.`;
+
+    if (mode === 'extract_plan') {
       const extractionResponse = await openai.chat.completions.create({
         model: "gpt-4o",
         messages: [
@@ -311,13 +313,11 @@ CRITICAL:
 
     // ── APPLY EDIT: commit approved edits to an existing goal ─────────────────
     if (mode === 'apply_edit') {
-      const conversationText = messages.map(m => `${m.role === 'user' ? 'User' : 'Planner'}: ${m.content}`).join('\n\n');
 
       // Fetch existing goal & steps for context (user-scoped so RLS returns their data)
       const existingGoal = await base44.entities.Goal.list().then(all => all.find(g => g.id === goal_id));
       const existingSteps = await base44.entities.GoalStep.filter({ goal_id });
 
-      const today = new Date().toISOString().split('T')[0];
       const stepsJson = JSON.stringify(existingSteps.map(s => ({
         id: s.id, title: s.title, phase: s.phase, priority: s.priority, due_date: s.due_date, order_index: s.order_index, status: s.status
       })));
@@ -491,7 +491,6 @@ Only include fields that actually changed. today = ${today}`
 
     const isEditSession = !!goal_id;
 
-    const today = new Date().toISOString().split('T')[0]; // e.g. "2026-05-14"
 
     let systemPrompt;
     if (isEditSession) {
