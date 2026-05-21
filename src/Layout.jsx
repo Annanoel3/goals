@@ -83,7 +83,6 @@ function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
     return localStorage.getItem('adhd_theme') || 'minimalist';
   });
 
-  const [accountabilityNotifications, setAccountabilityNotifications] = useState(0);
 
   useEffect(() => {
     localStorage.setItem('adhd_theme', theme);
@@ -91,33 +90,6 @@ function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
 
 
 
-  const loadAccountabilityNotifications = async () => {
-    if (!user || !user.email || !authCheckComplete) {
-      setAccountabilityNotifications(0);
-      return;
-    }
-
-    try {
-      const connections = await base44.entities.AccountabilityConnection.filter({
-        recipient_email: user.email,
-        status: 'pending'
-      });
-      setAccountabilityNotifications(connections.length);
-    } catch (error) {
-      console.error("Error loading accountability notifications:", error);
-      setAccountabilityNotifications(0);
-    }
-  };
-
-  useEffect(() => {
-    if (user && user.email && authCheckComplete) {
-      loadAccountabilityNotifications();
-      const interval = setInterval(loadAccountabilityNotifications, 30000);
-      return () => clearInterval(interval);
-    } else {
-      setAccountabilityNotifications(0);
-    }
-  }, [user, authCheckComplete]);
 
 
 
