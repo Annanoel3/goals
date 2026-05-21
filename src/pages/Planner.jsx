@@ -602,11 +602,9 @@ function parsePlanHierarchy(text) {
 
 function WeekDropdown({ week }) {
   const [open, setOpen] = React.useState(false);
-  const [checked, setChecked] = React.useState({});
-
-  const toggleCheck = (i) => setChecked(prev => ({ ...prev, [i]: !prev[i] }));
-  const completedCount = Object.values(checked).filter(Boolean).length;
-
+  const [checkedDays, setCheckedDays] = React.useState({});
+  const toggleDay = (d) => setCheckedDays(prev => ({ ...prev, [d]: !prev[d] }));
+  const completedDays = Object.values(checkedDays).filter(Boolean).length;
   return (
     <div className="border border-gray-100 rounded-xl overflow-hidden mb-1.5">
       <button
@@ -615,41 +613,42 @@ function WeekDropdown({ week }) {
       >
         <span className="font-medium text-gray-700 text-xs">{week.title}</span>
         <div className="flex items-center gap-2">
-          {week.tasks.length > 0 && (
-            <span className="text-[10px] text-gray-400">{completedCount}/{week.tasks.length}</span>
-          )}
+          <span className="text-[10px] text-gray-400">{completedDays}/7 days</span>
           {open ? <ChevronUp className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />}
         </div>
       </button>
       {open && (
-        <div className="px-3 pb-3 pt-1 bg-gray-50 border-t border-gray-100 space-y-2">
-          {week.tasks.length === 0 ? (
-            <p className="text-xs text-gray-400 italic">No tasks listed</p>
-          ) : week.tasks.map((task, i) => (
-            <label key={i} className="flex items-start gap-2 cursor-pointer group">
-              <div
-                onClick={() => toggleCheck(i)}
-                className={`mt-0.5 w-4 h-4 flex-shrink-0 rounded border transition-colors ${
-                  checked[i] ? 'bg-violet-600 border-violet-600' : 'border-gray-300 bg-white group-hover:border-violet-400'
-                } flex items-center justify-center`}
-              >
-                {checked[i] && <Check className="w-2.5 h-2.5 text-white" />}
-              </div>
-              <span className={`text-xs leading-relaxed ${checked[i] ? 'line-through text-gray-400' : 'text-gray-700'}`}>
-                {renderInlineText(task)}
-              </span>
-            </label>
-          ))}
+        <div className="px-3 pb-3 pt-2 bg-gray-50 border-t border-gray-100">
+          {week.tasks.length > 0 && (
+            <div className="mb-2 pb-2 border-b border-gray-100 space-y-0.5">
+              {week.tasks.map((task, i) => (
+                <p key={i} className="text-[11px] text-gray-500 leading-relaxed">{renderInlineText(task)}</p>
+              ))}
+            </div>
+          )}
+          <div className="space-y-1 mt-1">
+            {[1,2,3,4,5,6,7].map(day => (
+              <label key={day} className="flex items-center gap-2 cursor-pointer group">
+                <div
+                  onClick={() => toggleDay(day)}
+                  className={`w-4 h-4 flex-shrink-0 rounded border transition-colors flex items-center justify-center ${checkedDays[day] ? 'bg-violet-600 border-violet-600' : 'border-gray-300 bg-white group-hover:border-violet-400'}`}
+                >
+                  {checkedDays[day] && <Check className="w-2.5 h-2.5 text-white" />}
+                </div>
+                <span className={`text-xs ${checkedDays[day] ? 'line-through text-gray-400' : 'text-gray-700'}`}>Day {day}</span>
+              </label>
+            ))}
+          </div>
         </div>
       )}
     </div>
   );
 }
 
+
 function MonthDropdown({ month }) {
   const [open, setOpen] = React.useState(false);
-  const totalTasks = month.weeks.reduce((acc, w) => acc + w.tasks.length, 0);
-
+  const totalDays = month.weeks.length * 7;
   return (
     <div className="border border-violet-100 rounded-xl overflow-hidden mb-2 shadow-sm">
       <button
@@ -658,7 +657,7 @@ function MonthDropdown({ month }) {
       >
         <span className="font-semibold text-gray-800 text-sm">{month.title}</span>
         <div className="flex items-center gap-2">
-          <span className="text-[10px] text-gray-400">{month.weeks.length} weeks · {totalTasks} tasks</span>
+          <span className="text-[10px] text-gray-400">{month.weeks.length} weeks · {totalDays} days</span>
           {open ? <ChevronUp className="w-4 h-4 text-violet-400 flex-shrink-0" /> : <ChevronDown className="w-4 h-4 text-violet-400 flex-shrink-0" />}
         </div>
       </button>
