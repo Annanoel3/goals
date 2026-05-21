@@ -697,7 +697,8 @@ Always be specific, warm, encouraging, and treat the plan as a living document t
           }
         }
       ],
-      tool_choice: "auto"
+      tool_choice: "auto",
+      max_tokens: 16000
     });
 
     // If the model wants to search the web, execute and continue
@@ -719,7 +720,7 @@ Always be specific, warm, encouraging, and treat the plan as a living document t
         }
         toolMessages.push({ role: "tool", tool_call_id: call.id, content: searchResult });
       }
-      const followUp = await openai.chat.completions.create({ model: "gpt-4o", messages: toolMessages });
+      const followUp = await openai.chat.completions.create({ model: "gpt-4o", messages: toolMessages, max_tokens: 16000 });
       finalReply = followUp.choices[0].message.content;
     } else {
       finalReply = firstChoice.message.content;
