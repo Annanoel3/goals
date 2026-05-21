@@ -1,5 +1,32 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
+const ONESIGNAL_APP_ID = Deno.env.get("ONESIGNAL_APP_ID")?.trim();
+const ONESIGNAL_REST_API_KEY = Deno.env.get("ONESIGNAL_REST_API_KEY")?.trim();
+
+// Schedule a push notification via OneSignal REST API (same pattern as schedulePush.ts)
+async function scheduleReminder({ externalId, title, body, data, minutesFromNow }) {
+  const sendAfter = new Date(Date.now() + minutesFromNow * 60 * 1000).toISOString();
+  const payload = {
+    app_id: ONESIGNAL_APP_ID,
+    include_external_user_ids: [String(externalId)],
+    headings: { en: title },
+    contents: { en: body },
+    data,
+    channel_for_external_user_ids: "push",
+    send_after: sendAfter,
+  };
+  const res = await fetch("https://onesignal.com/api/v1/notifications", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Basic ${ONESIGNAL_REST_API_KEY}`,
+    },
+    body: JSON.stringify(payload),
+  });
+  const json = await res.json();
+  return json?.id || null;
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -8,30 +35,92 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const clientId = Deno.env.get('SPOTIFY_CLIENT_ID');
-    const clientSecret = Deno.env.get('SPOTIFY_CLIENT_SECRET');
+    const { button_id, step_id, goal_id } = await req.json();
 
-    if (!clientId || !clientSecret) {
-      return Response.json({ error: 'Spotify credentials not configured' }, { status: 500 });
+    if (!button_id || !step_id) {
+      return Response.json({ error: 'Missing button_id or step_id' }, { status: 400 });
     }
 
-    // Use Client Credentials Flow to get an access token for the app
-    const authString = btoa(`${clientId}:${clientSecret}`);
-    const response = await fetch('https://accounts.spotify.com/api/token', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Basic ${authString}`,
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: 'grant_type=client_credentials',
-    });
+    const step = await base44.acServiceRole.entities.GoalStep.get(step_id);
+    if (!step) {
+      return Response.json({ error: 'Step not found' }, { status: 404 });
+    }
 
-    const data = await response.json();
-    return Response.json({
-      access_token: data.access_token,
-      expires_in: data.expires_in,
-    });
-  } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    let result = {};
+
+    switch (button_id) {
+
+      case 'complete': {
+        await base44.acServiceRole.entities.GoalStep.update(step_id, {
+          status: 'completed',
+          completed_at: new Date().toISOString(),
+        });
+        result = { action: 'completed', step_id };
+        break;
+      }
+
+      case 'remind_later': {
+        const notifId = await scheduleReminder({
+          externalId: user.email,
+          title: `Reminder: "${step.title}"`,
+          body: 'You asked to be reminded in 3 hours.',
+          data: {
+            screen: 'GoalStepNotification',
+            action: 'goal_step_followup',
+            goal_id: step.goal_id || goal_id,
+            step_id: step.id,
+          },
+          minutesFromNow: 180,
+        });
+        if (notifId) {
+          const existing = Array.isArray(step.onesignal_notification_ids) ? step.onesignal_notification_ids : [];
+          await base44.acServiceRole.entities.GoalStep.update(step_id, {
+            onesignal_notification_ids: [...existing, notifId],
+          });
+        }
+        result = { action: 'remind_later', notif_id: notifId };
+        break;
+      }
+
+      case 'delegate': {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const newDate = tomorrow.toISOString().split('T')[0];
+        await base44.acServiceRole.entities.GoalStep.update(step_id, {
+          due_date: newDate,
+        });
+        result = { action: 'delegate', new_due_date: newDate };
+        break;
+      }
+
+      case 'shift_week': {
+        const goalId = goal_id || step.goal_id;
+        const allSteps = await base44.acServiceRole.entities.GoalStep.list({
+          filters: [
+            { field: 'goal_id', operator: '==', value: goalId },
+            { field: 'status', operator: '!=', value: 'completed' },
+          ],
+        });
+        let shifted = 0;
+        for (const s of allSteps) {
+          if (!s.due_date) continue;
+          const d = new Date(s.due_date + 'T00:00:00Z');
+          d.setDate(d.getDate() + 7);
+          await base44.acServiceRole.entities.GoalStep.update(s.id, {
+            due_date: d.toISOString().split('T')[0],
+          });
+          shifted++;
+        }
+        result = { action: 'shift_week', steps_shifted: shifted };
+        break;
+      }
+
+      default:
+        return Response.json({ error: `Unknown button_id: ${button_id}` }, { status: 400 });
+    }
+
+    return Response.json({ ok: true, ...result });
+  } catch (err) {
+    return Response.json({ error: String(err) }, { status: 500 });
   }
 });
