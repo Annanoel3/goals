@@ -212,14 +212,6 @@ CRITICAL:
                 error: `Plan structure incomplete: Month ${month} is missing entirely (expected all months 1-${expectedMonths} with 4 weeks each).`
               };
             }
-            const weeksInMonth = monthWeekCounts[month];
-            // Each month should have ~4 weeks (no month-only entries, no < 3 weeks)
-            if (weeksInMonth.has(0) || weeksInMonth.size < 3) {
-              return {
-                valid: false,
-                error: `Month ${month} only has ${weeksInMonth.size} week(s). Every month must have 4 weeks broken out individually (Month ${month} Week 1 through Week 4).`
-              };
-            }
           }
           
         } else if (expectedMonths < 1) {
