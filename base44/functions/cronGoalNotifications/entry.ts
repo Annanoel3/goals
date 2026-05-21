@@ -149,9 +149,14 @@ Deno.serve(async (req) => {
       for (const step of overdueDayOne) {
         await sendPush({
           externalId,
-          title: `Quick check-in 👋`,
-          body: `Did you get to "${step.title}" yesterday? Tap to mark it done or keep it on your radar.`,
-          data: { screen: 'GoalStepNotification', action: 'goal_step_followup', goal_id: goal.id, step_id: step.id }
+          title: `"${step.title}" is 1 day overdue ⚠️`,
+          body: `You missed this step yesterday — want to mark it done or reschedule?`,
+          data: { screen: 'GoalStepNotification', action: 'goal_step_followup', goal_id: goal.id, step_id: step.id },
+          buttons: [
+            { id: 'complete', text: '✓ Done' },
+            { id: 'remind_later', text: '⏰ Remind in 3h' },
+            { id: 'delegate', text: '📅 Move it' },
+          ],
         });
         results.followup_day1++;
       }
