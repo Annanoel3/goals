@@ -11,6 +11,7 @@ export default function Planner() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [pendingAction, setPendingAction] = useState(null); // 'plan_approved' | 'edit_approved'
   const [pendingGoalId, setPendingGoalId] = useState(null);
@@ -345,16 +346,20 @@ export default function Planner() {
               <MessageBubble key={i} msg={msg} />
             ))}
             {isLoading && (
-              <div className="flex justify-center py-4">
-                <GoalPlanLoadingAnimation />
-              </div>
-            )}
+        <div className="flex justify-center py-4">
+          <div className="flex gap-1.5 items-center">
+            <div className="w-2.5 h-2.5 bg-violet-400 rounded-full animate-bounce" style={{animationDelay:'0ms'}} />
+            <div className="w-2.5 h-2.5 bg-violet-400 rounded-full animate-bounce" style={{animationDelay:'150ms'}} />
+            <div className="w-2.5 h-2.5 bg-violet-400 rounded-full animate-bounce" style={{animationDelay:'300ms'}} />
+          </div>
+        </div>
+      )}
 
             {/* Plan preview before approval */}
-            {pendingAction === 'plan_proposed' && !isLoading && !saved && !editingGoal && (
+            {pendingAction === 'plan_proposed' && !isLoading && !saved && !editingGoal && !showCelebration && (
               <div className="flex flex-col items-center gap-3 pt-4 pb-4">
                 <Button
-                  onClick={handleSaveNewGoal}
+                  onClick={() => setShowCelebration(true)}
                   className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white rounded-2xl px-6 py-2.5 shadow-lg shadow-violet-100 font-semibold"
                 >
                   <Check className="w-4 h-4 mr-2" />
@@ -370,7 +375,11 @@ export default function Planner() {
               </div>
             )}
 
-            {/* New goal approval */}
+            {pendingAction === 'plan_proposed' && !isLoading && !saved && !editingGoal && showCelebration && (
+        <GifCarousel gifs={COMIC_GIFS} onComplete={handleSaveNewGoal} />
+      )}
+
+      {/* New goal approval */}
             {pendingAction === 'plan_approved' && !saved && !isSaving && (
               <div className="flex justify-center py-4">
                 <Button
@@ -598,6 +607,46 @@ function parsePlanHierarchy(text) {
   }
 
   return { months, preamble: preamble.join('\n') };
+}
+
+const COMIC_GIFS = [
+  '__GIF_0__',
+  '__GIF_1__',
+  '__GIF_2__',
+  '__GIF_3__',
+  '__GIF_4__',
+  '__GIF_5__',
+  '__GIF_6__',
+  '__GIF_7__',
+];
+
+function GifCarousel({ gifs, onComplete }) {
+  const [idx, setIdx] = React.useState(0);
+  const [done, setDone] = React.useState(false);
+  React.useEffect(() => {
+    if (done) return;
+    const timer = setTimeout(() => {
+      if (idx < gifs.length - 1) {
+        setIdx(i => i + 1);
+      } else {
+        setDone(true);
+        onComplete();
+      }
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [idx, done, gifs, onComplete]);
+  return (
+    <div className="flex flex-col items-center justify-center py-6 animate-in fade-in duration-300">
+      <img
+        key={idx}
+        src={gifs[idx]}
+        alt="celebration"
+        className="w-52 h-52 object-contain rounded-2xl shadow-lg animate-in zoom-in duration-300"
+        style={{imageRendering:'auto'}}
+      />
+      <p className="text-sm text-gray-400 mt-3 font-medium">Saving your goal...</p>
+    </div>
+  );
 }
 
 function WeekDropdown({ week }) {
