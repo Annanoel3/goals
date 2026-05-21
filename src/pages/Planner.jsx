@@ -103,7 +103,7 @@ export default function Planner() {
 
       setMessages(prev => [...prev, { role: "assistant", content: message }]);
 
-      if (action === 'plan_proposed') {
+      if (action === 'plan_proposed' || (action === 'chat' && message?.includes('Month 1') && (message?.includes('Month 2') || message?.includes('Week 1')))) {
         setPendingAction('plan_proposed');
       } else if (action === 'plan_approved' || message?.includes('PLAN_APPROVED')) {
         setPendingAction('plan_approved');
