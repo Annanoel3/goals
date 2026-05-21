@@ -3,7 +3,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 const ONESIGNAL_APP_ID = Deno.env.get("ONESIGNAL_APP_ID");
 const ONESIGNAL_REST_API_KEY = Deno.env.get("ONESIGNAL_REST_API_KEY");
 
-async function sendPush({ externalId, title, body, data }) {
+async function sendPush({ externalId, title, body, data, buttons }) {
   const payload = {
     app_id: ONESIGNAL_APP_ID,
     include_external_user_ids: [String(externalId)],
@@ -11,6 +11,7 @@ async function sendPush({ externalId, title, body, data }) {
     contents: { en: body },
     data: data || {},
     channel_for_external_user_ids: "push",
+    ...(buttons ? { buttons } : {}),
   };
   const res = await fetch("https://onesignal.com/api/v1/notifications", {
     method: 'POST',
@@ -125,7 +126,12 @@ Deno.serve(async (req) => {
           body: step.description
             ? `${step.description.slice(0, 100)}${step.description.length > 100 ? '…' : ''}`
             : `Tap to view details and mark complete.`,
-          data: { screen: 'GoalStepNotification', action: 'goal_step', goal_id: goal.id, step_id: step.id }
+          data: { screen: 'GoalStepNotification', action: 'goal_step', goal_id: goal.id, step_id: step.id },
+          buttons: [
+            { id: 'complete', text: '✓ Done' },
+            { id: 'remind_later', text: '⏰ Remind in 3h' },
+            { id: 'delegate', text: '📅 Move it' },
+          ],
         });
 
         if (notifId) {
@@ -192,6 +198,76 @@ Deno.serve(async (req) => {
           results.engagement_notifs++;
         }
       }
+    // ── 7. END-OF-WEEK STATS: Sunday → how did this week go? ─────────────────
+    if (dayOfWeek === 0) {
+      for (const goal of userGoals) {
+        const weekStart = new Date(todayUTC);
+        weekStart.setDate(todayUTC.getDate() - 6);
+        const weekStartStr = weekStart.toISOString().split('T')[0];
+        const allSteps = goalStepsMap[goal.id] || [];
+        const dueThisWeek = allSteps.filter(s => s.due_date >= weekStartStr && s.due_date <= todayStr);
+        const completedThisWeek = dueThisWeek.filter(s => s.status === 'completed');
+        if (dueThisWeek.length === 0) continue;
+        const pct = Math.round((completedThisWeek.length / dueThisWeek.length) * 100);
+        const emoji = pct >= 80 ? '🌟' : pct >= 50 ? '💪' : '🔄';
+        const msg = pct >= 80 ? 'Incredible week!' : pct >= 50 ? 'Good progress — keep going!' : 'Next week is a fresh start.';
+        await sendPush({
+          externalId,
+          title: `Week wrap-up ${emoji}`,
+          body: `You finished ${completedThisWeek.length}/${dueThisWeek.length} steps on "${goal.title}" this week (${pct}%). ${msg}`,
+          data: { screen: 'GoalStepNotification', action: 'week_stats', goal_id: goal.id },
+        });
+        results.week_stats_notifs = (results.week_stats_notifs || 0) + 1;
+      }
+    }
+
+    // ── 8. END-OF-MONTH STATS: last day of month → monthly recap ─────────────
+    const nextDay = new Date(todayUTC);
+    nextDay.setDate(todayUTC.getDate() + 1);
+    const isLastOfMonth = nextDay.getDate() === 1;
+    if (isLastOfMonth) {
+      for (const goal of userGoals) {
+        const monthStart = `${todayStr.slice(0, 7)}-01`;
+        const allSteps = goalStepsMap[goal.id] || [];
+        const dueThisMonth = allSteps.filter(s => s.due_date >= monthStart && s.due_date <= todayStr);
+        const completedThisMonth = dueThisMonth.filter(s => s.status === 'completed');
+        if (dueThisMonth.length === 0) continue;
+        const pct = Math.round((completedThisMonth.length / dueThisMonth.length) * 100);
+        const emoji = pct >= 80 ? '🏆' : pct >= 50 ? '📈' : '💡';
+        const msg = pct >= 80 ? "You crushed it!" : pct >= 50 ? "Solid month — let's build on it!" : "New month, fresh energy — you've got this!";
+        await sendPush({
+          externalId,
+          title: `Month complete! ${emoji}`,
+          body: `This month on "${goal.title}": ${completedThisMonth.length}/${dueThisMonth.length} steps (${pct}%). ${msg}`,
+          data: { screen: 'GoalStepNotification', action: 'month_stats', goal_id: goal.id },
+        });
+        results.month_stats_notifs = (results.month_stats_notifs || 0) + 1;
+      }
+    }
+
+    // ── 9. 1-WEEK INACTIVITY: no goal activity in 7 days → offer to shift ────
+    const sevenDaysAgo = daysAgo(todayStr, 7);
+    const allUserSteps = userGoals.flatMap(g => goalStepsMap[g.id] || []);
+    const hadRecentActivity = allUserSteps.some(s =>
+      (s.status === 'completed' && s.completed_at && s.completed_at.split('T')[0] >= sevenDaysAgo) ||
+      (s.updated_at && s.updated_at.split('T')[0] >= sevenDaysAgo && s.status !== 'pending')
+    );
+    if (!hadRecentActivity && allUserSteps.length > 0 && userGoals.length > 0) {
+      const goal = userGoals[0];
+      const nextPending = (goalStepsMap[goal.id] || []).find(s => s.status === 'pending');
+      await sendPush({
+        externalId,
+        title: `Your goal misses you 💙`,
+        body: `It's been a week since any activity on "${goal.title}". ${nextPending ? `"${nextPending.title}" is still waiting. ` : ''}Want to shift your plan forward a week and start fresh?`,
+        data: { screen: 'GoalStepNotification', action: 'inactivity_nudge', goal_id: goal.id, can_shift_week: true },
+        buttons: [
+          { id: 'shift_week', text: '📅 Shift plan +1 week' },
+          { id: 'remind_later', text: '⏰ Remind tomorrow' },
+        ],
+      });
+      results.inactivity_notifs = (results.inactivity_notifs || 0) + 1;
+    }
+
     }
 
     return Response.json({ success: true, date: todayStr, ...results });
