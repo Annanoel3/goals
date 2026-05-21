@@ -18,8 +18,18 @@ function StepRow({ step, onOpen, onToggle, onCheckIn, onUpdate }) {
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState(step.title);
   const handleSave = async () => {
-    if (!editText.trim() || editText.trim() === step.title) { setEditing(false); return; }
-    await base44.entities.GoalStep.update(step.id, { title: editText.trim() });
+    const trimmed = editText.trim();
+    if (!trimmed || trimmed === step.title) { setEditing(false); return; }
+    // Cancel existing OneSignal notification so cron recreates it with new title
+    const notifIds = step.onesignal_notification_ids || [];
+    if (notifIds.length > 0) {
+      const lastId = notifIds[notifIds.length - 1];
+      try { await base44.functions.invoke('cancelScheduled', { notificationId: lastId }); } catch(e) {}
+    }
+    await base44.entities.GoalStep.update(step.id, {
+      title: trimmed,
+      onesignal_notification_ids: []
+    });
     setEditing(false);
     onUpdate();
   };
