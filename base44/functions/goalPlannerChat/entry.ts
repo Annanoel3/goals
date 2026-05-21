@@ -86,7 +86,11 @@ TYPE B — MILESTONE/PROJECT GOALS (save money, find a job, start a business, wr
 
 DECISION RULE: Look at the goal's category and description. If it involves a SKILL that requires daily repetition to build muscle memory or habit → TYPE A. If it's about achieving outcomes through periodic actions and milestones → TYPE B. When in doubt, lean TYPE B (fewer, clearer steps per week).
 
-IMPORTANT: Create AT LEAST 15-20+ detailed subtasks PER MILESTONE. CRITICAL: If the user said "by end of year" or "by [month]", calculate the EXACT number of months from today (${today}) to that date and use that as the timeline. Do NOT use a generic number.
+READING & BOOK GOALS: Classify as TYPE B always. Each month = 1 book split into 4 week-phases. Week 1 = first 25% of book, Week 2 = 25-50%, Week 3 = 50-75%, Week 4 = finish + brief reflection notes. NEVER compress a whole book into 1 week-phase. NEVER mark book-reading steps as is_daily_habit.
+
+TOKEN PRIORITY RULE: Completing ALL ${detectedMonths} months x 4 weeks = ${detectedMonths * 4} total week-phases is the HIGHEST priority. Trade depth for coverage always. Use 2-4 steps per week-phase. Never sacrifice later weeks just to add detail to earlier ones.
+
+IMPORTANT: Generate 2-4 specific, actionable tasks per week-phase. Keep descriptions to 1 sentence each. CRITICAL: If the user said "by end of year" or "by [month]", calculate the EXACT number of months from today (${today}) to that date and use that as the timeline. Do NOT use a generic number.
 {
   "title": "concise goal title",
   "description": "what the user wants to achieve",
@@ -132,7 +136,7 @@ IMPORTANT: Create AT LEAST 15-20+ detailed subtasks PER MILESTONE. CRITICAL: If 
 CRITICAL:
 0b. CRITICAL — For each step, set "is_daily_habit": true if the step is something the user must DO EVERY DAY (e.g. morning affirmations, daily meditation, daily journaling, daily gratitude, daily exercise, daily reading, morning routine, nightly review, practice, rehearsal). The words "daily", "every day", "each morning", "each night", "routine", "practice", "affirmation", "habit" are strong signals. Set it false only for one-time tasks or milestones.
 0. NEVER skip weeks or phases. If you have Month 1 Week 1, Month 1 Week 2, Month 1 Week 3 — ALL must appear. No gaps. If a month has 4 weeks, all 4 weeks must have steps. Do not jump from Week 1 to Week 3.
-1. Generate 15-20+ steps PER PHASE/MILESTONE, not just a handful total. Make the plan deeply detailed and actionable.
+1. Generate 2-4 specific steps per week-phase. Coverage of ALL week-phases is the top priority. Keep descriptions brief (1 sentence each).
 2. FOR EVERY STEP, include step_resources with specific links and guidance (videos, books, articles, tools, websites, local venues/clubs if discussed)
 3. FOR EVERY STEP, include measurable success_criteria so users know exactly when they've completed it
 4. FOR EVERY STEP, include tips_and_guidance with specific advice and common pitfalls to avoid
