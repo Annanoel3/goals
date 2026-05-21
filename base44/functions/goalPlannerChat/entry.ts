@@ -34,18 +34,18 @@ Deno.serve(async (req) => {
   if (!detectedMonths && /(?:by|before)\s+(?:the\s+)?end\s+of\s+(?:(?:this|the)\s+)?year/i.test(conversationText)) detectedMonths = Math.max(1, 11-_now.getMonth());
   if (!detectedMonths && /next\s+year/i.test(conversationText)) detectedMonths = Math.max(6, 12-_now.getMonth()+6);
       const monthsHint = detectedMonths
-        ? `CRITICAL: The plan discussed in this conversation spans ${detectedMonths} months. You MUST generate steps for ALL ${detectedMonths} months (Month 1 through Month ${detectedMonths}). Do NOT stop at Month 2 or any earlier month.`
+        ? `CRITICAL: The plan discussed in this conversation spans ${detectedMonths} months. You MUST generate steps for ALL ${detectedMonths} months (Month 1 through Month ${detectedMonths}). Do NOT stop at Month 2 or any earlier month. Each month MUST contain exactly 4 weeks. Total phases required: ${detectedMonths * 4}.`
         : `CRITICAL: Identify the full timeline from the conversation and generate steps for every single month/week discussed.`;
 
   const monthsRule = detectedMonths
-    ? `- Use EXACTLY ${detectedMonths} months for this plan. Do NOT recalculate or shorten it.`
+    ? `- Use EXACTLY ${detectedMonths} months for this plan. Do NOT recalculate or shorten it. MANDATORY WEEKS: Each of the ${detectedMonths} months MUST have exactly 4 weeks (Week 1, Week 2, Week 3, Week 4). Total required week-phases: ${detectedMonths * 4}. Never combine or skip weeks.`
     : `- Identify the exact duration from the conversation (a deadline, date, or duration phrase). Use that many months — do NOT shorten it.`;
       const extractionResponse = await openai.chat.completions.create({
         model: "gpt-4o",
         messages: [
           {
             role: "system",
-            content: `You are extracting a structured goal plan from a planning conversation. Return ONLY valid JSON, no markdown fences. ${monthsHint}`
+            content: `You are extracting a structured goal plan from a planning conversation. Return ONLY valid JSON, no markdown fences. ${monthsHint} CRITICAL: Even if the conversation only briefly mentions later months without weekly detail, you MUST still generate EXACTLY 4 weeks for EVERY month. Never output just 'Month X' as a single phase — always expand into: Month X Week 1, Month X Week 2, Month X Week 3, Month X Week 4 with appropriate content.`
           },
           {
             role: "user",
@@ -260,7 +260,7 @@ CRITICAL:
            messages: [
              {
                role: "system",
-               content: `You are extracting a structured goal plan. CRITICAL RULES:
+               content: `You are extracting a structured goal plan. CRITICAL RULES: Every month MUST be expanded into exactly 4 weeks (Week 1, Week 2, Week 3, Week 4). Never output a bare 'Month X' phase — always use 'Month X Week Y' format.
         1. EVERY MONTH from Month 1 through the final month MUST have steps. NO GAPS.
         2. EVERY MONTH must have AT LEAST 8-12 specific, detailed steps.
         3. For a ${plan.timeline} goal, generate steps for ALL ${detectedMonths} months.
@@ -619,6 +619,7 @@ PHASE 1 — GATHER INFO FIRST (STRICTLY REQUIRED before drafting any plan):
    - Only ask ONCE and only for goals where in-person options genuinely add value.
 
 PHASE 2 — DRAFT THE FULL PLAN (only after sufficient info gathered):
+${monthsRule}
 4. STRICT PHASE NAMING RULES — VIOLATIONS ARE NOT ACCEPTABLE:
    - NEVER combine weeks: "Week 1-2", "Week 3-4", "Weeks 5-6" are ALL FORBIDDEN. Every week is its own entry: "Month 1, Week 1", "Month 1, Week 2", etc.
    - NEVER combine months. Every month is its own entry: "Month 4", "Month 5", "Month 6".
@@ -627,7 +628,8 @@ PHASE 2 — DRAFT THE FULL PLAN (only after sufficient info gathered):
 
    GRANULARITY — choose the right level based on goal type:
    - DAILY PRACTICE GOALS (instrument, language, fitness, coding, drawing, martial arts): break each week into daily tasks (Monday–Sunday or Day 1–7). Mark as is_daily_habit: true.
-   - MILESTONE/PROJECT GOALS (happiness, finance, career, relationships, business): 2-4 key actions per week — no daily breakdown needed.
+   - MILESTONE/PROJECT GOALS (finance, career, business, travel, concrete measurable outcomes): 2-4 specific action steps per week — no daily breakdown needed.
+   - SOFT/PERSONAL GROWTH GOALS (self-confidence, anxiety, boundaries, saying no, mindset, emotional wellbeing, relationships, happiness): 3-7 reflection prompts or practice goals per week — NO daily breakdown, NO rigid scheduling. Keep it gentle and flexible.
    - Rule of thumb: Does this skill require daily repetition to build? → daily. Is it about outcomes through periodic effort? → weekly milestones.
 5. Create a detailed phased plan with milestones (Month 1, Month 2, Week 1, etc.) that EXACTLY fits the user's stated timeline. If they say "by December 2026" (7 months), your plan must FULLY cover all 7 months — not 6, not 5, but all 7. Every month must have content. Condense, prioritize, and fit everything within the full window — do not stop early.
    CRITICAL ENFORCEMENT: If the timeline spans 12 months, there MUST be 12 months of content (Month 1 through Month 12). If the user says "by end of year" and today is May, calculate the exact months remaining and FILL EVERY SINGLE MONTH/WEEK with relevant steps. No shortcuts, no stopping at 5 months when the timeline is longer. The plan must span the entire stated duration.
