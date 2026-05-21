@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: `You are extracting a structured goal plan from a planning conversation. Return ONLY valid JSON, no markdown fences. ${monthsHint} CRITICAL: Even if the conversation only briefly mentions later months without weekly detail, you MUST still generate EXACTLY 4 weeks for EVERY month. Never output just 'Month X' as a single phase — always expand into: Month X Week 1, Month X Week 2, Month X Week 3, Month X Week 4 with appropriate content.`
+            content: `You are extracting a structured goal plan from a planning conversation. Return ONLY valid JSON, no markdown fences. ${monthsHint} CRITICAL: Even if the conversation only briefly mentions later months without weekly detail, you MUST still generate EXACTLY 4 weeks for EVERY month. Generate EXACTLY 4 steps per month. Each step IS one week. phase='Month X' (month only, no week number). title must start with 'Week 1:', 'Week 2:', 'Week 3:', or 'Week 4:' followed by a brief focus. description = 2-4 sentences describing what to do that week (habit, book/activity, specific focus). No daily breakdowns.`
           },
           {
             role: "user",
@@ -59,14 +59,16 @@ ${monthsHint}
 
 Return JSON (no markdown) in EXACTLY this structure. CRITICAL STRUCTURAL RULE FOR ALL GOALS 1+ MONTHS:
         ${monthsRule}
-- EVERY SINGLE MONTH must have EXACTLY 4 weeks: Month 1 Week 1, Month 1 Week 2, Month 1 Week 3, Month 1 Week 4, Month 2 Week 1 ... and so on for EVERY month.
-- FORBIDDEN: Providing weeks for only Month 1 then switching to month-only labels (e.g. "Month 2", "Month 3"). EVERY month must have all 4 weeks individually.
-- NEVER combine weeks or months: "Week 1-2", "Weeks 3-4", "Months 4-6" are STRICTLY FORBIDDEN. Each phase = exactly ONE week. No ranges ever.
+- EVERY SINGLE MONTH must have EXACTLY 4 steps (Week 1, Week 2, Week 3, Week 4). phase='Month X'. title='Week N: focus'. 4 steps × 12 months = 48 total steps.
+- FORBIDDEN: Using phase='Month 1, Week 1' (week in phase). ONLY put month in phase. Week number goes in title only.
+- NEVER combine weeks or months: "Week 1-2", "Weeks 3-4", "Months 4-6" are STRICTLY FORBIDDEN. Each STEP = exactly ONE week. phase='Month X' (month only). title='Week N: brief focus'. Exactly 4 steps per month.
 - For goals under 1 month, just use "Week 1", "Week 2" phases directly.
 
 GRANULARITY RULES — choose the right level of detail per goal type:
 
-TYPE A — DAILY PRACTICE GOALS (instruments, language learning, fitness/exercise, meditation, journaling, coding practice, drawing, singing, martial arts, sport drills):
+MULTI-MONTH GOALS (2+ months): ALWAYS use week-steps with rich descriptions. No daily breakdowns. 4 steps per month, each with 2-4 sentences in description. TYPE A and TYPE B granularity only applies to single-month goals.
+
+TYPE A — DAILY PRACTICE GOALS (single-month goals only) (instruments, language learning, fitness/exercise, meditation, journaling, coding practice, drawing, singing, martial arts, sport drills):
   - Each week must include a DAILY breakdown: Monday through Sunday (or Day 1–7), each with a specific task.
   - Example for "Learn Guitar, Month 1 Week 1":
       Monday: Practice open chords G, C, D for 20 min
@@ -102,7 +104,7 @@ IMPORTANT: Generate 2-4 specific, actionable tasks per week-phase. Keep descript
     {
       "title": "specific, granular subtask (e.g., 'Complete Lesson 2: Present Tense Conjugation')",
       "description": "detailed explanation of what to do and why",
-      "phase": "e.g. Month 1, Week 1 — ALWAYS include the week number, NEVER use 'Month X' alone",
+      "phase": "e.g. Month 1, Week 1 — ALWAYS include the week number, ONLY use the month label here (e.g. 'Month 1'). The week number goes in the title field.",
       "priority": "low|medium|high|critical",
       "due_date": "YYYY-MM-DD (spread across the timeline, realistic pacing)",
       "order_index": 0,
