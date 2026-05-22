@@ -431,7 +431,7 @@ function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
           </Sidebar>
 
           <main className="flex-1 flex flex-col min-w-0 min-h-screen relative z-10">
-            <header className={`backdrop-blur-md border-b px-6 md:hidden sticky top-0 z-10 ${
+            <header className={`backdrop-blur-md border-b px-6 sticky top-0 z-10 ${
               theme === 'dark'
                 ? 'bg-gray-950/80 border-gray-800'
                 : theme === 'colorful'
@@ -470,7 +470,7 @@ function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
                   window.dispatchEvent(event);
                 }}
                 size="lg"
-                className={`fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-2xl z-50 md:hidden bg-opacity-90 bg-purple-600 hover:bg-purple-700`}
+                className={`fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-2xl z-50 bg-opacity-90 bg-purple-600 hover:bg-purple-700`}
                 style={{
                   marginBottom: 'max(1.5rem, calc(1.5rem + env(safe-area-inset-bottom)))'
                 }}
