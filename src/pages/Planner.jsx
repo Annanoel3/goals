@@ -643,6 +643,13 @@ function parsePlanHierarchy(text) {
     }
   }
 
+  // Sort months by number to ensure clean sequential order (fixes jumbled months on timeline extension)
+  months.sort((a, b) => {
+    const numA = parseInt(a.title.match(/\d+/)?.[0] || 999);
+    const numB = parseInt(b.title.match(/\d+/)?.[0] || 999);
+    return numA - numB;
+  });
+
   return { months, preamble: preamble.join('\n') };
 }
 
