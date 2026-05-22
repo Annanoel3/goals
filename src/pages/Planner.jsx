@@ -302,38 +302,39 @@ export default function Planner() {
   const hasGoals = goals.length > 0;
   const [theme] = React.useState(() => localStorage.getItem('adhd_theme') || 'minimalist');
   const isColorful = theme === 'colorful';
+  const isDark = theme === 'dark';
 
   // Show saved chats list if we have goals and aren't currently editing
   const showGoalsList = hasGoals && !editingGoal && isEmpty;
 
   return (
-    <div className={`min-h-screen flex flex-col ${isColorful ? 'bg-gradient-to-br from-purple-200 via-pink-200 to-blue-200' : 'bg-gray-50'}`} style={{ paddingBottom: 'max(7rem, calc(7rem + env(safe-area-inset-bottom)))' }}>
+    <div className={`min-h-screen flex flex-col ${isDark ? 'bg-gray-950' : isColorful ? 'bg-gradient-to-br from-purple-200 via-pink-200 to-blue-200' : 'bg-gray-50'}`} style={{ paddingBottom: 'max(7rem, calc(7rem + env(safe-area-inset-bottom)))' }}>
       {/* Header */}
-      <div className={`fixed top-0 left-0 right-0 z-50 ${isColorful ? 'bg-gradient-to-r from-purple-300/90 to-pink-300/90 border-purple-300/50' : 'bg-white/90 border-gray-100'} backdrop-blur-lg border-b px-4 py-3`}>
+      <div className={`fixed top-0 left-0 right-0 z-50 ${isDark ? 'bg-gray-900/90 border-gray-800' : isColorful ? 'bg-gradient-to-r from-purple-300/90 to-pink-300/90 border-purple-300/50' : 'bg-white/90 border-gray-100'} backdrop-blur-lg border-b px-4 py-3`}>
         <div className="max-w-2xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-sm">
               <Sparkles className="w-4 h-4 text-white" />
             </div>
             <div>
-              <h1 className="text-base font-bold text-gray-900 leading-none">
+              <h1 className={`text-base font-bold ${isDark ? 'text-white' : 'text-gray-900'} leading-none`}>
                 {editingGoal ? `Editing: ${editingGoal.title}` : showGoalsList ? 'My Goals' : 'Planner'}
               </h1>
-              <p className="text-[11px] text-gray-400 mt-0.5">
+              <p className={`text-[11px] ${isDark ? 'text-gray-500' : 'text-gray-400'} mt-0.5`}>
                 {editingGoal ? 'Evolve your goal' : showGoalsList ? 'Click to adjust' : 'AI-powered goal planning'}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             {(editingGoal || messages.length > 0) && (
-              <Button variant="ghost" size="sm" onClick={handleNewPlan} className="text-xs text-gray-500 h-7 px-3 rounded-full">
+              <Button variant="ghost" size="sm" onClick={handleNewPlan} className={`text-xs h-7 px-3 rounded-full ${isDark ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-500'}`}>
                 {editingGoal ? 'Back' : 'New'}
               </Button>
             )}
             <Button
               variant="ghost"
               size="sm"
-              className="text-xs h-7 px-3 rounded-full text-gray-500 hover:bg-gray-100"
+              className={`text-xs h-7 px-3 rounded-full ${isDark ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-500 hover:bg-gray-100'}`}
               onClick={() => navigate("/Goals")}
             >
               <Target className="w-3 h-3 mr-1" />
@@ -369,7 +370,7 @@ export default function Planner() {
               <div className="flex flex-col items-center gap-3 pt-4 pb-4">
                 <Button
                   onClick={() => setShowCelebration(true)}
-                  className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white rounded-2xl px-6 py-2.5 shadow-lg shadow-violet-100 font-semibold"
+                  className={`rounded-2xl px-6 py-2.5 font-semibold ${isDark ? 'bg-violet-600 hover:bg-violet-700 text-white shadow-lg shadow-violet-900/30' : 'bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white shadow-lg shadow-violet-100'}`}
                 >
                   <Check className="w-4 h-4 mr-2" />
                   Looks good!
@@ -377,7 +378,7 @@ export default function Planner() {
                 <Button
                   variant="outline"
                   onClick={() => sendMessage("I'd like to work on it some more")}
-                  className="rounded-2xl px-6 py-2.5 border-2 border-gray-300 text-gray-700 hover:bg-gray-50 font-semibold"
+                  className={`rounded-2xl px-6 py-2.5 border-2 font-semibold ${isDark ? 'border-gray-700 text-gray-300 hover:bg-gray-800' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}
                 >
                   I'd like to work on it some more
                 </Button>
@@ -389,16 +390,16 @@ export default function Planner() {
       )}
 
       {/* New goal approval */}
-            {pendingAction === 'plan_approved' && !saved && !isSaving && (
-              <div className="flex justify-center py-4">
-                <Button
-                  onClick={handleSaveNewGoal}
-                  className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white rounded-2xl px-6 py-2.5 shadow-lg shadow-violet-100 font-semibold"
-                >
-                  <Plus className="w-4 h-4 mr-2" />Save This Goal
-                </Button>
-              </div>
-            )}
+           {pendingAction === 'plan_approved' && !saved && !isSaving && (
+             <div className="flex justify-center py-4">
+               <Button
+                 onClick={handleSaveNewGoal}
+                 className={`rounded-2xl px-6 py-2.5 font-semibold ${isDark ? 'bg-violet-600 hover:bg-violet-700 text-white shadow-lg shadow-violet-900/30' : 'bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white shadow-lg shadow-violet-100'}`}
+               >
+                 <Plus className="w-4 h-4 mr-2" />Save This Goal
+               </Button>
+             </div>
+           )}
 
             {isSaving && (pendingAction === 'plan_approved' || pendingAction === 'plan_proposed') && (
               <div className="flex justify-center py-4">
@@ -414,7 +415,7 @@ export default function Planner() {
                 ) : (
                   <Button
                     onClick={handleApplyEdits}
-                    className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-2xl px-6 py-2.5 shadow-lg shadow-emerald-100 font-semibold"
+                    className={`rounded-2xl px-6 py-2.5 font-semibold ${isDark ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-900/30' : 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-lg shadow-emerald-100'}`}
                   >
                     <Check className="w-4 h-4 mr-2" />Apply Changes
                   </Button>
@@ -426,28 +427,28 @@ export default function Planner() {
               <div className="flex flex-col items-center gap-3 py-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
                 {pendingAction === 'edit_approved' ? (
                   <>
-                    <div className="flex items-center gap-2 bg-green-50 text-green-700 px-5 py-2.5 rounded-2xl text-sm font-semibold border border-green-200">
+                    <div className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-semibold border ${isDark ? 'bg-green-900/30 text-green-400 border-green-700' : 'bg-green-50 text-green-700 border-green-200'}`}>
                       <Check className="w-4 h-4" />
                       Changes applied!
                     </div>
                   </>
                 ) : (
                   <>
-                    <div className="flex items-center gap-2 bg-green-50 text-green-700 px-5 py-2.5 rounded-2xl text-sm font-semibold border border-green-200">
+                    <div className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-semibold border ${isDark ? 'bg-green-900/30 text-green-400 border-green-700' : 'bg-green-50 text-green-700 border-green-200'}`}>
                       <Check className="w-4 h-4" />
                       Goal created! 🎉
                     </div>
-                    <div className="bg-violet-50 border border-violet-100 rounded-2xl px-5 py-4 max-w-sm text-center">
-                      <p className="text-sm text-violet-800 font-medium mb-1">Your plan is a living document 🌱</p>
-                      <p className="text-xs text-violet-600 leading-relaxed mb-3">Come back anytime to adjust difficulty, add resources, skip ahead, extend the timeline, or completely restructure a phase. Just tell me what's working and what isn't.</p>
+                    <div className={`border rounded-2xl px-5 py-4 max-w-sm text-center ${isDark ? 'bg-gray-800/50 border-violet-700' : 'bg-violet-50 border-violet-100'}`}>
+                      <p className={`text-sm font-medium mb-1 ${isDark ? 'text-violet-300' : 'text-violet-800'}`}>Your plan is a living document 🌱</p>
+                      <p className={`text-xs leading-relaxed mb-3 ${isDark ? 'text-violet-400' : 'text-violet-600'}`}>Come back anytime to adjust difficulty, add resources, skip ahead, extend the timeline, or completely restructure a phase. Just tell me what's working and what isn't.</p>
                       <div className="flex gap-2 justify-center">
-                        <Button size="sm" className="rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold" onClick={() => navigate(`/goal/${pendingGoalId}`)}>
-                          Go to Goal →
-                        </Button>
-                        <Button size="sm" variant="outline" className="rounded-xl text-xs border-violet-200 text-violet-700 hover:bg-violet-50 font-semibold" onClick={handleNewPlan}>
-                          Plan Another
-                        </Button>
-                      </div>
+                         <Button size="sm" className={`rounded-xl text-xs font-semibold ${isDark ? 'bg-violet-600 hover:bg-violet-700 text-white' : 'bg-violet-600 hover:bg-violet-700 text-white'}`} onClick={() => navigate(`/goal/${pendingGoalId}`)}>
+                           Go to Goal →
+                         </Button>
+                         <Button size="sm" variant="outline" className={`rounded-xl text-xs font-semibold ${isDark ? 'border-violet-700 text-violet-400 hover:bg-gray-700' : 'border-violet-200 text-violet-700 hover:bg-violet-50'}`} onClick={handleNewPlan}>
+                           Plan Another
+                         </Button>
+                       </div>
                     </div>
                   </>
                 )}
@@ -459,7 +460,7 @@ export default function Planner() {
       </div>
 
       {/* Input bar */}
-      <div className={`fixed bottom-0 left-0 right-0 ${isColorful ? 'bg-gradient-to-r from-purple-200/95 to-pink-200/95 border-purple-300/50' : 'bg-white/95 border-gray-100'} backdrop-blur-lg border-t px-4 py-3`}
+      <div className={`fixed bottom-0 left-0 right-0 ${isDark ? 'bg-gray-900/95 border-gray-800' : isColorful ? 'bg-gradient-to-r from-purple-200/95 to-pink-200/95 border-purple-300/50' : 'bg-white/95 border-gray-100'} backdrop-blur-lg border-t px-4 py-3`}
         style={{ paddingBottom: 'max(0.75rem, calc(0.75rem + env(safe-area-inset-bottom)))' }}>
         <div className="max-w-2xl mx-auto flex items-end gap-2">
           <button
@@ -480,7 +481,7 @@ export default function Planner() {
                   ? "Tell me your goal… e.g. 'I want to learn Spanish in 5 months'"
                   : "Continue the conversation…"
             }
-            className="flex-1 min-h-[42px] max-h-32 text-sm resize-none rounded-2xl border-gray-200 focus:border-violet-300 bg-gray-50 focus:bg-white transition-colors"
+            className={`flex-1 min-h-[42px] max-h-32 text-sm resize-none rounded-2xl transition-colors ${isDark ? 'border-gray-700 focus:border-gray-600 bg-gray-800 focus:bg-gray-700 text-white placeholder-gray-500' : 'border-gray-200 focus:border-violet-300 bg-gray-50 focus:bg-white text-gray-900'}`}
             disabled={isLoading}
             rows={1}
           />
@@ -685,14 +686,15 @@ function GifCarousel({ gifs, onComplete }) {
 function WeekDropdown({ week }) {
   const [open, setOpen] = React.useState(false);
   const [checked, setChecked] = React.useState(false);
+  const isDark = localStorage.getItem('adhd_theme') === 'dark';
   return (
-    <div className="border border-gray-100 rounded-xl overflow-hidden mb-1.5">
-      <div className="flex items-center bg-white hover:bg-gray-50 transition-colors">
+    <div className={`border rounded-xl overflow-hidden mb-1.5 ${isDark ? 'border-gray-700' : 'border-gray-100'}`}>
+      <div className={`flex items-center transition-colors ${isDark ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-gray-50'}`}>
         <button
           onClick={(e) => { e.stopPropagation(); setChecked(v => !v); }}
           className="pl-3 pr-1 py-2.5 flex-shrink-0"
         >
-          <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${checked ? 'bg-violet-500 border-violet-500' : 'border-gray-300'}`}>
+          <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${checked ? 'bg-violet-500 border-violet-500' : isDark ? 'border-gray-600' : 'border-gray-300'}`}>
             {checked && <Check className="w-2.5 h-2.5 text-white" />}
           </div>
         </button>
@@ -700,26 +702,26 @@ function WeekDropdown({ week }) {
           onClick={() => setOpen(v => !v)}
           className="flex-1 flex items-center gap-2 px-2 py-2.5 text-left"
         >
-          <span className={`font-medium text-xs flex-1 ${checked ? 'line-through text-gray-400' : 'text-gray-700'}`}>{week.title}</span>
-          <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform flex-shrink-0 ${open ? 'rotate-180' : ''}`} />
+          <span className={`font-medium text-xs flex-1 ${checked ? isDark ? 'line-through text-gray-600' : 'line-through text-gray-400' : isDark ? 'text-gray-300' : 'text-gray-700'}`}>{week.title}</span>
+          <ChevronDown className={`w-3.5 h-3.5 transition-transform flex-shrink-0 ${isDark ? 'text-gray-600' : 'text-gray-400'} ${open ? 'rotate-180' : ''}`} />
         </button>
       </div>
       {open && (
-        <div className="px-4 pb-3 pt-2 bg-gray-50 border-t border-gray-100">
+        <div className={`px-4 pb-3 pt-2 border-t ${isDark ? 'bg-gray-900/50 border-gray-700' : 'bg-gray-50 border-gray-100'}`}>
           {week.description && (
-            <p className="text-xs text-gray-600 leading-relaxed mb-2 italic">{week.description}</p>
+            <p className={`text-xs leading-relaxed mb-2 italic ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{week.description}</p>
           )}
           {week.tasks.length > 0 ? (
             <ul className="space-y-1">
               {week.tasks.map((task, i) => (
-                <li key={i} className="text-xs text-gray-700 leading-relaxed flex gap-1.5">
-                  <span className="text-violet-400 mt-0.5">•</span>
+                <li key={i} className={`text-xs leading-relaxed flex gap-1.5 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                  <span className={`mt-0.5 ${isDark ? 'text-violet-500' : 'text-violet-400'}`}>•</span>
                   <span>{task}</span>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="text-xs text-gray-400 italic">Activities for this week</p>
+            <p className={`text-xs italic ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>Activities for this week</p>
           )}
         </div>
       )}
@@ -730,20 +732,21 @@ function WeekDropdown({ week }) {
 
 function MonthDropdown({ month }) {
   const [open, setOpen] = React.useState(false);
+  const isDark = localStorage.getItem('adhd_theme') === 'dark';
   return (
-    <div className="border border-violet-100 rounded-xl overflow-hidden mb-2 shadow-sm">
+    <div className={`border rounded-xl overflow-hidden mb-2 shadow-sm ${isDark ? 'border-gray-700' : 'border-violet-100'}`}>
       <button
         onClick={() => setOpen(v => !v)}
-        className="w-full flex items-center justify-between gap-2 px-4 py-3 text-left bg-white hover:bg-violet-50/50 transition-colors"
+        className={`w-full flex items-center justify-between gap-2 px-4 py-3 text-left transition-colors ${isDark ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-violet-50/50'}`}
       >
-        <span className="font-semibold text-gray-800 text-sm">{month.title}</span>
+        <span className={`font-semibold text-sm ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{month.title}</span>
         <div className="flex items-center gap-2">
-          <span className="text-[10px] text-gray-400">{month.weeks.length} weeks</span>
-          {open ? <ChevronUp className="w-4 h-4 text-violet-400 flex-shrink-0" /> : <ChevronDown className="w-4 h-4 text-violet-400 flex-shrink-0" />}
+          <span className={`text-[10px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{month.weeks.length} weeks</span>
+          {open ? <ChevronUp className={`w-4 h-4 flex-shrink-0 ${isDark ? 'text-gray-500' : 'text-violet-400'}`} /> : <ChevronDown className={`w-4 h-4 flex-shrink-0 ${isDark ? 'text-gray-500' : 'text-violet-400'}`} />}
         </div>
       </button>
       {open && (
-        <div className="px-3 pb-3 pt-2 bg-violet-50/30 border-t border-violet-100">
+        <div className={`px-3 pb-3 pt-2 border-t ${isDark ? 'bg-gray-900/50 border-gray-700' : 'bg-violet-50/30 border-violet-100'}`}>
           {month.weeks.length === 0 ? (
             <p className="text-xs text-gray-400 italic px-1">No weeks found</p>
           ) : month.weeks.map((week, i) => (
@@ -773,6 +776,7 @@ function PlanView({ text }) {
 
 function MessageBubble({ msg }) {
   const isUser = msg.role === "user";
+  const isDark = localStorage.getItem('adhd_theme') === 'dark';
 
   const isPlanMessage = (text) => {
     return /Month\s+\d+/i.test(text) && /Week\s+\d+/i.test(text);
@@ -781,14 +785,14 @@ function MessageBubble({ msg }) {
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
       {!isUser && (
-        <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center mr-2 flex-shrink-0 mt-1 shadow-sm">
+        <div className={`w-7 h-7 rounded-full flex items-center justify-center mr-2 flex-shrink-0 mt-1 shadow-sm ${isDark ? 'bg-violet-700' : 'bg-gradient-to-br from-violet-500 to-indigo-600'}`}>
           <Sparkles className="w-3.5 h-3.5 text-white" />
         </div>
       )}
-      <div className={`max-w-[88%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+      <div className={`max-w-[88%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
         isUser
-          ? 'bg-gradient-to-br from-violet-600 to-indigo-600 text-white rounded-br-sm shadow-md shadow-violet-100 whitespace-pre-wrap'
-          : 'bg-white border border-gray-100 text-gray-800 rounded-bl-sm shadow-sm'
+          ? isDark ? 'bg-violet-700 text-white rounded-br-sm shadow-md shadow-violet-900/30' : 'bg-gradient-to-br from-violet-600 to-indigo-600 text-white rounded-br-sm shadow-md shadow-violet-100'
+          : isDark ? 'bg-gray-800 border border-gray-700 text-gray-100 rounded-bl-sm shadow-sm' : 'bg-white border border-gray-100 text-gray-800 rounded-bl-sm shadow-sm'
       }`}>
         {isUser ? renderInlineText(msg.content) : (
           isPlanMessage(msg.content) ? (
@@ -835,19 +839,20 @@ function SavingProgressBar({ isEdit = false }) {
     return () => { clearInterval(stepTimer); clearInterval(progressTimer); };
   }, []);
 
+  const isDark = localStorage.getItem('adhd_theme') === 'dark';
   return (
-    <div className="w-full max-w-sm bg-white border border-violet-100 rounded-2xl px-5 py-4 shadow-md shadow-violet-50">
+    <div className={`w-full max-w-sm border rounded-2xl px-5 py-4 shadow-md ${isDark ? 'bg-gray-800 border-gray-700 shadow-gray-900/30' : 'bg-white border-violet-100 shadow-violet-50'}`}>
       <div className="flex items-center gap-2 mb-3">
-        <Loader2 className="w-4 h-4 text-violet-500 animate-spin flex-shrink-0" />
-        <p className="text-sm font-medium text-violet-800 transition-all duration-500">{steps[stepIndex]}</p>
+        <Loader2 className={`w-4 h-4 animate-spin flex-shrink-0 ${isDark ? 'text-violet-500' : 'text-violet-500'}`} />
+        <p className={`text-sm font-medium transition-all duration-500 ${isDark ? 'text-violet-400' : 'text-violet-800'}`}>{steps[stepIndex]}</p>
       </div>
-      <div className="h-2 bg-violet-100 rounded-full overflow-hidden">
+      <div className={`h-2 rounded-full overflow-hidden ${isDark ? 'bg-gray-700' : 'bg-violet-100'}`}>
         <div
-          className="h-full bg-gradient-to-r from-violet-500 to-indigo-500 rounded-full transition-all duration-1000 ease-out"
+          className={`h-full rounded-full transition-all duration-1000 ease-out ${isDark ? 'bg-violet-600' : 'bg-gradient-to-r from-violet-500 to-indigo-500'}`}
           style={{ width: `${progress}%` }}
         />
       </div>
-      <p className="text-xs text-gray-400 mt-2 text-center">This usually takes 1–2 minutes. Feel free to navigate away.</p>
+      <p className={`text-xs mt-2 text-center ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>This usually takes 1–2 minutes. Feel free to navigate away.</p>
     </div>
   );
 }
