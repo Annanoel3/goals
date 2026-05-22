@@ -43,7 +43,7 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Missing params' }, { status: 400 });
     }
 
-    const step = await base44.acServiceRole.entities.GoalStep.get(step_id);
+    const step = await base44.asServiceRole.entities.GoalStep.get(step_id);
     if (!step) {
       return Response.json({ error: 'Step not found' }, { status: 404 });
     }
@@ -51,7 +51,7 @@ Deno.serve(async (req) => {
     let result = {};
 
     if (button_id === 'complete') {
-      await base44.acServiceRole.entities.GoalStep.update(step_id, {
+      await base44.asServiceRole.entities.GoalStep.update(step_id, {
         status: 'completed',
         completed_at: new Date().toISOString(),
       });
@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
       });
       if (notifId) {
         const existing = Array.isArray(step.onesignal_notification_ids) ? step.onesignal_notification_ids : [];
-        await base44.acServiceRole.entities.GoalStep.update(step_id, {
+        await base44.asServiceRole.entities.GoalStep.update(step_id, {
           onesignal_notification_ids: [...existing, notifId],
         });
       }
@@ -82,25 +82,20 @@ Deno.serve(async (req) => {
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
       const newDate = tomorrow.toISOString().split('T')[0];
-      await base44.acServiceRole.entities.GoalStep.update(step_id, {
+      await base44.asServiceRole.entities.GoalStep.update(step_id, {
         due_date: newDate,
       });
       result = { action: 'delegate', new_due_date: newDate };
 
     } else if (button_id === 'shift_week') {
       const goalId = goal_id || step.goal_id;
-      const allSteps = await base44.acServiceRole.entities.GoalStep.list({
-        filters: [
-          { field: 'goal_id', operator: '==', value: goalId },
-          { field: 'status', operator: '!=', value: 'completed' },
-        ],
-      });
+      const allSteps = await base44.asServiceRole.entities.GoalStep.filter({ goal_id: goalId });
       let shifted = 0;
       for (const s of allSteps) {
-        if (!s.due_date) continue;
+        if (!s.due_date || s.status === 'completed') continue;
         const d = new Date(s.due_date + 'T00:00:00Z');
         d.setDate(d.getDate() + 7);
-        await base44.acServiceRole.entities.GoalStep.update(s.id, {
+        await base44.asServiceRole.entities.GoalStep.update(s.id, {
           due_date: d.toISOString().split('T')[0],
         });
         shifted++;
