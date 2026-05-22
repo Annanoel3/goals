@@ -1,10 +1,3 @@
-// Sentry loaded via CDN in index.html
-const Sentry = window.Sentry;
-
-Sentry.init({
-  dsn: "https://7d36c5e101fcaaf6fdd9c029d8746fe1@o4511434142580736.ingest.us.sentry.io/4511434149724160",
-  environment: "production",
-});
 
 import './App.css'
 import { PomodoroProvider } from '@/context/PomodoroContext'
@@ -24,6 +17,14 @@ import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import Settings from '@/pages/Settings';
 import GoalDetail from '@/pages/GoalDetail';
 import GoalStepNotification from '@/pages/GoalStepNotification';
+
+// Sentry loaded via CDN in index.html
+const Sentry = window.Sentry;
+
+Sentry.init({
+  dsn: "https://7d36c5e101fcaaf6fdd9c029d8746fe1@o4511434142580736.ingest.us.sentry.io/4511434149724160",
+  environment: "production",
+});
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
