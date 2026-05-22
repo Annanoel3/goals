@@ -4,18 +4,18 @@ import { X } from "lucide-react";
 const BASE = "https://rbxbrfewaxvhvlntxhuv.supabase.co/storage/v1/object/public/Month%20Gifs";
 
 const MONTH_CONFIG = {
-  1:  { gif: BASE+"/month1.gif",  textColor: "#ffffff", textTop: "78%" },
-  2:  { gif: BASE+"/month2.gif",  textColor: "#12027b", textTop: "79%" },
-  3:  { gif: BASE+"/month3.gif",  textColor: "#000000", textTop: "76%" },
-  4:  { gif: BASE+"/month4.gif",  textColor: "#ffffff", textTop: "78%" },
-  5:  { gif: BASE+"/month5.gif",  textColor: "#ffffff", textTop: "79%" },
-  6:  { gif: BASE+"/month6.gif",  textColor: "#ff8200", textTop: "79%" },
-  7:  { gif: BASE+"/month7.gif",  textColor: "#ffffff", textTop: "80%" },
-  8:  { gif: BASE+"/month8.gif",  textColor: "#12027b", textTop: "79%" },
-  9:  { gif: BASE+"/month9.gif",  textColor: "#ffffff", textTop: "77%" },
-  10: { gif: BASE+"/month10.gif", textColor: "#000000", textTop: "79%" },
-  11: { gif: BASE+"/month11.gif", textColor: "#ff8200", textTop: "79%" },
-  12: { gif: BASE+"/month12.gif", textColor: "#ffffff", textTop: "79%" },
+  1:  { gif: BASE+"/1%20Month%20one.gif",    textColor: "#ffffff", textTop: "78%" },
+  2:  { gif: BASE+"/2%20Month%20two.gif",    textColor: "#12027b", textTop: "79%" },
+  3:  { gif: BASE+"/3%20Month%20three.gif",  textColor: "#000000", textTop: "76%" },
+  4:  { gif: BASE+"/4%20Month%20four.gif",   textColor: "#ffffff", textTop: "78%" },
+  5:  { gif: BASE+"/5%20Month%20five.gif",   textColor: "#ffffff", textTop: "79%" },
+  6:  { gif: BASE+"/6%20Month%20six.gif",    textColor: "#ff8200", textTop: "79%" },
+  7:  { gif: BASE+"/7%20Month%20seven.gif",  textColor: "#ffffff", textTop: "80%" },
+  8:  { gif: BASE+"/8%20Month%20eight.gif",  textColor: "#12027b", textTop: "79%" },
+  9:  { gif: BASE+"/9%20Month%20nine.gif",   textColor: "#ffffff", textTop: "77%" },
+  10: { gif: BASE+"/10%20Month%20ten.gif",   textColor: "#000000", textTop: "79%" },
+  11: { gif: BASE+"/11%20Month%20eleven.gif",textColor: "#ff8200", textTop: "79%" },
+  12: { gif: BASE+"/12%20Month%20twelve.gif",textColor: "#ffffff", textTop: "79%" },
 };
 
 function buildBatches(steps) {
@@ -44,6 +44,12 @@ export default function MonthCelebrationModal({ monthNumber, completedSteps, onC
       setPhase("text");
     }, 4500);
     return () => clearTimeout(t);
+  }, []);
+
+  // Auto-close after 24500ms (4.5s intro + 20s text)
+  useEffect(() => {
+    const autoClose = setTimeout(() => onClose(), 24500);
+    return () => clearTimeout(autoClose);
   }, []);
 
   // Cycle batches: each batch = 500ms fade in + 3000ms hold + 500ms fade out = 4000ms total
