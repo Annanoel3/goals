@@ -71,7 +71,7 @@ export default function Home() {
           <div className="flex gap-3">
             <Button
               onClick={() => navigate('/Planner')}
-              className="flex-1 bg-violet-600 hover:bg-violet-700 text-white rounded-2xl h-12 text-base font-semibold shadow-lg shadow-violet-200"
+              className={`flex-1 bg-violet-600 hover:bg-violet-700 text-white rounded-2xl h-12 text-base font-semibold shadow-lg ${isDark ? 'shadow-violet-900/30' : 'shadow-violet-200'}`}
             >
               <Sparkles className="w-4 h-4 mr-2" />
               Plan a New Goal
