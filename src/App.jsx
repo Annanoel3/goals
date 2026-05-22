@@ -1,4 +1,5 @@
-import * as Sentry from "@sentry/browser";
+// Sentry loaded via CDN in index.html
+const Sentry = window.Sentry;
 
 Sentry.init({
   dsn: "https://7d36c5e101fcaaf6fdd9c029d8746fe1@o4511434142580736.ingest.us.sentry.io/4511434149724160",
