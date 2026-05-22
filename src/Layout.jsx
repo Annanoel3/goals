@@ -28,26 +28,9 @@ import {
   ArrowLeft,
   Target,
 } from "lucide-react";
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarHeader,
-  SidebarFooter,
-  SidebarProvider,
-  SidebarTrigger,
-  useSidebar,
-} from "@/components/ui/sidebar";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+
 
 import UniversalVoiceAssistant from "./components/shared/UniversalVoiceAssistant";
 import MicrophonePermissionCheck from "./components/shared/MicrophonePermissionCheck";
@@ -77,7 +60,9 @@ import {
 function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { setOpenMobile } = useSidebar();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const handleNavClick = () => setMobileMenuOpen(false);
 
   const [theme, setTheme] = useState(() => {
     return localStorage.getItem('adhd_theme') || 'minimalist';
@@ -155,9 +140,7 @@ function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
 
 
 
-  const handleNavClick = () => {
-    setOpenMobile(false);
-  };
+
 
   const mainMenuPages = [
     createPageUrl("Home"),
@@ -361,58 +344,50 @@ function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
             </div>
           </div>
 
-          {/* Mobile drawer sidebar (shadcn) */}
-          <Sidebar collapsible="offcanvas" className={`md:hidden border-r ${
-            theme === 'dark' ? 'bg-gray-950 border-gray-800'
-              : theme === 'colorful' ? 'bg-gradient-to-b from-purple-100/90 to-pink-100/90 border-purple-300/50'
-              : 'border-gray-200/50 bg-white/80'
-          }`}>
-            <SidebarHeader style={{ paddingTop: '3rem', paddingLeft: '1.5rem', paddingRight: '1.5rem', paddingBottom: '1.5rem' }}>
-              <div className="flex items-center gap-3">
-                <Link to={createPageUrl("Profile")} onClick={handleNavClick}>
-                  <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold text-white text-xl ${
-                    theme === 'dark' ? 'bg-gradient-to-br from-green-500 to-emerald-600' : 'bg-gradient-to-br from-green-600 to-green-700'
-                  }`}>{user?.full_name?.charAt(0)?.toUpperCase() || 'A'}</div>
-                </Link>
-                <div>
-                  <h2 className={`font-bold text-lg ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{user?.full_name || 'Goals.'}</h2>
-                  <p className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>You've got this</p>
+          {/* Mobile drawer sidebar */}
+          <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+            <SheetContent side="left" className={`w-64 p-0 ${
+              theme === 'dark' ? 'bg-gray-950 border-gray-800'
+                : theme === 'colorful' ? 'bg-gradient-to-b from-purple-100/90 to-pink-100/90'
+                : 'bg-white'
+            }`}>
+              <div style={{ paddingTop: '3rem', paddingLeft: '1.5rem', paddingRight: '1.5rem', paddingBottom: '1.5rem' }}>
+                <div className="flex items-center gap-3">
+                  <Link to={createPageUrl("Profile")} onClick={handleNavClick}>
+                    <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold text-white text-xl ${
+                      theme === 'dark' ? 'bg-gradient-to-br from-green-500 to-emerald-600' : 'bg-gradient-to-br from-green-600 to-green-700'
+                    }`}>{user?.full_name?.charAt(0)?.toUpperCase() || 'A'}</div>
+                  </Link>
+                  <div>
+                    <h2 className={`font-bold text-lg ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{user?.full_name || 'Goals.'}</h2>
+                    <p className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>You've got this</p>
+                  </div>
                 </div>
               </div>
-            </SidebarHeader>
-            <SidebarContent style={{ paddingTop: '2rem', paddingLeft: '0.75rem', paddingRight: '0.75rem' }}>
-              <SidebarGroup>
-                <SidebarGroupContent>
-                  <SidebarMenu className="space-y-1">
-                    {navigationItems.map((item) => (
-                      <SidebarMenuItem key={item.title}>
-                        <Link to={item.url} onClick={handleNavClick} className="block w-full">
-                          <SidebarMenuButton className={`rounded-xl w-full ${
-                            location.pathname === item.url
-                              ? theme === 'dark' ? 'bg-gray-800 text-white font-medium' : 'bg-green-50 text-green-700 font-medium'
-                              : theme === 'dark' ? 'text-gray-400 hover:bg-gray-800 hover:text-white' : 'text-gray-700 hover:bg-gray-50'
-                          }`}>
-                            <div className="flex items-center gap-3 py-2">
-                              <item.icon className="w-5 h-5 flex-shrink-0" />
-                              <span>{item.title}</span>
-                            </div>
-                          </SidebarMenuButton>
-                        </Link>
-                      </SidebarMenuItem>
-                    ))}
-                  </SidebarMenu>
-                </SidebarGroupContent>
-              </SidebarGroup>
-            </SidebarContent>
-            <SidebarFooter style={{ padding: '1rem', paddingBottom: '3rem' }} className="space-y-3">
-              <Button variant="outline" onClick={toggleTheme} className="w-full rounded-xl gap-2">
-                {theme === 'dark' ? <><Moon className="w-4 h-4" /><span>Dark Theme</span></> : <><Sun className="w-4 h-4" /><span>Light Theme</span></>}
-              </Button>
-              <Button variant="outline" onClick={() => { navigate('/settings'); handleNavClick(); }} className="w-full rounded-xl gap-2">
-                <Settings className="w-4 h-4" /><span>Settings</span>
-              </Button>
-            </SidebarFooter>
-          </Sidebar>
+              <nav className="space-y-1 px-3 pt-4">
+                {navigationItems.map((item) => (
+                  <Link key={item.title} to={item.url} onClick={handleNavClick} className="block w-full">
+                    <div className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 ${
+                      location.pathname === item.url
+                        ? theme === 'dark' ? 'bg-gray-800 text-white font-medium' : 'bg-green-50 text-green-700 font-medium'
+                        : theme === 'dark' ? 'text-gray-400 hover:bg-gray-800 hover:text-white' : 'text-gray-700 hover:bg-gray-50'
+                    }`}>
+                      <item.icon className="w-5 h-5 flex-shrink-0" />
+                      <span>{item.title}</span>
+                    </div>
+                  </Link>
+                ))}
+              </nav>
+              <div className="space-y-3 p-4 mt-4">
+                <Button variant="outline" onClick={toggleTheme} className="w-full rounded-xl gap-2">
+                  {theme === 'dark' ? <><Moon className="w-4 h-4" /><span>Dark Theme</span></> : <><Sun className="w-4 h-4" /><span>Light Theme</span></>}
+                </Button>
+                <Button variant="outline" onClick={() => { navigate('/settings'); handleNavClick(); }} className="w-full rounded-xl gap-2">
+                  <Settings className="w-4 h-4" /><span>Settings</span>
+                </Button>
+              </div>
+            </SheetContent>
+          </Sheet>
 
           <main className="flex-1 flex flex-col min-w-0 min-h-screen relative z-10">
             <header className={`backdrop-blur-md border-b px-6 sticky top-0 z-10 ${
@@ -426,13 +401,11 @@ function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
               paddingBottom: '1rem'
             }}>
               <div className="flex items-center gap-4">
-                <SidebarTrigger asChild>
-                  <Button variant="ghost" className={`md:hidden h-14 w-14 p-0 rounded-xl transition-colors duration-200 flex items-center justify-center ${
-                    theme === 'dark' ? 'hover:bg-gray-800 text-white' : 'hover:bg-gray-100'
-                  }`}>
-                    <LayoutDashboard className="w-7 h-7" />
-                  </Button>
-                </SidebarTrigger>
+                <Button variant="ghost" onClick={() => setMobileMenuOpen(true)} className={`md:hidden h-14 w-14 p-0 rounded-xl transition-colors duration-200 flex items-center justify-center ${
+                  theme === 'dark' ? 'hover:bg-gray-800 text-white' : 'hover:bg-gray-100'
+                }`}>
+                  <LayoutDashboard className="w-7 h-7" />
+                </Button>
                 <h1 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Goals.</h1>
               </div>
             </header>
@@ -518,8 +491,6 @@ export default function Layout({ children, currentPageName }) {
   }
 
   return (
-    <SidebarProvider defaultOpen={true}>
-      <LayoutContent children={children} currentPageName={currentPageName} user={user} authCheckComplete={authCheckComplete} />
-    </SidebarProvider>
+    <LayoutContent children={children} currentPageName={currentPageName} user={user} authCheckComplete={authCheckComplete} />
   );
 }
