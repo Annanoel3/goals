@@ -621,6 +621,18 @@ function parsePlanHierarchy(text) {
     }
   }
 
+  // Detect total months from preamble/text ("12-month plan", "12 months", etc.)
+  const totalMonthsMatch = text.match(/(\d+)[\s-]month/i);
+  const totalMonths = totalMonthsMatch ? parseInt(totalMonthsMatch[1]) : 0;
+  if (totalMonths > months.length) {
+    for (let m = months.length + 1; m <= totalMonths; m++) {
+      months.push({
+        title: 'Month ' + m,
+        weeks: [1,2,3,4].map(n => ({ title: 'Week ' + n, tasks: [], description: '' }))
+      });
+    }
+  }
+
   return { months, preamble: preamble.join('\n') };
 }
 
@@ -636,7 +648,7 @@ const COMIC_GIFS = [
 ];
 
 function GifCarousel({ gifs, onComplete }) {
-  const [idx, setIdx] = React.useState(0);
+  const [idx, setIdx] = React.useState(() => Math.floor(Math.random() * gifs.length));
   const [done, setDone] = React.useState(false);
   React.useEffect(() => {
     if (done) return;
@@ -647,7 +659,7 @@ function GifCarousel({ gifs, onComplete }) {
         setDone(true);
         onComplete();
       }
-    }, 30000);
+    }, 28000);
     return () => clearTimeout(timer);
   }, [idx, done, gifs, onComplete]);
   return (
