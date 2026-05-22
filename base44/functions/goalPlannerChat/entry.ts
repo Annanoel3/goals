@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: `You are extracting a structured goal plan from a planning conversation. Return ONLY valid JSON, no markdown fences. ${monthsHint} CRITICAL: Even if the conversation only briefly mentions later months without weekly detail, you MUST still generate EXACTLY 4 weeks for EVERY month. Generate EXACTLY 4 steps per month. Each step IS one week. phase='Month X' (month only, no week number). title must start with 'Week 1:', 'Week 2:', 'Week 3:', or 'Week 4:' followed by a brief focus. description = 2-4 sentences describing what to do that week (habit, book/activity, specific focus). No daily breakdowns.`
+            content: `You are extracting a structured goal plan from a planning conversation. Return ONLY valid JSON, no markdown fences. ${monthsHint} CRITICAL: Even if the conversation only briefly mentions later months without weekly detail, you MUST still generate EXACTLY 4 weeks for EVERY month. Generate EXACTLY 4 steps per month. Each step IS one week. phase must be 'Month X, Week Y' (e.g. 'Month 1, Week 1', 'Month 2, Week 3'). title starts with 'Week 1:', 'Week 2:', 'Week 3:', or 'Week 4:' followed by a brief focus. description = 2-4 sentences. tips_and_guidance = 3-5 activities as a newline-separated list; if daily practice ALWAYS include 'Do [specific action] every day'. step_resources = [{title, specific_details}] main book/resource. No daily breakdowns.`
           },
           {
             role: "user",
@@ -60,7 +60,7 @@ ${monthsHint}
 Return JSON (no markdown) in EXACTLY this structure. CRITICAL STRUCTURAL RULE FOR ALL GOALS 1+ MONTHS:
         ${monthsRule}
 - EVERY SINGLE MONTH must have EXACTLY 4 steps (Week 1, Week 2, Week 3, Week 4). phase='Month X'. title='Week N: focus'. 4 steps × 12 months = 48 total steps.
-- FORBIDDEN: Using phase='Month 1, Week 1' (week in phase). ONLY put month in phase. Week number goes in title only.
+- REQUIRED: phase must be 'Month X, Week Y' (e.g. 'Month 1, Week 1', 'Month 2, Week 3'). ALWAYS include both month AND week number in phase.
 - NEVER combine weeks or months: "Week 1-2", "Weeks 3-4", "Months 4-6" are STRICTLY FORBIDDEN. Each STEP = exactly ONE week. phase='Month X' (month only). title='Week N: brief focus'. Exactly 4 steps per month.
 - For goals under 1 month, just use "Week 1", "Week 2" phases directly.
 
@@ -104,7 +104,7 @@ IMPORTANT: Generate 2-4 specific, actionable tasks per week-phase. Keep descript
     {
       "title": "specific, granular subtask (e.g., 'Complete Lesson 2: Present Tense Conjugation')",
       "description": "detailed explanation of what to do and why",
-      "phase": "e.g. Month 1, Week 1 — ALWAYS include the week number, ONLY use the month label here (e.g. 'Month 1'). The week number goes in the title field.",
+      "phase": "REQUIRED format: 'Month X, Week Y' — e.g. 'Month 1, Week 1', 'Month 1, Week 2', 'Month 3, Week 4'. Always include both month AND week.",
       "priority": "low|medium|high|critical",
       "due_date": "YYYY-MM-DD (spread across the timeline, realistic pacing)",
       "order_index": 0,
@@ -250,7 +250,7 @@ CRITICAL:
         });
         
         const avgStepsPerMonth = expectedMonths ? p.steps.length / expectedMonths : 0;
-        if (avgStepsPerMonth < 5) {
+        if (avgStepsPerMonth < 3) {
           return {
             valid: false,
             error: `Insufficient detail: generated only ${p.steps.length} total steps for ${expectedMonths} months (~${Math.round(avgStepsPerMonth)} per month). Expected 15-20+ per month.`
@@ -270,7 +270,7 @@ CRITICAL:
                role: "system",
                content: `You are extracting a structured goal plan. CRITICAL RULES: Every month MUST be expanded into exactly 4 weeks (Week 1, Week 2, Week 3, Week 4). Never output a bare 'Month X' phase — always use 'Month X Week Y' format.
         1. EVERY MONTH from Month 1 through the final month MUST have steps. NO GAPS.
-        2. EVERY MONTH must have AT LEAST 8-12 specific, detailed steps.
+        2. EVERY MONTH must have EXACTLY 4 steps — one per week. phase='Month X, Week Y' format required.
         3. For a ${plan.timeline} goal, generate steps for ALL ${detectedMonths} months.
         4. Return ONLY valid JSON, no markdown fences.
         5. If previous extraction failed: "${validation.error}", you MUST fix it now.`
