@@ -875,13 +875,14 @@ function TypingIndicator() {
 }
 
 function GoalsList({ goals, onSelectGoal, onNewChat }) {
+  const isDark = localStorage.getItem('adhd_theme') === 'dark';
   return (
     <div className="flex flex-col items-center py-12 px-6">
-      <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-violet-100 to-indigo-100 flex items-center justify-center mb-6 shadow-sm">
-        <Target className="w-10 h-10 text-violet-600" />
+      <div className={`w-20 h-20 rounded-3xl flex items-center justify-center mb-6 shadow-sm ${isDark ? 'bg-violet-900/40' : 'bg-gradient-to-br from-violet-100 to-indigo-100'}`}>
+        <Target className={`w-10 h-10 ${isDark ? 'text-violet-400' : 'text-violet-600'}`} />
       </div>
-      <h2 className="text-2xl font-bold text-gray-900 mb-2">Your Goals</h2>
-      <p className="text-gray-500 text-sm max-w-xs leading-relaxed mb-8 text-center">
+      <h2 className={`text-2xl font-bold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>Your Goals</h2>
+      <p className={`text-sm max-w-xs leading-relaxed mb-8 text-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
         Click any goal to refine, extend, or adjust your plan.
       </p>
       <div className="w-full max-w-sm space-y-3 mb-8">
@@ -889,21 +890,21 @@ function GoalsList({ goals, onSelectGoal, onNewChat }) {
           <button
             key={goal.id}
             onClick={() => onSelectGoal(goal)}
-            className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3.5 text-left hover:border-violet-300 hover:bg-violet-50 hover:shadow-md transition-all group"
+            className={`w-full border rounded-xl px-4 py-3.5 text-left transition-all group ${isDark ? 'bg-gray-800 border-gray-700 hover:border-violet-600 hover:bg-gray-700' : 'bg-white border-gray-200 hover:border-violet-300 hover:bg-violet-50 hover:shadow-md'}`}
           >
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
-                <p className="font-semibold text-gray-900 text-sm group-hover:text-violet-700 truncate">{goal.title}</p>
-                <p className="text-xs text-gray-500 mt-1 line-clamp-1">{goal.timeline || 'Timeline TBD'}</p>
+                <p className={`font-semibold text-sm truncate ${isDark ? 'text-gray-100 group-hover:text-violet-400' : 'text-gray-900 group-hover:text-violet-700'}`}>{goal.title}</p>
+                <p className={`text-xs mt-1 line-clamp-1 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>{goal.timeline || 'Timeline TBD'}</p>
               </div>
-              <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-violet-600 flex-shrink-0 mt-1" />
+              <ChevronRight className={`w-4 h-4 flex-shrink-0 mt-1 ${isDark ? 'text-gray-600 group-hover:text-violet-500' : 'text-gray-400 group-hover:text-violet-600'}`} />
             </div>
           </button>
         ))}
       </div>
       <Button
         onClick={onNewChat}
-        className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white rounded-2xl px-6 py-2.5 shadow-lg shadow-violet-100 font-semibold"
+        className={`rounded-2xl px-6 py-2.5 font-semibold ${isDark ? 'bg-violet-600 hover:bg-violet-700 text-white shadow-lg shadow-violet-900/30' : 'bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white shadow-lg shadow-violet-100'}`}
       >
         <Plus className="w-4 h-4 mr-2" />
         Plan New Goal

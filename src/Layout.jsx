@@ -286,9 +286,9 @@ function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
                     </div>
                   </Link>
                 )}
-                <Link to={createPageUrl("Home")}>
-                  <div>
-                    <h2 className={`font-bold text-lg ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{user?.full_name || 'Goals.'}</h2>
+                <Link to={createPageUrl("Home")} className="min-w-0 flex-1">
+                  <div className="min-w-0">
+                    <h2 className={`font-bold text-base truncate ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{user?.full_name || 'Goals.'}</h2>
                     <p className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>You've got this</p>
                   </div>
                 </Link>
