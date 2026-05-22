@@ -272,7 +272,7 @@ function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
         `}</style>
 
       <TooltipProvider>
-          <Sidebar className={`border-r relative z-10 ${
+          <Sidebar collapsible="none" className={`border-r relative z-10 hidden md:flex ${
             theme === 'dark'
               ? 'bg-gray-950 border-gray-800'
               : theme === 'colorful'
@@ -443,7 +443,7 @@ function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
             }}>
               <div className="flex items-center gap-4">
                 <SidebarTrigger asChild>
-                  <Button variant="ghost" className={`h-14 w-14 p-0 rounded-xl transition-colors duration-200 flex items-center justify-center ${
+                  <Button variant="ghost" className={`md:hidden h-14 w-14 p-0 rounded-xl transition-colors duration-200 flex items-center justify-center ${
                     theme === 'dark'
                       ? 'hover:bg-gray-800 text-white'
                       : 'hover:bg-gray-100'
@@ -542,7 +542,7 @@ export default function Layout({ children, currentPageName }) {
   }
 
   return (
-    <SidebarProvider>
+    <SidebarProvider defaultOpen={true}>
       <LayoutContent children={children} currentPageName={currentPageName} user={user} authCheckComplete={authCheckComplete} />
     </SidebarProvider>
   );
