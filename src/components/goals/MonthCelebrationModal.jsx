@@ -4,18 +4,18 @@ import { X } from "lucide-react";
 const BASE = "https://rbxbrfewaxvhvlntxhuv.supabase.co/storage/v1/object/public/Month%20Gifs";
 
 const MONTH_CONFIG = {
-  1:  { gif: `${BASE}/month1.gif`,  textColor: "#ffffff" },
-  2:  { gif: `${BASE}/month2.gif`,  textColor: "#12027b" },
-  3:  { gif: `${BASE}/month3.gif`,  textColor: "#ffffff" },
-  4:  { gif: `${BASE}/month4.gif`,  textColor: "#000000" },
-  5:  { gif: `${BASE}/month5.gif`,  textColor: "#ffffff" },
-  6:  { gif: `${BASE}/month6.gif`,  textColor: "#ff8200" },
-  7:  { gif: `${BASE}/month7.gif`,  textColor: "#ffffff" },
-  8:  { gif: `${BASE}/month8.gif`,  textColor: "#12027b" },
-  9:  { gif: `${BASE}/month9.gif`,  textColor: "#ffffff" },
-  10: { gif: `${BASE}/month10.gif`, textColor: "#000000" },
-  11: { gif: `${BASE}/month11.gif`, textColor: "#ff8200" },
-  12: { gif: `${BASE}/month12.gif`, textColor: "#ffffff" },
+  1:  { gif: BASE+"/month1.gif",  textColor: "#ffffff", textTop: "78%" },
+  2:  { gif: BASE+"/month2.gif",  textColor: "#12027b", textTop: "79%" },
+  3:  { gif: BASE+"/month3.gif",  textColor: "#000000", textTop: "76%" },
+  4:  { gif: BASE+"/month4.gif",  textColor: "#ffffff", textTop: "78%" },
+  5:  { gif: BASE+"/month5.gif",  textColor: "#ffffff", textTop: "79%" },
+  6:  { gif: BASE+"/month6.gif",  textColor: "#ff8200", textTop: "79%" },
+  7:  { gif: BASE+"/month7.gif",  textColor: "#ffffff", textTop: "80%" },
+  8:  { gif: BASE+"/month8.gif",  textColor: "#12027b", textTop: "79%" },
+  9:  { gif: BASE+"/month9.gif",  textColor: "#ffffff", textTop: "77%" },
+  10: { gif: BASE+"/month10.gif", textColor: "#000000", textTop: "79%" },
+  11: { gif: BASE+"/month11.gif", textColor: "#ff8200", textTop: "79%" },
+  12: { gif: BASE+"/month12.gif", textColor: "#ffffff", textTop: "79%" },
 };
 
 function buildBatches(steps) {
@@ -86,15 +86,22 @@ export default function MonthCelebrationModal({ monthNumber, completedSteps, onC
         <X size={14} />
       </button>
 
-      {/* Text overlay — starts at 62% down with dark gradient behind it */}
+      {/* Text overlay */}
       {(phase === "text" || phase === "done") && (
         <div style={{
-          position: "absolute", top: "62%", left: 0, right: 0, bottom: 0,
+          position: "absolute",
+          top: config.textTop,
+          left: 0,
+          right: 0,
+          bottom: "3%",
           zIndex: 10000,
-          background: "linear-gradient(to bottom, transparent, rgba(0,0,0,0.7) 25%, rgba(0,0,0,0.7))",
-          display: "flex", flexDirection: "column",
-          alignItems: "center", justifyContent: "center",
+          background: "rgba(0,0,0,0.45)",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
           padding: "0 24px",
+          borderRadius: "0 0 8px 8px",
         }}>
           {phase === "text" && (
             <div style={{
