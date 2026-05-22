@@ -666,8 +666,10 @@ const COMIC_GIFS = [
 ];
 
 function GifCarousel({ gifs, onComplete }) {
+  const navigate = useNavigate();
   const [idx, setIdx] = React.useState(() => Math.floor(Math.random() * gifs.length));
   const [done, setDone] = React.useState(false);
+  const isDark = localStorage.getItem('adhd_theme') === 'dark';
   React.useEffect(() => {
     if (done) return;
     const timer = setTimeout(() => {
@@ -685,8 +687,16 @@ function GifCarousel({ gifs, onComplete }) {
         className="w-52 h-52 object-contain rounded-2xl shadow-lg animate-in zoom-in duration-300"
         style={{imageRendering:'auto'}}
       />
-      <p className="text-sm text-gray-400 mt-3 font-medium text-center">Your goal will be ready in a few minutes.</p>
-      <p className="text-xs text-gray-300 mt-1 text-center">Feel free to navigate away — we'll keep building it in the background.</p>
+      <p className={`text-sm mt-3 font-medium text-center ${isDark ? 'text-gray-300' : 'text-gray-400'}`}>Your goal will be ready in a few minutes.</p>
+      <p className={`text-xs mt-1 text-center ${isDark ? 'text-gray-400' : 'text-gray-300'}`}>Feel free to navigate away — we'll keep building it in the background.</p>
+      <div className="flex gap-2 justify-center mt-5">
+        <Button size="sm" variant="outline" onClick={() => navigate('/Goals')} className={`text-xs rounded-lg ${isDark ? 'border-gray-700 text-gray-300 hover:bg-gray-700' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
+          Go to Goals
+        </Button>
+        <Button size="sm" variant="outline" onClick={() => navigate('/')} className={`text-xs rounded-lg ${isDark ? 'border-gray-700 text-gray-300 hover:bg-gray-700' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
+          Go Home
+        </Button>
+      </div>
     </div>
   );
 }
@@ -815,6 +825,7 @@ function MessageBubble({ msg, existingMonths = [] }) {
 }
 
 function SavingProgressBar({ isEdit = false }) {
+  const navigate = useNavigate();
   const newGoalSteps = [
     "Laying out the timeline…",
     "Structuring your milestones…",
@@ -861,6 +872,14 @@ function SavingProgressBar({ isEdit = false }) {
         />
       </div>
       <p className={`text-xs mt-2 text-center ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>This usually takes 1–2 minutes. Feel free to navigate away.</p>
+      <div className="flex gap-2 justify-center mt-4">
+        <Button size="sm" variant="outline" onClick={() => navigate('/Goals')} className={`text-xs rounded-lg ${isDark ? 'border-gray-700 text-gray-300 hover:bg-gray-700' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
+          Go to Goals
+        </Button>
+        <Button size="sm" variant="outline" onClick={() => navigate('/')} className={`text-xs rounded-lg ${isDark ? 'border-gray-700 text-gray-300 hover:bg-gray-700' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
+          Go Home
+        </Button>
+      </div>
     </div>
   );
 }
