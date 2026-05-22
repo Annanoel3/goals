@@ -456,6 +456,39 @@ export default function Layout({ children, currentPageName }) {
     try {
       const currentUser = await base44.auth.me();
       setUser(currentUser);
+      
+      // Sync OneSignal immediately for both new and returning users
+      // This ensures new sign-ups get registered in OneSignal right away
+      if (currentUser?.email) {
+        if (window.Capacitor?.isNativePlatform?.()) {
+          const NotifyBridge = window.Capacitor?.Plugins?.NotifyBridge;
+          if (NotifyBridge) {
+            try {
+              await NotifyBridge.requestPermission();
+              await NotifyBridge.login({ externalId: currentUser.email });
+              console.log('[OneSignal] Native: Logged in user', currentUser.email);
+            } catch (err) {
+              console.error('[OneSignal] Native login error:', err);
+            }
+          }
+        } else {
+          // Web: Initialize OneSignal and login
+          window.OneSignal = window.OneSignal || [];
+          window.OneSignal.push(function() {
+            try {
+              window.OneSignal.init({
+                appId: "dc1933bc-e49e-4d8a-aa4a-2c9ca749ff37",
+                allowLocalhostAsSecureOrigin: true
+              });
+              window.OneSignal.login(currentUser.email);
+              console.log('[OneSignal] Web: Logged in user', currentUser.email);
+            } catch (err) {
+              console.error('[OneSignal] Web login error:', err);
+            }
+          });
+        }
+      }
+      
       // Sync theme from user profile to localStorage so Layout picks it up
       if (currentUser?.theme) {
         localStorage.setItem('adhd_theme', currentUser.theme);
