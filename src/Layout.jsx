@@ -272,19 +272,17 @@ function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
         `}</style>
 
       <TooltipProvider>
-          <Sidebar collapsible="none" className={`border-r relative z-10 hidden md:flex ${
+          {/* Permanent sidebar — always visible on md+ screens */}
+          <div className={`hidden md:flex flex-col w-64 flex-shrink-0 border-r z-10 min-h-screen ${
             theme === 'dark'
               ? 'bg-gray-950 border-gray-800'
               : theme === 'colorful'
                 ? 'bg-gradient-to-b from-purple-100/90 to-pink-100/90 backdrop-blur-sm border-purple-300/50'
                 : 'border-gray-200/50 backdrop-blur-sm bg-white/80'
           }`}>
-            <SidebarHeader className={`${
-              theme === 'dark'
-                ? 'bg-gray-900 border-0'
-                : theme === 'colorful'
-                  ? 'bg-gradient-to-r from-purple-200 to-pink-200 border-0'
-                  : 'border-0'
+            {/* Header */}
+            <div className={`${
+              theme === 'dark' ? 'bg-gray-900' : theme === 'colorful' ? 'bg-gradient-to-r from-purple-200 to-pink-200' : ''
             }`} style={{
               paddingTop: 'max(3rem, calc(2rem + env(safe-area-inset-top)))',
               paddingLeft: '1.5rem',
@@ -293,139 +291,125 @@ function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
             }}>
               <div className="flex items-center gap-3">
                 {user && user.profile_picture_url ? (
-                    <Link to={createPageUrl("Profile")} onClick={handleNavClick}>
-                        <img
-                            src={user.profile_picture_url}
-                            alt="Profile"
-                            className="w-10 h-10 rounded-full object-cover"
-                        />
-                    </Link>
+                  <Link to={createPageUrl("Profile")}>
+                    <img src={user.profile_picture_url} alt="Profile" className="w-10 h-10 rounded-full object-cover" />
+                  </Link>
                 ) : (
-                    <Link to={createPageUrl("Profile")} onClick={handleNavClick}>
-                        <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold text-white text-xl ${
-                            theme === 'dark'
-                                ? 'bg-gradient-to-br from-green-500 to-emerald-600'
-                                : 'bg-gradient-to-br from-green-600 to-green-700'
-                        }`}>
-                            {user?.full_name?.charAt(0)?.toUpperCase() || 'A'}
-                        </div>
-                    </Link>
+                  <Link to={createPageUrl("Profile")}>
+                    <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold text-white text-xl ${
+                      theme === 'dark' ? 'bg-gradient-to-br from-green-500 to-emerald-600' : 'bg-gradient-to-br from-green-600 to-green-700'
+                    }`}>
+                      {user?.full_name?.charAt(0)?.toUpperCase() || 'A'}
+                    </div>
+                  </Link>
                 )}
-                <Link to={createPageUrl("Home")} onClick={handleNavClick}>
+                <Link to={createPageUrl("Home")}>
                   <div>
-                    <h2 className={`font-bold text-lg ${
-                      theme === 'dark' ? 'text-white' : 'text-gray-900'
-                    }`}>{user?.full_name || 'Goals.'}</h2>
-                    <p className={`text-xs ${
-                      theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
-                    }`}>You've got this</p>
+                    <h2 className={`font-bold text-lg ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{user?.full_name || 'Goals.'}</h2>
+                    <p className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>You've got this</p>
                   </div>
                 </Link>
               </div>
-            </SidebarHeader>
+            </div>
 
-            <SidebarContent className={`${
-              theme === 'dark' ? 'bg-gray-950' : theme === 'colorful' ? 'bg-gradient-to-b from-purple-100/80 to-pink-100/80' : ''
+            {/* Nav */}
+            <div className={`flex-1 ${theme === 'dark' ? 'bg-gray-950' : theme === 'colorful' ? 'bg-gradient-to-b from-purple-100/80 to-pink-100/80' : ''}`}
+              style={{ paddingTop: '2.5rem', paddingLeft: '0.75rem', paddingRight: '0.75rem' }}>
+              <nav className="space-y-1">
+                {navigationItems.map((item) => (
+                  <Link key={item.title} to={item.url} className="block w-full">
+                    <div className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 ${
+                      location.pathname === item.url
+                        ? theme === 'minimalist' ? 'bg-green-50 text-green-700 font-medium'
+                          : theme === 'dark' ? 'bg-gray-800 text-white font-medium'
+                          : theme === 'colorful' ? 'bg-gradient-to-r from-violet-300 to-pink-300 text-gray-900 font-medium shadow-md'
+                          : 'bg-gradient-to-r from-purple-100 to-orange-100 text-purple-700 font-medium'
+                        : theme === 'dark' ? 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                          : theme === 'colorful' ? 'text-gray-900 hover:bg-purple-200/60 font-medium'
+                          : 'text-gray-700 hover:bg-gray-50'
+                    }`}>
+                      <item.icon className="w-5 h-5 flex-shrink-0" />
+                      <span>{item.title}</span>
+                    </div>
+                  </Link>
+                ))}
+              </nav>
+            </div>
+
+            {/* Footer */}
+            <div className={`space-y-3 ${
+              theme === 'dark' ? 'bg-gray-950' : theme === 'colorful' ? 'bg-gradient-to-t from-purple-200 to-pink-100' : ''
             }`} style={{
-              paddingTop: '2.5rem',
-              paddingBottom: '2.5rem',
-              paddingLeft: '0.75rem',
-              paddingRight: '0.75rem'
+              paddingTop: '1rem', paddingLeft: '1rem', paddingRight: '1rem',
+              paddingBottom: 'max(4rem, calc(2rem + env(safe-area-inset-bottom)))'
             }}>
+              <Button variant="outline" onClick={toggleTheme} className={`w-full flex items-center justify-center gap-2 rounded-xl ${
+                theme === 'dark' ? 'border-gray-700 hover:bg-gray-800 text-gray-300 bg-transparent'
+                  : theme === 'colorful' ? 'bg-gradient-to-r from-violet-400 to-pink-400 hover:from-violet-500 hover:to-pink-500 text-white font-medium shadow-md' : ''
+              }`}>
+                {theme === 'minimalist' ? <><Sun className="w-4 h-4" /><span>Light Theme</span></>
+                  : theme === 'dark' ? <><Moon className="w-4 h-4" /><span>Dark Theme</span></>
+                  : <><Sparkles className="w-4 h-4" /><span>Colorful Theme</span></>}
+              </Button>
+              <Button variant="outline" onClick={() => navigate('/settings')} className={`w-full flex items-center justify-center gap-2 rounded-xl ${
+                theme === 'dark' ? 'border-gray-700 hover:bg-gray-800 text-gray-300 bg-transparent'
+                  : theme === 'colorful' ? 'bg-gradient-to-r from-violet-400 to-pink-400 hover:from-violet-500 hover:to-pink-500 text-white font-medium shadow-md' : ''
+              }`}>
+                <Settings className="w-4 h-4" />
+                <span>Settings</span>
+              </Button>
+            </div>
+          </div>
+
+          {/* Mobile drawer sidebar (shadcn) */}
+          <Sidebar collapsible="offcanvas" className={`md:hidden border-r ${
+            theme === 'dark' ? 'bg-gray-950 border-gray-800'
+              : theme === 'colorful' ? 'bg-gradient-to-b from-purple-100/90 to-pink-100/90 border-purple-300/50'
+              : 'border-gray-200/50 bg-white/80'
+          }`}>
+            <SidebarHeader style={{ paddingTop: '3rem', paddingLeft: '1.5rem', paddingRight: '1.5rem', paddingBottom: '1.5rem' }}>
+              <div className="flex items-center gap-3">
+                <Link to={createPageUrl("Profile")} onClick={handleNavClick}>
+                  <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold text-white text-xl ${
+                    theme === 'dark' ? 'bg-gradient-to-br from-green-500 to-emerald-600' : 'bg-gradient-to-br from-green-600 to-green-700'
+                  }`}>{user?.full_name?.charAt(0)?.toUpperCase() || 'A'}</div>
+                </Link>
+                <div>
+                  <h2 className={`font-bold text-lg ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{user?.full_name || 'Goals.'}</h2>
+                  <p className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>You've got this</p>
+                </div>
+              </div>
+            </SidebarHeader>
+            <SidebarContent style={{ paddingTop: '2rem', paddingLeft: '0.75rem', paddingRight: '0.75rem' }}>
               <SidebarGroup>
                 <SidebarGroupContent>
                   <SidebarMenu className="space-y-1">
-                    {navigationItems.map((item) => {
-                      return (
-                        <SidebarMenuItem key={item.title}>
-                         <Link to={item.url} onClick={handleNavClick} className="block w-full pointer-events-auto">
-                           <SidebarMenuButton
-                             className={`rounded-xl transition-all duration-200 w-full pointer-events-auto ${
-                               location.pathname === item.url
-                                 ? theme === 'minimalist'
-                                   ? 'bg-green-50 text-green-700 font-medium'
-                                   : theme === 'dark'
-                                     ? 'bg-gray-800 text-white font-medium'
-                                     : theme === 'colorful'
-                                       ? 'bg-gradient-to-r from-violet-300 to-pink-300 text-gray-900 font-medium shadow-md'
-                                       : 'bg-gradient-to-r from-purple-100 to-orange-100 text-purple-700 font-medium'
-                                 : theme === 'dark'
-                                   ? 'hover:bg-gray-800 text-gray-400 hover:text-white'
-                                   : theme === 'colorful'
-                                     ? 'hover:bg-gradient-to-r hover:from-purple-200 hover:to-pink-200 text-gray-900 font-medium'
-                                     : 'hover:bg-gray-50 text-gray-700'
-                             }`}
-                           >
-                             <div className="flex items-center gap-3 py-2 w-full pointer-events-none">
-                               <item.icon className="w-5 h-5 flex-shrink-0" />
-                               <span className="flex-1">{item.title}</span>
-                             </div>
-                           </SidebarMenuButton>
-                         </Link>
-                        </SidebarMenuItem>
-                      );
-                    })}
+                    {navigationItems.map((item) => (
+                      <SidebarMenuItem key={item.title}>
+                        <Link to={item.url} onClick={handleNavClick} className="block w-full">
+                          <SidebarMenuButton className={`rounded-xl w-full ${
+                            location.pathname === item.url
+                              ? theme === 'dark' ? 'bg-gray-800 text-white font-medium' : 'bg-green-50 text-green-700 font-medium'
+                              : theme === 'dark' ? 'text-gray-400 hover:bg-gray-800 hover:text-white' : 'text-gray-700 hover:bg-gray-50'
+                          }`}>
+                            <div className="flex items-center gap-3 py-2">
+                              <item.icon className="w-5 h-5 flex-shrink-0" />
+                              <span>{item.title}</span>
+                            </div>
+                          </SidebarMenuButton>
+                        </Link>
+                      </SidebarMenuItem>
+                    ))}
                   </SidebarMenu>
                 </SidebarGroupContent>
               </SidebarGroup>
             </SidebarContent>
-
-            <SidebarFooter className={`space-y-3 ${
-              theme === 'dark'
-                ? 'bg-gray-950'
-                : theme === 'colorful'
-                  ? 'bg-gradient-to-t from-purple-200 to-pink-100'
-                  : ''
-            }`} style={{
-              paddingTop: '1rem',
-              paddingLeft: '1rem',
-              paddingRight: '1rem',
-              paddingBottom: 'max(4rem, calc(2rem + env(safe-area-inset-bottom)))'
-            }}>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  onClick={toggleTheme}
-                  className={`flex-1 flex items-center justify-center gap-2 rounded-xl ${
-                    theme === 'dark'
-                      ? 'border-gray-700 hover:bg-gray-800 text-gray-300 bg-transparent'
-                      : theme === 'colorful'
-                        ? 'bg-gradient-to-r from-violet-400 to-pink-400 hover:from-violet-500 hover:to-pink-500 text-white font-medium shadow-md'
-                        : ''
-                  }`}
-                >
-                  {theme === 'minimalist' ? (
-                    <>
-                      <Sun className="w-4 h-4" />
-                      <span>Light Theme</span>
-                    </>
-                  ) : theme === 'dark' ? (
-                    <>
-                      <Moon className="w-4 h-4" />
-                      <span>Dark Theme</span>
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="w-4 h-4" />
-                      <span>Colorful Theme</span>
-                    </>
-                  )}
-                </Button>
-              </div>
-
-              <Button
-                variant="outline"
-                onClick={() => { navigate('/settings'); handleNavClick(); }}
-                className={`w-full flex items-center justify-center gap-2 rounded-xl ${
-                  theme === 'dark'
-                    ? 'border-gray-700 hover:bg-gray-800 text-gray-300 bg-transparent'
-                    : theme === 'colorful'
-                      ? 'bg-gradient-to-r from-violet-400 to-pink-400 hover:from-violet-500 hover:to-pink-500 text-white font-medium shadow-md'
-                      : ''
-                }`}
-              >
-                <Settings className="w-4 h-4" />
-                <span>Settings</span>
+            <SidebarFooter style={{ padding: '1rem', paddingBottom: '3rem' }} className="space-y-3">
+              <Button variant="outline" onClick={toggleTheme} className="w-full rounded-xl gap-2">
+                {theme === 'dark' ? <><Moon className="w-4 h-4" /><span>Dark Theme</span></> : <><Sun className="w-4 h-4" /><span>Light Theme</span></>}
+              </Button>
+              <Button variant="outline" onClick={() => { navigate('/settings'); handleNavClick(); }} className="w-full rounded-xl gap-2">
+                <Settings className="w-4 h-4" /><span>Settings</span>
               </Button>
             </SidebarFooter>
           </Sidebar>
@@ -444,18 +428,12 @@ function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
               <div className="flex items-center gap-4">
                 <SidebarTrigger asChild>
                   <Button variant="ghost" className={`md:hidden h-14 w-14 p-0 rounded-xl transition-colors duration-200 flex items-center justify-center ${
-                    theme === 'dark'
-                      ? 'hover:bg-gray-800 text-white'
-                      : 'hover:bg-gray-100'
+                    theme === 'dark' ? 'hover:bg-gray-800 text-white' : 'hover:bg-gray-100'
                   }`}>
                     <LayoutDashboard className="w-7 h-7" />
                   </Button>
                 </SidebarTrigger>
-                <h1 className={`text-xl font-bold ${
-                  theme === 'dark'
-                    ? 'text-white'
-                    : 'text-gray-900'
-                }`}>Goals.</h1>
+                <h1 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Goals.</h1>
               </div>
             </header>
 
@@ -470,10 +448,8 @@ function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
                   window.dispatchEvent(event);
                 }}
                 size="lg"
-                className={`fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-2xl z-50 bg-opacity-90 bg-purple-600 hover:bg-purple-700`}
-                style={{
-                  marginBottom: 'max(1.5rem, calc(1.5rem + env(safe-area-inset-bottom)))'
-                }}
+                className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-2xl z-50 bg-purple-600 hover:bg-purple-700"
+                style={{ marginBottom: 'max(1.5rem, calc(1.5rem + env(safe-area-inset-bottom)))' }}
               >
                 <Mic className="w-6 h-6" />
               </Button>
