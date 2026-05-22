@@ -61,17 +61,17 @@ export default function Goals() {
   const filteredGoals = goals.filter(g => g.status === activeTab);
 
   return (
-    <div className="min-h-screen pb-32 px-4 pt-6">
-      <div className="max-w-2xl mx-auto">
+    <div className="min-h-screen pb-32 px-4 sm:px-8 md:px-12 pt-6">
+      <div className="max-w-3xl mx-auto">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className={`text-2xl font-bold ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>My Goals</h1>
-            <p className={`text-sm mt-0.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{goals.filter(g => g.status === 'active').length} active goals</p>
+            <h1 className={`text-2xl sm:text-3xl font-bold ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>My Goals</h1>
+            <p className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{goals.filter(g => g.status === 'active').length} active goals</p>
           </div>
           <Button
             onClick={() => navigate("/Planner")}
-            className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white rounded-2xl shadow-md shadow-violet-100 font-semibold text-sm h-9"
+            className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white rounded-2xl shadow-md shadow-violet-100 font-semibold text-sm h-10 px-5"
           >
             <Plus className="w-4 h-4 mr-1.5" />
             New Goal
@@ -79,7 +79,7 @@ export default function Goals() {
         </div>
 
         {/* Tabs */}
-        <div className={`flex gap-1 p-1 rounded-xl mb-6 ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}>
+        <div className={`flex gap-1 p-1 rounded-xl mb-8 ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}>
           {["active", "completed", "paused"].map(tab => (
             <button
               key={tab}
@@ -128,7 +128,7 @@ function GoalCard({ goal, progress, stepCount, onClick, isDark }) {
   return (
     <button
       onClick={onClick}
-      className={`w-full rounded-2xl p-4 text-left shadow-sm transition-all group border ${
+      className={`w-full rounded-2xl p-4 sm:p-5 text-left shadow-sm transition-all group border ${
         isDark
           ? 'bg-gray-800 border-gray-700 hover:border-violet-500'
           : 'bg-white border-gray-100 hover:shadow-md hover:border-violet-200'
