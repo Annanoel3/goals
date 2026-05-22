@@ -312,12 +312,12 @@ export default function Planner() {
       {/* Header */}
       <div className={`fixed top-0 left-0 right-0 z-50 ${isDark ? 'bg-gray-900/90 border-gray-800' : isColorful ? 'bg-gradient-to-r from-purple-300/90 to-pink-300/90 border-purple-300/50' : 'bg-white/90 border-gray-100'} backdrop-blur-lg border-b px-4 py-3`}>
         <div className="max-w-2xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-sm">
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-sm flex-shrink-0">
               <Sparkles className="w-4 h-4 text-white" />
             </div>
-            <div>
-              <h1 className={`text-base font-bold ${isDark ? 'text-white' : 'text-gray-900'} leading-none`}>
+            <div className="min-w-0 flex-1">
+              <h1 className={`text-base font-bold ${isDark ? 'text-white' : 'text-gray-900'} leading-none truncate`}>
                 {editingGoal ? `Editing: ${editingGoal.title}` : showGoalsList ? 'My Goals' : 'Planner'}
               </h1>
               <p className={`text-[11px] ${isDark ? 'text-gray-500' : 'text-gray-400'} mt-0.5`}>
