@@ -1,4 +1,3 @@
-
 import './App.css'
 import { PomodoroProvider } from '@/context/PomodoroContext'
 import { initAdMob, maybeShowAdOnOpen } from '@/lib/admob';
@@ -17,6 +16,7 @@ import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import Settings from '@/pages/Settings';
 import GoalDetail from '@/pages/GoalDetail';
 import GoalStepNotification from '@/pages/GoalStepNotification';
+import GoalFollowUp from '@/pages/GoalFollowUp';
 
 // Sentry loaded via CDN in index.html
 const Sentry = window.Sentry;
@@ -70,6 +70,7 @@ const AuthenticatedApp = () => {
         <Route path="/settings" element={<Settings />} />
         <Route path="/goal/:id" element={<GoalDetail />} />
         <Route path="/GoalStepNotification" element={<GoalStepNotification />} />
+        <Route path="/GoalFollowUp" element={<GoalFollowUp />} />
         <Route path="*" element={<PageNotFound />} />
       </Routes>
     </LayoutWrapper>
