@@ -433,7 +433,7 @@ function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
           <main className="flex-1 flex flex-col min-w-0 min-h-screen relative z-10">
             <header className={`backdrop-blur-md border-b px-6 sticky top-0 z-10 ${
               theme === 'dark'
-                ? 'bg-gray-950/80 border-gray-800'
+                ? 'bg-gray-900/90 border-gray-700'
                 : theme === 'colorful'
                   ? 'bg-gradient-to-r from-purple-200/80 via-pink-200/80 to-blue-200/80 border-purple-300/50'
                   : 'bg-white/60 border-gray-200/50'

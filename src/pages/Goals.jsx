@@ -28,6 +28,8 @@ export default function Goals() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("active");
   const navigate = useNavigate();
+  const theme = localStorage.getItem('adhd_theme') || 'minimalist';
+  const isDark = theme === 'dark';
 
   useEffect(() => { loadData(); }, []);
 
@@ -64,8 +66,8 @@ export default function Goals() {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">My Goals</h1>
-            <p className="text-sm text-gray-500 mt-0.5">{goals.filter(g => g.status === 'active').length} active goals</p>
+            <h1 className={`text-2xl font-bold ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>My Goals</h1>
+            <p className={`text-sm mt-0.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{goals.filter(g => g.status === 'active').length} active goals</p>
           </div>
           <Button
             onClick={() => navigate("/Planner")}
@@ -77,19 +79,19 @@ export default function Goals() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 bg-gray-100 p-1 rounded-xl mb-6">
+        <div className={`flex gap-1 p-1 rounded-xl mb-6 ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}>
           {["active", "completed", "paused"].map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={`flex-1 text-sm font-medium py-2 rounded-lg capitalize transition-all ${
                 activeTab === tab
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700'
+                  ? isDark ? 'bg-gray-700 text-gray-100 shadow-sm' : 'bg-white text-gray-900 shadow-sm'
+                  : isDark ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'
               }`}
             >
               {tab}
-              <span className={`ml-1.5 text-xs ${activeTab === tab ? 'text-gray-400' : 'text-gray-400'}`}>
+              <span className={`ml-1.5 text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
                 ({goals.filter(g => g.status === tab).length})
               </span>
             </button>
@@ -102,9 +104,9 @@ export default function Goals() {
              <Loader2 className="w-7 h-7 animate-spin text-violet-500" />
            </div>
          ) : filteredGoals.length === 0 ? (
-           <EmptyState activeTab={activeTab} onNewGoal={() => navigate("/Planner")} />
+           <EmptyState activeTab={activeTab} onNewGoal={() => navigate("/Planner")} isDark={isDark} />
          ) : (
-           <div className="space-y-3">
+          <div className="space-y-3">
              {filteredGoals.map(goal => (
                <GoalCard
                  key={goal.id}
@@ -112,6 +114,7 @@ export default function Goals() {
                  progress={getGoalProgress(goal.id)}
                  stepCount={getStepCount(goal.id)}
                  onClick={() => navigate(`/goal/${goal.id}`)}
+                 isDark={isDark}
                />
              ))}
            </div>
@@ -121,42 +124,48 @@ export default function Goals() {
   );
 }
 
-function GoalCard({ goal, progress, stepCount, onClick }) {
-  const StatusIcon = STATUS_CONFIG[goal.status]?.icon || Clock;
-
+function GoalCard({ goal, progress, stepCount, onClick, isDark }) {
   return (
     <button
       onClick={onClick}
-      className="w-full bg-white border border-gray-100 rounded-2xl p-4 text-left shadow-sm hover:shadow-md hover:border-violet-200 transition-all group"
+      className={`w-full rounded-2xl p-4 text-left shadow-sm transition-all group border ${
+        isDark
+          ? 'bg-gray-800 border-gray-700 hover:border-violet-500'
+          : 'bg-white border-gray-100 hover:shadow-md hover:border-violet-200'
+      }`}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-2 flex-wrap">
-            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full capitalize ${CATEGORY_COLORS[goal.category] || CATEGORY_COLORS.other}`}>
+            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full capitalize ${
+              isDark
+                ? 'bg-gray-700 text-gray-300'
+                : CATEGORY_COLORS[goal.category] || CATEGORY_COLORS.other
+            }`}>
               {goal.category}
             </span>
             {goal.timeline && (
-              <span className="flex items-center gap-1 text-xs text-gray-400">
+              <span className={`flex items-center gap-1 text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
                 <Calendar className="w-3 h-3" />
                 {goal.timeline}
               </span>
             )}
           </div>
-          <h3 className="font-semibold text-gray-900 text-base leading-snug mb-1 truncate">{goal.title}</h3>
+          <h3 className={`font-semibold text-base leading-snug mb-1 truncate ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>{goal.title}</h3>
           {goal.plan_summary && (
-            <p className="text-sm text-gray-500 line-clamp-2 leading-relaxed">{goal.plan_summary}</p>
+            <p className={`text-sm line-clamp-2 leading-relaxed ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{goal.plan_summary}</p>
           )}
         </div>
-        <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-violet-400 flex-shrink-0 mt-1 transition-colors" />
+        <ChevronRight className={`w-5 h-5 flex-shrink-0 mt-1 transition-colors group-hover:text-violet-400 ${isDark ? 'text-gray-600' : 'text-gray-300'}`} />
       </div>
 
       {stepCount > 0 && (
         <div className="mt-3">
           <div className="flex items-center justify-between mb-1.5">
-            <span className="text-xs text-gray-400">{stepCount} steps</span>
-            <span className="text-xs font-semibold text-violet-600">{progress}%</span>
+            <span className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{stepCount} steps</span>
+            <span className="text-xs font-semibold text-violet-400">{progress}%</span>
           </div>
-          <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+          <div className={`h-1.5 rounded-full overflow-hidden ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>
             <div
               className="h-full bg-gradient-to-r from-violet-500 to-indigo-500 rounded-full transition-all duration-500"
               style={{ width: `${progress}%` }}
@@ -168,15 +177,15 @@ function GoalCard({ goal, progress, stepCount, onClick }) {
   );
 }
 
-function EmptyState({ activeTab, onNewGoal }) {
+function EmptyState({ activeTab, onNewGoal, isDark }) {
   if (activeTab === "active") {
     return (
       <div className="text-center py-16 px-6">
-        <div className="w-16 h-16 bg-violet-50 rounded-3xl flex items-center justify-center mx-auto mb-4">
+        <div className={`w-16 h-16 rounded-3xl flex items-center justify-center mx-auto mb-4 ${isDark ? 'bg-gray-800' : 'bg-violet-50'}`}>
           <Target className="w-8 h-8 text-violet-400" />
         </div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">No active goals yet</h3>
-        <p className="text-gray-500 text-sm mb-6">Use the Planner to create your first AI-powered goal plan.</p>
+        <h3 className={`text-lg font-semibold mb-2 ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>No active goals yet</h3>
+        <p className={`text-sm mb-6 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Use the Planner to create your first AI-powered goal plan.</p>
         <Button onClick={onNewGoal} className="bg-gradient-to-r from-violet-600 to-indigo-600 text-white rounded-2xl">
           <Plus className="w-4 h-4 mr-2" /> Create a Goal
         </Button>
