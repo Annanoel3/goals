@@ -61,8 +61,8 @@ export default function Goals() {
   const filteredGoals = goals.filter(g => g.status === activeTab);
 
   return (
-    <div className="min-h-screen pb-32 px-4 sm:px-8 md:px-12 pt-6">
-      <div className="max-w-3xl mx-auto">
+    <div className="min-h-screen pb-32 px-4 sm:px-6 md:px-10 pt-6">
+      <div className="max-w-2xl">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
