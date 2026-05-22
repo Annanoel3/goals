@@ -35,44 +35,42 @@ function StepRow({ step, onOpen, onToggle, onCheckIn, onUpdate }) {
   };
   return (
     <div className={`rounded-lg border overflow-hidden ${step.status === 'completed' ? 'bg-green-50 border-green-100' : 'bg-white border-gray-100 hover:border-violet-300'}`}>
-      <button onClick={onOpen} className="w-full text-left p-3">
-        <div className="flex items-start gap-3">
-          <div className="flex-shrink-0 mt-0.5">
-            <Checkbox checked={step.status === 'completed'} onChange={(e) => { e.stopPropagation(); onToggle(); }} />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1.5">
-              {editing ? (
-                <div className="flex items-center gap-1 flex-1" onClick={e => e.stopPropagation()}>
-                  <input
-                    autoFocus
-                    className="flex-1 text-sm border border-blue-400 rounded px-2 py-0.5 focus:outline-none"
-                    value={editText}
-                    onChange={e => setEditText(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Escape') { setEditing(false); setEditText(step.title); } }}
-                  />
-                  <button onClick={e => { e.stopPropagation(); handleSave(); }} className="text-xs bg-blue-500 text-white px-2 py-0.5 rounded hover:bg-blue-600">Save</button>
-                  <button onClick={e => { e.stopPropagation(); setEditing(false); setEditText(step.title); }} className="text-xs text-gray-400 px-1 hover:text-gray-600">✕</button>
-                </div>
-              ) : (
-                <h4
-                  className={`font-medium text-sm cursor-pointer ${step.status === 'completed' ? 'line-through text-gray-400' : 'text-gray-900'}`}
-                  onClick={e => { e.stopPropagation(); setEditing(true); }}
-                  title="Tap to edit"
-                >
-                  {step.title}
-                </h4>
-              )}
-              {step.is_daily_habit && step.habit_time && (
-                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-600">🔔 {step.habit_time}</span>
-              )}
-            </div>
-            {step.description && (
-              <p className={`text-xs mt-1 line-clamp-2 ${step.status === 'completed' ? 'text-gray-400' : 'text-gray-500'}`}>{step.description}</p>
+      <div className="flex items-start gap-3 p-3">
+        <div className="flex-shrink-0 mt-0.5" onClick={(e) => { e.stopPropagation(); onToggle(); }}>
+          <Checkbox checked={step.status === 'completed'} onCheckedChange={() => onToggle()} />
+        </div>
+        <button onClick={onOpen} className="flex-1 text-left min-w-0">
+          <div className="flex items-center gap-1.5">
+            {editing ? (
+              <div className="flex items-center gap-1 flex-1" onClick={e => e.stopPropagation()}>
+                <input
+                  autoFocus
+                  className="flex-1 text-sm border border-blue-400 rounded px-2 py-0.5 focus:outline-none"
+                  value={editText}
+                  onChange={e => setEditText(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Escape') { setEditing(false); setEditText(step.title); } }}
+                />
+                <button onClick={e => { e.stopPropagation(); handleSave(); }} className="text-xs bg-blue-500 text-white px-2 py-0.5 rounded hover:bg-blue-600">Save</button>
+                <button onClick={e => { e.stopPropagation(); setEditing(false); setEditText(step.title); }} className="text-xs text-gray-400 px-1 hover:text-gray-600">✕</button>
+              </div>
+            ) : (
+              <h4
+                className={`font-medium text-sm cursor-pointer ${step.status === 'completed' ? 'line-through text-gray-400' : 'text-gray-900'}`}
+                onClick={e => { e.stopPropagation(); setEditing(true); }}
+                title="Tap to edit"
+              >
+                {step.title}
+              </h4>
+            )}
+            {step.is_daily_habit && step.habit_time && (
+              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-600">🔔 {step.habit_time}</span>
             )}
           </div>
-        </div>
-      </button>
+          {step.description && (
+            <p className={`text-xs mt-1 line-clamp-2 ${step.status === 'completed' ? 'text-gray-400' : 'text-gray-500'}`}>{step.description}</p>
+          )}
+        </button>
+      </div>
       {isHabit && step.status !== 'completed' && <HabitWeekTracker step={step} onUpdate={onUpdate} />}
       {isHabit && !step.habit_time && step.status !== 'completed' && <HabitTimePrompt step={step} onScheduled={onUpdate} />}
       {isHabit && step.habit_checkin_pending && step.status !== 'completed' && (
