@@ -76,7 +76,7 @@ export default function MonthCelebrationModal({ monthNumber, completedSteps, onC
       <img
         src={config.gif}
         alt={`Month ${monthNumber} celebration`}
-        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
+        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain" }}
       />
 
       {/* Tiny X to skip */}
