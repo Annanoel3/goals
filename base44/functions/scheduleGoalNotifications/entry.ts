@@ -38,6 +38,35 @@ async function scheduleNotification({ externalId, title, body, data, sendAt }) {
   return json?.id || null;
 }
 
+// Personalize daily notification message based on goal
+function generateDailyMessage(goal, step) {
+  const goalTitle = goal.title?.toLowerCase() || '';
+  const stepTitle = step.title?.toLowerCase() || '';
+  
+  // Reading/Learning goals
+  if (goalTitle.includes('read') || goalTitle.includes('learn') || stepTitle.includes('read')) {
+    return `Have you done your reading for ${goal.title} today? Every page counts! 📖`;
+  }
+  // Fitness/Exercise goals
+  if (goalTitle.includes('exercise') || goalTitle.includes('workout') || goalTitle.includes('fitness') || goalTitle.includes('steps')) {
+    return `Time to move! Have you gotten your activity in for ${goal.title} today? 💪`;
+  }
+  // Meditation/Mindfulness goals
+  if (goalTitle.includes('meditat') || goalTitle.includes('mindful') || stepTitle.includes('meditat')) {
+    return `Take a moment for yourself. Time for your ${goal.title} practice? 🧘`;
+  }
+  // Health/Nutrition goals
+  if (goalTitle.includes('health') || goalTitle.includes('nutrition') || goalTitle.includes('diet')) {
+    return `Staying on track with ${goal.title}! What are you eating today? 🥗`;
+  }
+  // Creative goals
+  if (goalTitle.includes('write') || goalTitle.includes('art') || goalTitle.includes('music') || goalTitle.includes('creative')) {
+    return `Let's make something! Time to work on ${goal.title}? 🎨`;
+  }
+  // Default personalized message
+  return `Time to work on ${goal.title}! You've got this! ⭐`;
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -121,8 +150,8 @@ Deno.serve(async (req) => {
           if (sendAt > now) {
             const nid = await scheduleNotification({
               externalId,
-              title: `Daily habit: ${step.title}`,
-              body: `Time for your daily habit! Tap to check in.`,
+              title: `Daily check-in`,
+              body: generateDailyMessage(goal, step),
               data: {
                 screen: 'GoalStepNotification',
                 action: 'habit_checkin',
@@ -134,6 +163,59 @@ Deno.serve(async (req) => {
             if (nid) { newNotifIds.push(nid); scheduled++; }
           }
           d.setDate(d.getDate() + 1);
+        }
+
+        // Schedule weekly summaries (Sunday 8pm - beginning of week)
+        let weekStart = new Date(habitStart);
+        const dayOfWeek = weekStart.getDay();
+        if (dayOfWeek !== 0) {
+          weekStart.setDate(weekStart.getDate() + (7 - dayOfWeek));
+        }
+        while (weekStart <= goalEnd) {
+          const summaryTime = new Date(weekStart);
+          summaryTime.setUTCHours(20, 0, 0, 0); // 8 PM for week ahead
+          if (summaryTime > now) {
+            const weekNum = Math.ceil(((weekStart - habitStart) / (7 * 24 * 60 * 60 * 1000)) + 1);
+            const nid = await scheduleNotification({
+              externalId,
+              title: `📅 Week ${weekNum} ahead`,
+              body: `Check out what's coming up this week for "${goal.title}". Ready to crush it?`,
+              data: {
+                screen: 'GoalDetail',
+                goal_id: goal.id,
+                action: 'week_preview',
+              },
+              sendAt: summaryTime.toISOString(),
+            });
+            if (nid) { newNotifIds.push(nid); scheduled++; }
+          }
+          weekStart.setDate(weekStart.getDate() + 7);
+        }
+
+        // Schedule weekly recap (Friday 6pm - end of week)
+        let weekEnd = new Date(habitStart);
+        const dayOfWeekEnd = weekEnd.getDay();
+        if (dayOfWeekEnd !== 5) {
+          weekEnd.setDate(weekEnd.getDate() + (5 - dayOfWeekEnd + 7) % 7);
+        }
+        while (weekEnd <= goalEnd) {
+          const recapTime = new Date(weekEnd);
+          recapTime.setUTCHours(18, 0, 0, 0); // 6 PM for week recap
+          if (recapTime > now) {
+            const nid = await scheduleNotification({
+              externalId,
+              title: `🏆 Weekly recap`,
+              body: `Amazing work this week on "${goal.title}"! See what you accomplished.`,
+              data: {
+                screen: 'GoalDetail',
+                goal_id: goal.id,
+                action: 'week_recap',
+              },
+              sendAt: recapTime.toISOString(),
+            });
+            if (nid) { newNotifIds.push(nid); scheduled++; }
+          }
+          weekEnd.setDate(weekEnd.getDate() + 7);
         }
       } else if (step.due_date) {
         // ── REGULAR STEP ────────────────────────────────────────────────────
@@ -183,6 +265,63 @@ Deno.serve(async (req) => {
           onesignal_notification_ids: newNotifIds,
         });
       }
+    }
+
+    // Schedule monthly summaries for the goal
+    let monthStart = new Date(goal.target_date ? new Date(goal.target_date) : now);
+    monthStart.setUTCDate(1);
+    monthStart.setUTCHours(9, 0, 0, 0); // 9 AM on first day of month
+
+    let monthEnd = new Date(goal.target_date ? new Date(goal.target_date) : now);
+    monthEnd.setUTCDate(25); // ~end of month
+    monthEnd.setUTCHours(19, 0, 0, 0); // 7 PM
+
+    const goalStart = new Date(goal.created_date || now);
+    let curMonth = new Date(goalStart);
+    let monthNum = 1;
+
+    while (curMonth <= (goal.target_date ? new Date(goal.target_date) : new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000))) {
+      // Month start: first day at 9 AM
+      const mStart = new Date(curMonth);
+      mStart.setUTCDate(1);
+      mStart.setUTCHours(9, 0, 0, 0);
+      if (mStart > now) {
+        const nid = await scheduleNotification({
+          externalId,
+          title: `🚀 Month ${monthNum} begins`,
+          body: `Here's what you're tackling in Month ${monthNum} for "${goal.title}". Let's go!`,
+          data: {
+            screen: 'GoalDetail',
+            goal_id: goal.id,
+            action: 'month_preview',
+          },
+          sendAt: mStart.toISOString(),
+        });
+        if (nid) scheduled++;
+      }
+
+      // Month end: last day at 7 PM
+      const mEnd = new Date(curMonth);
+      mEnd.setUTCMonth(mEnd.getUTCMonth() + 1);
+      mEnd.setUTCDate(0); // Last day of current month
+      mEnd.setUTCHours(19, 0, 0, 0);
+      if (mEnd > now) {
+        const nid = await scheduleNotification({
+          externalId,
+          title: `✨ Month ${monthNum} complete`,
+          body: `You crushed Month ${monthNum}! Check out your progress on "${goal.title}".`,
+          data: {
+            screen: 'GoalDetail',
+            goal_id: goal.id,
+            action: 'month_recap',
+          },
+          sendAt: mEnd.toISOString(),
+        });
+        if (nid) scheduled++;
+      }
+
+      curMonth.setUTCMonth(curMonth.getUTCMonth() + 1);
+      monthNum++;
     }
 
     return Response.json({ ok: true, scheduled, cancelled, steps_processed: steps.length });
