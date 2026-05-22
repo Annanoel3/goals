@@ -1,3 +1,10 @@
+import * as Sentry from "@sentry/browser";
+
+Sentry.init({
+  dsn: "https://7d36c5e101fcaaf6fdd9c029d8746fe1@o4511434142580736.ingest.us.sentry.io/4511434149724160",
+  environment: "production",
+});
+
 import './App.css'
 import { PomodoroProvider } from '@/context/PomodoroContext'
 import { initAdMob, maybeShowAdOnOpen } from '@/lib/admob';
