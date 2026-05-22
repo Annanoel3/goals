@@ -12,6 +12,7 @@ import HabitTimePrompt from "@/components/goals/HabitTimePrompt";
 import HabitCheckInModal from "@/components/goals/HabitCheckInModal";
 import HabitWeekTracker from "@/components/goals/HabitWeekTracker";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import MonthCelebrationModal from "@/components/goals/MonthCelebrationModal";
 
 function StepRow({ step, onOpen, onToggle, onCheckIn, onUpdate }) {
   const isHabit = step.is_daily_habit || /affirm|affirmation|habit|meditat|journal|morning|exercise|daily|routine/i.test(step.title);
@@ -95,6 +96,8 @@ export default function GoalDetail() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [habitCheckInStep, setHabitCheckInStep] = useState(null);
+  const [celebrationMonth, setCelebrationMonth] = useState(null);
+  const [celebrationSteps, setCelebrationSteps] = useState([]);
 
   useEffect(() => { loadData(); }, [id]);
 
@@ -116,11 +119,23 @@ export default function GoalDetail() {
   const toggleStepStatus = async (step) => {
     const newStatus = step.status === 'completed' ? 'pending' : 'completed';
     const updates = { status: newStatus };
-    if (newStatus === 'completed') {
-      updates.completed_at = new Date().toISOString();
-    }
+    if (newStatus === 'completed') { updates.completed_at = new Date().toISOString(); }
     await base44.entities.GoalStep.update(step.id, updates);
     await loadData();
+    if (newStatus === 'completed' && step.phase) {
+      const weekMatch = step.phase.match(/Week\s*(\d+)/i);
+      const monthMatch = step.phase.match(/Month\s*(\d+)/i);
+      if (weekMatch && parseInt(weekMatch[1], 10) === 4 && monthMatch) {
+        const monthNum = parseInt(monthMatch[1], 10);
+        const freshSteps = await base44.entities.GoalStep.filter({ goal_id: id });
+        const week4Steps = freshSteps.filter(s => s.phase && s.phase.match(new RegExp('Month\\s*' + monthNum, 'i')) && s.phase.match(/Week\s*4/i));
+        if (week4Steps.length > 0 && week4Steps.every(s => s.status === 'completed')) {
+          const monthSteps = freshSteps.filter(s => s.phase && s.phase.match(new RegExp('Month\\s*' + monthNum, 'i')) && s.status === 'completed');
+          setCelebrationSteps(monthSteps);
+          setCelebrationMonth(monthNum);
+        }
+      }
+    }
   };
 
   const deleteGoal = async () => {
@@ -363,7 +378,14 @@ export default function GoalDetail() {
           onClose={() => setHabitCheckInStep(null)}
           onCheckedIn={loadData}
         />
-         </div>
-         </div>
-         );
-         }
+      </div>
+      {celebrationMonth && (
+        <MonthCelebrationModal
+          monthNumber={celebrationMonth}
+          completedSteps={celebrationSteps}
+          onClose={() => setCelebrationMonth(null)}
+        />
+      )}
+    </div>
+  );
+}
