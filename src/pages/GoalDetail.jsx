@@ -140,9 +140,13 @@ export default function GoalDetail() {
 
   const deleteGoal = async () => {
     setIsDeleting(true);
-    await Promise.all(steps.map(s => base44.entities.GoalStep.delete(s.id)));
-    await base44.entities.Goal.delete(goal.id);
-    navigate("/Goals");
+    try {
+      await base44.functions.invoke('deleteGoalWithNotifications', { goal_id: goal.id });
+      navigate("/Goals");
+    } catch (err) {
+      console.error("Error deleting goal:", err);
+      setIsDeleting(false);
+    }
   };
 
   if (loading) {

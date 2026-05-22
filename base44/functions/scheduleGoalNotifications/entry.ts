@@ -113,10 +113,9 @@ Deno.serve(async (req) => {
           }
         }
 
-        // Schedule up to 30 daily reminders
+        // Schedule daily reminders for every day until goal end
         let d = new Date(habitStart);
-        let count = 0;
-        while (d <= goalEnd && count < 30) {
+        while (d <= goalEnd) {
           const sendAt = new Date(d);
           sendAt.setUTCHours(notifHour, notifMin, 0, 0);
           if (sendAt > now) {
@@ -135,7 +134,6 @@ Deno.serve(async (req) => {
             if (nid) { newNotifIds.push(nid); scheduled++; }
           }
           d.setDate(d.getDate() + 1);
-          count++;
         }
       } else if (step.due_date) {
         // ── REGULAR STEP ────────────────────────────────────────────────────
