@@ -5,16 +5,16 @@ const BASE = "https://rbxbrfewaxvhvlntxhuv.supabase.co/storage/v1/object/public/
 
 const MONTH_CONFIG = {
   1:  { gif: `${BASE}/month1.gif`,  textColor: "#ffffff" },
-  2:  { gif: `${BASE}/month2.gif`,  textColor: "#ffffff" },
+  2:  { gif: `${BASE}/month2.gif`,  textColor: "#12027b" },
   3:  { gif: `${BASE}/month3.gif`,  textColor: "#ffffff" },
-  4:  { gif: `${BASE}/month4.gif`,  textColor: "#ffffff" },
+  4:  { gif: `${BASE}/month4.gif`,  textColor: "#000000" },
   5:  { gif: `${BASE}/month5.gif`,  textColor: "#ffffff" },
-  6:  { gif: `${BASE}/month6.gif`,  textColor: "#ffffff" },
+  6:  { gif: `${BASE}/month6.gif`,  textColor: "#ff8200" },
   7:  { gif: `${BASE}/month7.gif`,  textColor: "#ffffff" },
-  8:  { gif: `${BASE}/month8.gif`,  textColor: "#ffffff" },
+  8:  { gif: `${BASE}/month8.gif`,  textColor: "#12027b" },
   9:  { gif: `${BASE}/month9.gif`,  textColor: "#ffffff" },
-  10: { gif: `${BASE}/month10.gif`, textColor: "#ffffff" },
-  11: { gif: `${BASE}/month11.gif`, textColor: "#ffffff" },
+  10: { gif: `${BASE}/month10.gif`, textColor: "#000000" },
+  11: { gif: `${BASE}/month11.gif`, textColor: "#ff8200" },
   12: { gif: `${BASE}/month12.gif`, textColor: "#ffffff" },
 };
 
