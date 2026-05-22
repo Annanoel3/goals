@@ -59,6 +59,17 @@ Deno.serve(async (req) => {
     let scheduled = 0;
     let cancelled = 0;
 
+    // Get user's preferred notification time (default 10 AM)
+    let prefHour = 10;
+    let prefMin = 0;
+    if (user?.preferred_notification_time) {
+      const tp = user.preferred_notification_time.match(/(\d{1,2}):(\d{2})/);
+      if (tp) {
+        prefHour = parseInt(tp[1]);
+        prefMin = parseInt(tp[2]);
+      }
+    }
+
     for (const step of steps) {
       // Cancel any existing notifications for this step
       const existingIds = step.onesignal_notification_ids || [];
@@ -85,9 +96,9 @@ Deno.serve(async (req) => {
           ? new Date(goal.target_date + 'T23:59:59Z')
           : new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000); // default 90 days
 
-        // Determine notification hour from habit_time or goal preferred_time or default 8am
-        let notifHour = 8;
-        let notifMin = 0;
+        // Use step habit_time, goal preferred_time, or user's global preferred time
+        let notifHour = prefHour;
+        let notifMin = prefMin;
         const timeStr = step.habit_time || goal.preferred_time;
         if (timeStr) {
           const tp = timeStr.match(/(\d{1,2}):(\d{2})/);
@@ -128,8 +139,9 @@ Deno.serve(async (req) => {
         }
       } else if (step.due_date) {
         // ── REGULAR STEP ────────────────────────────────────────────────────
-        // One notification the day of (at 9am), and one the day before as a heads-up
-        const dueDate = new Date(step.due_date + 'T09:00:00Z');
+        // One notification the day of (at user's preferred time), and one the day before as a heads-up
+        const dueDate = new Date(step.due_date + 'T00:00:00Z');
+        dueDate.setUTCHours(prefHour, prefMin, 0, 0);
 
         if (dueDate > now) {
           const nid = await scheduleNotification({
@@ -147,7 +159,7 @@ Deno.serve(async (req) => {
           if (nid) { newNotifIds.push(nid); scheduled++; }
         }
 
-        // Day-before reminder
+        // Day-before reminder (at user's preferred time)
         const dayBefore = new Date(dueDate);
         dayBefore.setDate(dayBefore.getDate() - 1);
         if (dayBefore > now) {

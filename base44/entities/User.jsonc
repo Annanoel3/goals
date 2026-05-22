@@ -17,6 +17,11 @@
       "default": "08:00",
       "description": "End time for quiet hours (HH:MM format)"
     },
+    "preferred_notification_time": {
+      "type": "string",
+      "default": "10:00",
+      "description": "Preferred time for goal notifications (HH:MM format, e.g. '10:00')"
+    },
     "profile_picture_url": {
       "type": "string",
       "description": "URL to user's profile picture"

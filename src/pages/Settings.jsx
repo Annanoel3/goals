@@ -22,6 +22,8 @@ export default function Settings() {
   const [theme, setTheme] = useState(() => localStorage.getItem('adhd_theme') || 'minimalist');
   const [specialMode, setSpecialMode] = useState(() => localStorage.getItem('special_mode') || 'normal');
   const [user, setUser] = useState(null);
+  const [notificationTime, setNotificationTime] = useState('10:00');
+  const [isSavingTime, setIsSavingTime] = useState(false);
 
   useEffect(() => {
     loadUser();
@@ -31,6 +33,9 @@ export default function Settings() {
     try {
       const currentUser = await base44.auth.me();
       setUser(currentUser);
+      if (currentUser?.preferred_notification_time) {
+        setNotificationTime(currentUser.preferred_notification_time);
+      }
       // Load theme from user profile (persists across devices)
       if (currentUser?.theme) {
         setTheme(currentUser.theme);
@@ -42,6 +47,19 @@ export default function Settings() {
       }
     } catch (error) {
       console.error('Error loading user:', error);
+    }
+  };
+
+  const saveNotificationTime = async () => {
+    setIsSavingTime(true);
+    try {
+      await base44.auth.updateMe({ preferred_notification_time: notificationTime });
+      // Reschedule all notifications with the new time
+      await base44.functions.invoke('rescheduleAllGoalNotifications', {});
+    } catch (error) {
+      console.error('Error saving notification time:', error);
+    } finally {
+      setIsSavingTime(false);
     }
   };
 
@@ -183,6 +201,45 @@ export default function Settings() {
             Customize your experience
           </p>
         </div>
+
+        {/* Notification Settings */}
+        <Card className={`mb-6 border-none shadow-lg ${
+          theme === 'dark' ? 'bg-gray-800' : 'bg-white'
+        }`}>
+          <CardHeader>
+            <CardTitle className={`flex items-center gap-2 ${theme === 'dark' ? 'text-white' : ''}`}>
+              <Bell className="w-5 h-5" />
+              Notification Time
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className={`text-sm mb-3 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
+              What time should we send you daily goal reminders?
+            </p>
+            <div className="flex gap-2 items-end">
+              <input
+                type="time"
+                value={notificationTime}
+                onChange={(e) => setNotificationTime(e.target.value)}
+                className={`flex-1 px-4 py-2.5 rounded-lg border ${
+                  theme === 'dark'
+                    ? 'bg-gray-700 border-gray-600 text-white'
+                    : 'bg-white border-gray-300'
+                }`}
+              />
+              <Button
+                onClick={saveNotificationTime}
+                disabled={isSavingTime}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2"
+              >
+                {isSavingTime ? 'Saving...' : 'Save'}
+              </Button>
+            </div>
+            <p className={`text-xs mt-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+              This will apply to new goals and update reminders when you change this setting.
+            </p>
+          </CardContent>
+        </Card>
 
         {/* Theme Section */}
         <Card className={`mb-6 border-none shadow-lg ${
