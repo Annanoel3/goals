@@ -46,9 +46,9 @@ export default function MonthCelebrationModal({ monthNumber, completedSteps, onC
     return () => clearTimeout(t);
   }, []);
 
-  // Auto-close after 24500ms (4.5s intro + 20s text)
+  // Auto-close after 23500ms (4.5s intro + 20s text)
   useEffect(() => {
-    const autoClose = setTimeout(() => onClose(), 24500);
+    const autoClose = setTimeout(() => onClose(), 23500);
     return () => clearTimeout(autoClose);
   }, []);
 
