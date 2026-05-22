@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+simport React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
@@ -602,7 +602,7 @@ function parsePlanHierarchy(text) {
       if (months.length === 0) {
         preamble.push(line);
       }
-      // Ignore plain text lines inside months (they're usually just context)
+      if (currentWeek && line.trim().length > 3) { currentWeek.description = (currentWeek.description ? currentWeek.description + ' ' : '') + line.trim(); }
     }
   }
 
@@ -632,7 +632,7 @@ function GifCarousel({ gifs, onComplete }) {
         setDone(true);
         onComplete();
       }
-    }, 1200);
+    }, 30000);
     return () => clearTimeout(timer);
   }, [idx, done, gifs, onComplete]);
   return (
@@ -651,43 +651,30 @@ function GifCarousel({ gifs, onComplete }) {
 
 function WeekDropdown({ week }) {
   const [open, setOpen] = React.useState(false);
-  const [checkedDays, setCheckedDays] = React.useState({});
-  const toggleDay = (d) => setCheckedDays(prev => ({ ...prev, [d]: !prev[d] }));
-  const completedDays = Object.values(checkedDays).filter(Boolean).length;
   return (
     <div className="border border-gray-100 rounded-xl overflow-hidden mb-1.5">
       <button
         onClick={() => setOpen(v => !v)}
-        className="w-full flex items-center justify-between gap-2 px-3 py-2 text-left bg-white hover:bg-gray-50 transition-colors"
+        className="w-full flex items-center gap-3 px-3 py-2.5 bg-white hover:bg-gray-50 transition-colors"
       >
-        <span className="font-medium text-gray-700 text-xs">{week.title}</span>
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] text-gray-400">{completedDays}/7 days</span>
-          {open ? <ChevronUp className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />}
-        </div>
+        <span className="font-medium text-gray-700 text-xs flex-1 text-left">{week.title}</span>
+        <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
-        <div className="px-3 pb-3 pt-2 bg-gray-50 border-t border-gray-100">
+        <div className="px-4 pb-4 pt-3 bg-gray-50 border-t border-gray-100 space-y-3">
+          {week.description && (
+            <p className="text-sm text-gray-700 leading-relaxed">{week.description}</p>
+          )}
           {week.tasks.length > 0 && (
-            <div className="mb-2 pb-2 border-b border-gray-100 space-y-0.5">
-              {week.tasks.map((task, i) => (
-                <p key={i} className="text-[11px] text-gray-500 leading-relaxed">{renderInlineText(task)}</p>
-              ))}
+            <div className="bg-blue-50 rounded-lg p-3 border border-blue-100">
+              <p className="text-xs font-semibold text-blue-700 mb-2">Activities this week</p>
+              <div className="space-y-1">
+                {week.tasks.map((task, i) => (
+                  <p key={i} className="text-xs text-gray-700 leading-relaxed">• {task}</p>
+                ))}
+              </div>
             </div>
           )}
-          <div className="space-y-1 mt-1">
-            {[1,2,3,4,5,6,7].map(day => (
-              <label key={day} className="flex items-center gap-2 cursor-pointer group">
-                <div
-                  onClick={() => toggleDay(day)}
-                  className={`w-4 h-4 flex-shrink-0 rounded border transition-colors flex items-center justify-center ${checkedDays[day] ? 'bg-violet-600 border-violet-600' : 'border-gray-300 bg-white group-hover:border-violet-400'}`}
-                >
-                  {checkedDays[day] && <Check className="w-2.5 h-2.5 text-white" />}
-                </div>
-                <span className={`text-xs ${checkedDays[day] ? 'line-through text-gray-400' : 'text-gray-700'}`}>Day {day}</span>
-              </label>
-            ))}
-          </div>
         </div>
       )}
     </div>
@@ -697,7 +684,6 @@ function WeekDropdown({ week }) {
 
 function MonthDropdown({ month }) {
   const [open, setOpen] = React.useState(false);
-  const totalDays = month.weeks.length * 7;
   return (
     <div className="border border-violet-100 rounded-xl overflow-hidden mb-2 shadow-sm">
       <button
@@ -706,7 +692,7 @@ function MonthDropdown({ month }) {
       >
         <span className="font-semibold text-gray-800 text-sm">{month.title}</span>
         <div className="flex items-center gap-2">
-          <span className="text-[10px] text-gray-400">{month.weeks.length} weeks · {totalDays} days</span>
+          <span className="text-[10px] text-gray-400">{month.weeks.length} weeks</span>
           {open ? <ChevronUp className="w-4 h-4 text-violet-400 flex-shrink-0" /> : <ChevronDown className="w-4 h-4 text-violet-400 flex-shrink-0" />}
         </div>
       </button>
