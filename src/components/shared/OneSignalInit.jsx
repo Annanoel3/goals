@@ -42,7 +42,7 @@ function handleNotificationData(data, navigate) {
 
 async function handleButtonAction(actionId, data) {
   try {
-    await base44.functions.invoke('getSpotifyAccessToken', {
+    await base44.functions.invoke('notificationButtonAction', {
       button_id: actionId,
       step_id: data.step_id,
       goal_id: data.goal_id,
