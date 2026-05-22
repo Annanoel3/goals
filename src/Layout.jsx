@@ -507,6 +507,13 @@ export default function Layout({ children, currentPageName }) {
     try {
       const currentUser = await base44.auth.me();
       setUser(currentUser);
+      // Sync theme from user profile to localStorage so Layout picks it up
+      if (currentUser?.theme) {
+        localStorage.setItem('adhd_theme', currentUser.theme);
+      }
+      if (currentUser?.special_mode) {
+        localStorage.setItem('special_mode', currentUser.special_mode);
+      }
       setAuthCheckComplete(true);
     } catch (error) {
       console.error("Error checking user status:", error);
