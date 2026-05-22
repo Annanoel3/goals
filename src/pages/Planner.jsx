@@ -547,9 +547,10 @@ function renderInlineText(text) {
 }
 
 // Parse plan text into Month > Week > Tasks hierarchy
-function parsePlanHierarchy(text) {
+function parsePlanHierarchy(text, existingMonths = []) {
   const lines = text.split('\n').map(l => l.trim()).filter(l => l);
-  const months = [];
+  // Seed with existing months (deep copy to avoid mutation)
+  const months = existingMonths.map(m => ({ ...m, weeks: (m.weeks || []).map(w => ({ ...w })) }));
   let currentMonth = null;
   let currentWeek = null;
   let preamble = [];
