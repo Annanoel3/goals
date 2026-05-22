@@ -353,7 +353,7 @@ export default function Planner() {
         ) : (
           <>
             {messages.map((msg, i) => (
-              <MessageBubble key={i} msg={msg} />
+              <MessageBubble key={i} msg={msg} existingMonths={editingGoal ? (editingGoal.plan_data?.months || []) : []} />
             ))}
             {isLoading && (
         <div className="flex justify-center py-4">
@@ -766,8 +766,8 @@ function MonthDropdown({ month }) {
   );
 }
 
-function PlanView({ text }) {
-  const { months, preamble } = parsePlanHierarchy(text);
+function PlanView({ text, existingMonths = [] }) {
+  const { months, preamble } = parsePlanHierarchy(text, existingMonths);
   return (
     <div>
       {preamble && (
@@ -782,7 +782,7 @@ function PlanView({ text }) {
   );
 }
 
-function MessageBubble({ msg }) {
+function MessageBubble({ msg, existingMonths = [] }) {
   const isUser = msg.role === "user";
   const isDark = localStorage.getItem('adhd_theme') === 'dark';
 
@@ -804,7 +804,7 @@ function MessageBubble({ msg }) {
       }`}>
         {isUser ? renderInlineText(msg.content) : (
           isPlanMessage(msg.content) ? (
-            <PlanView text={msg.content} />
+            <PlanView text={msg.content} existingMonths={existingMonths} />
           ) : (
             <span className="whitespace-pre-wrap">{renderInlineText(msg.content)}</span>
           )
