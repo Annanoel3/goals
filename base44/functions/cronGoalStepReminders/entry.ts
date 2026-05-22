@@ -1,9 +1,4 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
-import OpenAI from 'npm:openai';
-
-const openai = new OpenAI({
-  apiKey: Deno.env.get("OPENAI_API_KEY"),
-});
 
 const ONESIGNAL_APP_ID = Deno.env.get("ONESIGNAL_APP_ID");
 const ONESIGNAL_REST_API_KEY = Deno.env.get("ONESIGNAL_REST_API_KEY");
@@ -12,110 +7,76 @@ Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
 
-    // Get all overdue steps
     const now = new Date();
     const steps = await base44.asServiceRole.entities.GoalStep.list();
-    
+
+    // Find overdue steps that have no pending notification IDs
     const overdueSteps = steps.filter(step => {
-      return step.due_date && 
-             new Date(step.due_date) < now && 
-             step.status !== 'completed' && 
-             step.status !== 'skipped';
+      return step.due_date &&
+             new Date(step.due_date) < now &&
+             step.status !== 'completed' &&
+             step.status !== 'skipped' &&
+             !(step.onesignal_notification_ids?.length > 0);
     });
 
     const results = [];
 
     for (const step of overdueSteps) {
-      // Check if already notified recently
-      const lastNotification = step.onesignal_notification_ids?.[step.onesignal_notification_ids.length - 1];
-      if (lastNotification) {
-        continue; // Already has pending notification
-      }
-
-      // Get parent goal for context
-      const goal = await base44.asServiceRole.entities.Goal.get(step.goal_id);
+      const goalResults = await base44.asServiceRole.entities.Goal.filter({ id: step.goal_id });
+      const goal = goalResults[0];
       if (!goal) continue;
 
-      // Use LLM to determine task complexity
-      const complexityResponse = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content: "Analyze if this task is quick/small (< 1 hour) or big/multi-day (> 1 hour). Respond with only 'quick' or 'big'."
-          },
-          {
-            role: "user",
-            content: `Task: ${step.title}\nDescription: ${step.description || ''}\nGoal: ${goal.title}`
-          }
+      // Look up user by email (created_by stores email)
+      const users = await base44.asServiceRole.entities.User.filter({ email: goal.created_by });
+      const user = users[0];
+      if (!user) continue;
+
+      // Use external user ID (email) for targeting
+      const externalId = user.email;
+
+      const payload = {
+        app_id: ONESIGNAL_APP_ID,
+        include_external_user_ids: [externalId],
+        channel_for_external_user_ids: 'push',
+        headings: { en: `${step.title} is overdue` },
+        contents: { en: `You have a step overdue in "${goal.title}". Tap to reschedule or mark complete.` },
+        data: {
+          screen: 'GoalStepNotification',
+          action: 'goal_step_followup',
+          step_id: step.id,
+          goal_id: goal.id,
+        },
+        buttons: [
+          { id: 'complete', text: "✅ I've done this" },
+          { id: 'remind_later', text: "⏰ Remind in 3h" }
         ]
+      };
+
+      const response = await fetch('https://onesignal.com/api/v1/notifications', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json; charset=utf-8',
+          'Authorization': `Basic ${ONESIGNAL_REST_API_KEY}`
+        },
+        body: JSON.stringify(payload)
       });
 
-      const complexity = complexityResponse.choices[0].message.content.toLowerCase().includes('big') ? 'big' : 'quick';
-      
-      // Calculate delay: 1 day for big tasks, 1 hour for quick tasks
-      const delayMs = complexity === 'big' ? 24 * 60 * 60 * 1000 : 60 * 60 * 1000;
-      const dueDate = new Date(step.due_date);
-      const notificationTime = new Date(dueDate.getTime() + delayMs);
+      const notificationData = await response.json();
+      // OneSignal returns { id: "..." } on success
+      const notificationId = notificationData.id;
 
-      // Only send if we're past the notification time
-      if (now >= notificationTime) {
-        // Get user email from goal
-        const user = await base44.asServiceRole.entities.User.get(goal.created_by);
-        if (!user) continue;
-
-        // Schedule OneSignal notification with action buttons
-        const payload = {
-          include_external_user_ids: [user.email],
-          headings: { en: `${step.title} is overdue` },
-          contents: { en: `You have a step overdue in "${goal.title}". Tap to reschedule or mark complete.` },
-          data: {
-            step_id: step.id,
-            goal_id: goal.id,
-            action: 'step_overdue'
-          },
-          buttons: [
-            {
-              id: "done",
-              text: "I've done this"
-            },
-            {
-              id: "remind_later",
-              text: "I need more time"
-            }
-          ]
-        };
-
-        const response = await fetch('https://onesignal.com/api/v1/notifications', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json; charset=utf-8',
-            'Authorization': `Basic ${ONESIGNAL_REST_API_KEY}`
-          },
-          body: JSON.stringify(payload)
+      if (notificationId) {
+        await base44.asServiceRole.entities.GoalStep.update(step.id, {
+          onesignal_notification_ids: [notificationId]
         });
-
-        if (response.ok) {
-          const notificationData = await response.json();
-          const notificationId = notificationData.body?.notification_id;
-
-          // Store notification ID
-          if (notificationId) {
-            const ids = step.onesignal_notification_ids || [];
-            await base44.asServiceRole.entities.GoalStep.update(step.id, {
-              onesignal_notification_ids: [...ids, notificationId]
-            });
-          }
-
-          results.push({ step_id: step.id, notified: true, complexity });
-        }
+        results.push({ step_id: step.id, notified: true });
       }
     }
 
-    return Response.json({ 
-      success: true, 
+    return Response.json({
+      success: true,
       processed: results.length,
-      results 
+      results
     });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });

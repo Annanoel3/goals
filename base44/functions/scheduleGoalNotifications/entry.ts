@@ -48,8 +48,9 @@ Deno.serve(async (req) => {
     const { goal_id } = body;
     if (!goal_id) return Response.json({ error: 'Missing goal_id' }, { status: 400 });
 
-    const goal = await base44.entities.Goal.get(goal_id);
-    if (!goal) return Response.json({ error: 'Goal not found' }, { status: 404 });
+    const goalResults = await base44.entities.Goal.filter({ id: goal_id });
+    const goal = goalResults[0];
+    if (!goal) return Response.json({ error: 'Entity Goal with ID ' + goal_id + ' not found' }, { status: 404 });
 
     const steps = await base44.entities.GoalStep.filter({ goal_id });
     const externalId = user.email;

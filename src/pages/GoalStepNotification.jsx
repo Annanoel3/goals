@@ -33,9 +33,11 @@ export default function GoalStepNotification() {
 
     const allSteps = await base44.entities.GoalStep.filter({ goal_id: goalId });
 
-    if (action === 'goal_step' || action === 'goal_step_followup') {
-      const step = allSteps.find(s => s.id === stepId);
-      setData({ type: 'step', goal, step, isFollowUp: action === 'goal_step_followup' });
+    if (action === 'goal_step' || action === 'goal_step_followup' || action === 'goal_step_due' || action === 'goal_step_tomorrow' || action === 'habit_checkin' || action === 'inactivity_nudge' || action === 'week_stats' || action === 'month_stats') {
+      const step = stepId ? allSteps.find(s => s.id === stepId) : null;
+      const isFollowUp = action === 'goal_step_followup' || action === 'goal_step_tomorrow';
+      const isHabit = action === 'habit_checkin';
+      setData({ type: 'step', goal, step, isFollowUp, isHabit });
     } else if (action === 'goal_week') {
       const weekSteps = allSteps.filter(s =>
         s.phase && weekLabel && s.phase.toLowerCase().includes(weekLabel.toLowerCase().replace(', week', ' week').replace(',', '').trim().toLowerCase())
@@ -94,6 +96,13 @@ export default function GoalStepNotification() {
         </div>
 
         {/* STEP view */}
+        {data.type === 'step' && !data.step && (
+          <div className={`rounded-2xl p-5 mb-4 text-center ${isDark ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-violet-100 shadow-sm'}`}>
+            <p className={`text-base font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-800'}`}>Keep up the momentum! 💪</p>
+            <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Check in on your goal and keep making progress.</p>
+          </div>
+        )}
+
         {data.type === 'step' && data.step && (
           <div className={`rounded-2xl p-5 mb-4 ${isDark ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-violet-100 shadow-sm'}`}>
             {data.isFollowUp && (

@@ -42,7 +42,13 @@ Deno.serve(async (req) => {
     const dayOfMonth = todayUTC.getDate();
 
     const isMonday = dayOfWeek === 1;
+    const isSunday = dayOfWeek === 0;
     const isFirstOfMonth = dayOfMonth === 1;
+
+    // Check if last day of month
+    const nextDay = new Date(todayUTC);
+    nextDay.setDate(todayUTC.getDate() + 1);
+    const isLastOfMonth = nextDay.getDate() === 1;
 
     // Pre-load all users once
     const allUsers = await base44.asServiceRole.entities.User.list();
@@ -50,7 +56,14 @@ Deno.serve(async (req) => {
     for (const u of allUsers) userByEmail[u.email] = u;
 
     const goals = await base44.asServiceRole.entities.Goal.list();
-    const results = { month_notifs: 0, week_notifs: 0, step_notifs: 0, followup_day1: 0, followup_day3: 0, engagement_notifs: 0 };
+    const results = {
+      month_notifs: 0, week_notifs: 0, step_notifs: 0,
+      followup_day1: 0, followup_day3: 0, engagement_notifs: 0,
+      week_stats_notifs: 0, month_stats_notifs: 0, inactivity_notifs: 0
+    };
+
+    // Group goals by user for inactivity check
+    const goalsByUser = {};
 
     for (const goal of goals) {
       if (goal.status !== 'active') continue;
@@ -58,6 +71,10 @@ Deno.serve(async (req) => {
       const user = userByEmail[goal.created_by];
       if (!user) continue;
       const externalId = user.email;
+
+      // Group for inactivity check later
+      if (!goalsByUser[externalId]) goalsByUser[externalId] = [];
+      goalsByUser[externalId].push(goal);
 
       // Get all steps for this goal
       const steps = await base44.asServiceRole.entities.GoalStep.filter({ goal_id: goal.id });
@@ -174,11 +191,9 @@ Deno.serve(async (req) => {
         results.followup_day3++;
       }
 
-      // ── 6. 2-WEEK ENGAGEMENT CHECK: if many steps missed in last 14 days ─────
-      // Only fire on Mondays to avoid spam
+      // ── 6. 2-WEEK ENGAGEMENT CHECK: Monday only ───────────────────────────────
       if (isMonday) {
         const fourteenDaysAgoStr = daysAgo(todayStr, 14);
-        // Count steps that were due in the last 14 days but not completed
         const recentDueSteps = steps.filter(s =>
           s.due_date >= fourteenDaysAgoStr &&
           s.due_date < todayStr
@@ -186,7 +201,6 @@ Deno.serve(async (req) => {
         const completedRecently = recentDueSteps.filter(s => s.status === 'completed' || s.status === 'skipped').length;
         const totalRecentDue = recentDueSteps.length;
 
-        // Only nudge if there were steps due AND fewer than 30% were completed
         if (totalRecentDue >= 3 && completedRecently / totalRecentDue < 0.3) {
           await sendPush({
             externalId,
@@ -196,83 +210,82 @@ Deno.serve(async (req) => {
               screen: 'GoalStepNotification',
               action: 'goal_plan_nudge',
               goal_id: goal.id,
-              // nudge_message will be shown as a pre-filled AI message in the Planner
               nudge_message: `I noticed you've had a challenging couple of weeks with "${goal.title}" — only ${completedRecently} of ${totalRecentDue} recent steps completed. No judgment at all — life gets busy. I have a few ideas:\n\n1. **Lighten the load** — reduce the number of weekly steps so it feels manageable\n2. **Extend the timeline** — spread things out so you're not racing against deadlines\n3. **Simplify the steps** — break them into smaller, more bite-sized actions\n4. **Swap out steps that aren't working** for ones that better fit your current life\n\nWhat feels right? Or tell me what's been getting in the way — I'll reshape the plan around that.`
             }
           });
           results.engagement_notifs++;
         }
       }
-    // ── 7. END-OF-WEEK STATS: Sunday → how did this week go? ─────────────────
-    if (dayOfWeek === 0) {
-      for (const goal of userGoals) {
+
+      // ── 7. END-OF-WEEK STATS: Sunday ─────────────────────────────────────────
+      if (isSunday) {
         const weekStart = new Date(todayUTC);
         weekStart.setDate(todayUTC.getDate() - 6);
         const weekStartStr = weekStart.toISOString().split('T')[0];
-        const allSteps = goalStepsMap[goal.id] || [];
-        const dueThisWeek = allSteps.filter(s => s.due_date >= weekStartStr && s.due_date <= todayStr);
+        const dueThisWeek = steps.filter(s => s.due_date >= weekStartStr && s.due_date <= todayStr);
         const completedThisWeek = dueThisWeek.filter(s => s.status === 'completed');
-        if (dueThisWeek.length === 0) continue;
-        const pct = Math.round((completedThisWeek.length / dueThisWeek.length) * 100);
-        const emoji = pct >= 80 ? '🌟' : pct >= 50 ? '💪' : '🔄';
-        const msg = pct >= 80 ? 'Incredible week!' : pct >= 50 ? 'Good progress — keep going!' : 'Next week is a fresh start.';
-        await sendPush({
-          externalId,
-          title: `Week wrap-up ${emoji}`,
-          body: `You finished ${completedThisWeek.length}/${dueThisWeek.length} steps on "${goal.title}" this week (${pct}%). ${msg}`,
-          data: { screen: 'GoalStepNotification', action: 'week_stats', goal_id: goal.id },
-        });
-        results.week_stats_notifs = (results.week_stats_notifs || 0) + 1;
+        if (dueThisWeek.length > 0) {
+          const pct = Math.round((completedThisWeek.length / dueThisWeek.length) * 100);
+          const emoji = pct >= 80 ? '🌟' : pct >= 50 ? '💪' : '🔄';
+          const msg = pct >= 80 ? 'Incredible week!' : pct >= 50 ? 'Good progress — keep going!' : 'Next week is a fresh start.';
+          await sendPush({
+            externalId,
+            title: `Week wrap-up ${emoji}`,
+            body: `You finished ${completedThisWeek.length}/${dueThisWeek.length} steps on "${goal.title}" this week (${pct}%). ${msg}`,
+            data: { screen: 'GoalStepNotification', action: 'goal_step', goal_id: goal.id },
+          });
+          results.week_stats_notifs++;
+        }
       }
-    }
 
-    // ── 8. END-OF-MONTH STATS: last day of month → monthly recap ─────────────
-    const nextDay = new Date(todayUTC);
-    nextDay.setDate(todayUTC.getDate() + 1);
-    const isLastOfMonth = nextDay.getDate() === 1;
-    if (isLastOfMonth) {
-      for (const goal of userGoals) {
+      // ── 8. END-OF-MONTH STATS ─────────────────────────────────────────────────
+      if (isLastOfMonth) {
         const monthStart = `${todayStr.slice(0, 7)}-01`;
-        const allSteps = goalStepsMap[goal.id] || [];
-        const dueThisMonth = allSteps.filter(s => s.due_date >= monthStart && s.due_date <= todayStr);
+        const dueThisMonth = steps.filter(s => s.due_date >= monthStart && s.due_date <= todayStr);
         const completedThisMonth = dueThisMonth.filter(s => s.status === 'completed');
-        if (dueThisMonth.length === 0) continue;
-        const pct = Math.round((completedThisMonth.length / dueThisMonth.length) * 100);
-        const emoji = pct >= 80 ? '🏆' : pct >= 50 ? '📈' : '💡';
-        const msg = pct >= 80 ? "You crushed it!" : pct >= 50 ? "Solid month — let's build on it!" : "New month, fresh energy — you've got this!";
-        await sendPush({
-          externalId,
-          title: `Month complete! ${emoji}`,
-          body: `This month on "${goal.title}": ${completedThisMonth.length}/${dueThisMonth.length} steps (${pct}%). ${msg}`,
-          data: { screen: 'GoalStepNotification', action: 'month_stats', goal_id: goal.id },
-        });
-        results.month_stats_notifs = (results.month_stats_notifs || 0) + 1;
+        if (dueThisMonth.length > 0) {
+          const pct = Math.round((completedThisMonth.length / dueThisMonth.length) * 100);
+          const emoji = pct >= 80 ? '🏆' : pct >= 50 ? '📈' : '💡';
+          const msg = pct >= 80 ? "You crushed it!" : pct >= 50 ? "Solid month — let's build on it!" : "New month, fresh energy — you've got this!";
+          await sendPush({
+            externalId,
+            title: `Month complete! ${emoji}`,
+            body: `This month on "${goal.title}": ${completedThisMonth.length}/${dueThisMonth.length} steps (${pct}%). ${msg}`,
+            data: { screen: 'GoalStepNotification', action: 'goal_step', goal_id: goal.id },
+          });
+          results.month_stats_notifs++;
+        }
       }
     }
 
-    // ── 9. 1-WEEK INACTIVITY: no goal activity in 7 days → offer to shift ────
-    const sevenDaysAgo = daysAgo(todayStr, 7);
-    const allUserSteps = userGoals.flatMap(g => goalStepsMap[g.id] || []);
-    const hadRecentActivity = allUserSteps.some(s =>
-      (s.status === 'completed' && s.completed_at && s.completed_at.split('T')[0] >= sevenDaysAgo) ||
-      (s.updated_at && s.updated_at.split('T')[0] >= sevenDaysAgo && s.status !== 'pending')
-    );
-    if (!hadRecentActivity && allUserSteps.length > 0 && userGoals.length > 0) {
-      const goal = userGoals[0];
-      const nextPending = (goalStepsMap[goal.id] || []).find(s => s.status === 'pending');
-      await sendPush({
-        externalId,
-        title: `Your goal misses you 💙`,
-        body: `It's been a week since any activity on "${goal.title}". ${nextPending ? `"${nextPending.title}" is still waiting. ` : ''}Want to shift your plan forward a week and start fresh?`,
-        data: { screen: 'GoalStepNotification', action: 'inactivity_nudge', goal_id: goal.id, can_shift_week: true },
-        buttons: [
-          { id: 'shift_week', text: '📅 Shift plan +1 week' },
-          { id: 'remind_later', text: '⏰ Remind tomorrow' },
-        ],
-      });
-      results.inactivity_notifs = (results.inactivity_notifs || 0) + 1;
-    }
-
+    // ── 9. PER-USER INACTIVITY CHECK (7 days no activity) ─────────────────────
+    for (const [externalId, userGoals] of Object.entries(goalsByUser)) {
+      const sevenDaysAgo = daysAgo(todayStr, 7);
+      // Load all steps for this user's goals
+      let allUserSteps = [];
+      for (const g of userGoals) {
+        const s = await base44.asServiceRole.entities.GoalStep.filter({ goal_id: g.id });
+        allUserSteps = allUserSteps.concat(s);
+      }
+      const hadRecentActivity = allUserSteps.some(s =>
+        (s.status === 'completed' && s.completed_at && s.completed_at.split('T')[0] >= sevenDaysAgo) ||
+        (s.updated_date && s.updated_date.split('T')[0] >= sevenDaysAgo && s.status !== 'pending')
+      );
+      if (!hadRecentActivity && allUserSteps.length > 0) {
+        const goal = userGoals[0];
+        const nextPending = allUserSteps.find(s => s.status === 'pending' && s.goal_id === goal.id);
+        await sendPush({
+          externalId,
+          title: `Your goal misses you 💙`,
+          body: `It's been a week since any activity on "${goal.title}". ${nextPending ? `"${nextPending.title}" is still waiting. ` : ''}Want to shift your plan forward a week and start fresh?`,
+          data: { screen: 'GoalStepNotification', action: 'inactivity_nudge', goal_id: goal.id, can_shift_week: true },
+          buttons: [
+            { id: 'shift_week', text: '📅 Shift plan +1 week' },
+            { id: 'remind_later', text: '⏰ Remind tomorrow' },
+          ],
+        });
+        results.inactivity_notifs++;
+      }
     }
 
     return Response.json({ success: true, date: todayStr, ...results });
