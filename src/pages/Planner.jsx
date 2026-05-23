@@ -66,7 +66,17 @@ export default function Planner() {
     setEditingGoal(goal);
     setMessages([{
       role: "assistant",
-      content: `I'm ready to help you update your goal: **"${goal.title}"**\n\nWhat changes would you like to make? You can:\n• Add new milestones or steps\n• Extend or adjust the timeline\n• Change priorities\n• Add a whole new phase\n• Anything else — just tell me!`
+      content: `I'm ready to help you update **"${goal.title}"**. What would you like to change?`,
+      editExamples: [
+        "Extend the timeline by 2 months",
+        "Make the steps easier and more manageable",
+        "I've been slacking — help me get back on track",
+        "Add a new phase focused on accountability",
+        "Remove Month 3 and compress the rest",
+        "Change my goal's focus to be more practical",
+        "I finished early — what should I do next?",
+        "The deadlines feel too tight, can you loosen them?",
+      ]
     }]);
     setPendingAction(null);
     setSaved(false);
@@ -353,7 +363,7 @@ export default function Planner() {
         ) : (
           <>
             {messages.map((msg, i) => (
-              <MessageBubble key={i} msg={msg} />
+              <MessageBubble key={i} msg={msg} onExampleClick={i === 0 ? sendMessage : null} />
             ))}
             {isLoading && (
         <div className="flex justify-center py-4">
@@ -781,7 +791,7 @@ function PlanView({ text }) {
   );
 }
 
-function MessageBubble({ msg }) {
+function MessageBubble({ msg, onExampleClick }) {
   const isUser = msg.role === "user";
   const isDark = localStorage.getItem('adhd_theme') === 'dark';
 
@@ -790,25 +800,45 @@ function MessageBubble({ msg }) {
   };
 
   return (
-    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
-      {!isUser && (
-        <div className={`w-7 h-7 rounded-full flex items-center justify-center mr-2 flex-shrink-0 mt-1 shadow-sm ${isDark ? 'bg-violet-700' : 'bg-gradient-to-br from-violet-500 to-indigo-600'}`}>
-          <Sparkles className="w-3.5 h-3.5 text-white" />
+    <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'}`}>
+      <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} w-full`}>
+        {!isUser && (
+          <div className={`w-7 h-7 rounded-full flex items-center justify-center mr-2 flex-shrink-0 mt-1 shadow-sm ${isDark ? 'bg-violet-700' : 'bg-gradient-to-br from-violet-500 to-indigo-600'}`}>
+            <Sparkles className="w-3.5 h-3.5 text-white" />
+          </div>
+        )}
+        <div className={`max-w-[88%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
+          isUser
+            ? isDark ? 'bg-violet-700 text-white rounded-br-sm shadow-md shadow-violet-900/30' : 'bg-gradient-to-br from-violet-600 to-indigo-600 text-white rounded-br-sm shadow-md shadow-violet-100'
+            : isDark ? 'bg-gray-800 border border-gray-700 text-gray-100 rounded-bl-sm shadow-sm' : 'bg-white border border-gray-100 text-gray-800 rounded-bl-sm shadow-sm'
+        }`}>
+          {isUser ? renderInlineText(msg.content) : (
+            isPlanMessage(msg.content) ? (
+              <PlanView text={msg.content} />
+            ) : (
+              <span className="whitespace-pre-wrap">{renderInlineText(msg.content)}</span>
+            )
+          )}
+        </div>
+      </div>
+      {/* Edit example chips — only on first assistant message when editing */}
+      {!isUser && msg.editExamples && onExampleClick && (
+        <div className="ml-9 mt-2 flex flex-wrap gap-2 max-w-[88%]">
+          {msg.editExamples.map((ex) => (
+            <button
+              key={ex}
+              onClick={() => onExampleClick(ex)}
+              className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
+                isDark
+                  ? 'bg-gray-800 border-gray-600 text-gray-300 hover:border-violet-500 hover:text-violet-300 hover:bg-gray-700'
+                  : 'bg-white border-gray-200 text-gray-600 hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700'
+              }`}
+            >
+              {ex}
+            </button>
+          ))}
         </div>
       )}
-      <div className={`max-w-[88%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
-        isUser
-          ? isDark ? 'bg-violet-700 text-white rounded-br-sm shadow-md shadow-violet-900/30' : 'bg-gradient-to-br from-violet-600 to-indigo-600 text-white rounded-br-sm shadow-md shadow-violet-100'
-          : isDark ? 'bg-gray-800 border border-gray-700 text-gray-100 rounded-bl-sm shadow-sm' : 'bg-white border border-gray-100 text-gray-800 rounded-bl-sm shadow-sm'
-      }`}>
-        {isUser ? renderInlineText(msg.content) : (
-          isPlanMessage(msg.content) ? (
-            <PlanView text={msg.content} />
-          ) : (
-            <span className="whitespace-pre-wrap">{renderInlineText(msg.content)}</span>
-          )
-        )}
-      </div>
     </div>
   );
 }
