@@ -88,6 +88,14 @@
       },
       "description": "The planning conversation history",
       "default": []
+    },
+    "onesignal_notification_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Scheduled OneSignal notification IDs for goal-level notifications (monthly summaries, etc.)",
+      "default": []
     }
   },
   "required": [

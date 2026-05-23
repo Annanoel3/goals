@@ -267,15 +267,15 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Cancel existing goal-level notifications before rescheduling
+    const existingGoalNotifIds = goal.onesignal_notification_ids || [];
+    for (const nid of existingGoalNotifIds) {
+      await cancelNotification(nid);
+      cancelled++;
+    }
+
     // Schedule monthly summaries for the goal
-    let monthStart = new Date(goal.target_date ? new Date(goal.target_date) : now);
-    monthStart.setUTCDate(1);
-    monthStart.setUTCHours(9, 0, 0, 0); // 9 AM on first day of month
-
-    let monthEnd = new Date(goal.target_date ? new Date(goal.target_date) : now);
-    monthEnd.setUTCDate(25); // ~end of month
-    monthEnd.setUTCHours(19, 0, 0, 0); // 7 PM
-
+    const goalNotifIds = [];
     const goalStart = new Date(goal.created_date || now);
     let curMonth = new Date(goalStart);
     let monthNum = 1;
@@ -297,7 +297,7 @@ Deno.serve(async (req) => {
           },
           sendAt: mStart.toISOString(),
         });
-        if (nid) scheduled++;
+        if (nid) { goalNotifIds.push(nid); scheduled++; }
       }
 
       // Month end: last day at 7 PM
@@ -317,12 +317,17 @@ Deno.serve(async (req) => {
           },
           sendAt: mEnd.toISOString(),
         });
-        if (nid) scheduled++;
+        if (nid) { goalNotifIds.push(nid); scheduled++; }
       }
 
       curMonth.setUTCMonth(curMonth.getUTCMonth() + 1);
       monthNum++;
     }
+
+    // Save goal-level notification IDs back to the goal
+    await base44.entities.Goal.update(goal.id, {
+      onesignal_notification_ids: goalNotifIds,
+    });
 
     return Response.json({ ok: true, scheduled, cancelled, steps_processed: steps.length });
   } catch (err) {

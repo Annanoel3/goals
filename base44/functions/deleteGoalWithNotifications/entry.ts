@@ -22,10 +22,22 @@ Deno.serve(async (req) => {
     const { goal_id } = body;
     if (!goal_id) return Response.json({ error: 'Missing goal_id' }, { status: 400 });
 
-    // Get all steps for this goal
+    // Get the goal and all its steps
+    const goalResults = await base44.asServiceRole.entities.Goal.filter({ id: goal_id });
+    const goal = goalResults[0];
+
     const steps = await base44.entities.GoalStep.filter({ goal_id });
     
     let cancelled = 0;
+
+    // Cancel goal-level notifications (monthly summaries, etc.)
+    if (goal) {
+      const goalNotifIds = goal.onesignal_notification_ids || [];
+      for (const nid of goalNotifIds) {
+        await cancelNotification(nid);
+        cancelled++;
+      }
+    }
 
     // Cancel all OneSignal notifications for all steps
     for (const step of steps) {
@@ -40,6 +52,11 @@ Deno.serve(async (req) => {
         await cancelNotification(step.habit_notification_id);
         cancelled++;
       }
+    }
+
+    // Delete all steps first, then the goal
+    for (const step of steps) {
+      await base44.entities.GoalStep.delete(step.id);
     }
 
     // Delete the goal
