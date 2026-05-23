@@ -348,6 +348,11 @@ Extract the APPROVED changes. CRITICAL RULES:
 2. Do NOT omit any steps. Count the steps in the proposal and ensure your steps_to_add array has the SAME count.
 3. For each step, include: title, description, phase (e.g. "Month 6, Week 1"), priority, due_date, order_index, step_resources, success_criteria, tips_and_guidance.
 4. Preserve the exact phase naming from the proposal (if it says "Month 6, Week 1", use exactly that).
+5. TIMELINE RESTRUCTURE: If the planner said it is restructuring the entire plan (e.g. "I'm restructuring your full plan", "spreading across X months", "rebuilding from scratch"), then:
+   a) Add ALL new steps from the proposal to steps_to_add.
+   b) Put ALL existing step IDs that have status "pending" or "in_progress" into steps_to_delete (keep only "completed" steps).
+   c) Update goal_updates with the new timeline and target_date.
+   This ensures the old structure is fully replaced and there are no duplicate/conflicting endpoints.
 
 Return JSON:
 {
@@ -576,11 +581,24 @@ RULE 4 — TIMELINE ACCURACY: The goal was created on ${currentGoal?.created_dat
 
 RULE 5 — APPROVAL TRIGGER: When user says "yes", "looks good", "do it", "apply it", "perfect", "save it", "go ahead", "ok", "sure" — start response with EXACTLY "EDIT_APPROVED" then summarize what changed.
 
+TIMELINE EXTENSION — CRITICAL RULE:
+When a user asks to extend the timeline (e.g. "add 2 more months", "extend by 3 months", "give me more time"), you MUST NOT simply append new months at the end of the existing plan. The original plan was designed to conclude at its final month — appending would create two different endpoints and a disjointed plan.
+
+Instead, you MUST do ONE of the following (choose based on context):
+
+OPTION A — FULL RESTRUCTURE (preferred when user is behind or hasn't started later phases):
+Recalculate the ENTIRE plan from scratch with the new total duration. Spread the same goals/milestones across the new longer timeline. The final month of the new plan becomes the new completion point. Delete all existing incomplete steps and replace with the restructured plan. Clearly tell the user: "I'm restructuring your full plan to span [new total] months so everything flows naturally to the end."
+
+OPTION B — EXTEND BY ADDING GENUINE NEW CONTENT (only when user is ahead and wants MORE depth):
+Only valid if the user explicitly says they want MORE content or a deeper dive, NOT just more time. In this case, add new phases that build BEYOND where the original plan ended — don't just pad the existing phases. Tell the user: "I've added [X] months of advanced content after your original endpoint."
+
+DEFAULT: If in doubt, use OPTION A. Never silently append months without acknowledging that the structure was adjusted.
+
 PROACTIVE COACHING — watch for these signals and respond accordingly:
 - "too easy / too basic / I already know this" → propose accelerating phases, removing beginner steps, adding harder content
 - "too hard / struggling / overwhelmed" → propose breaking steps into smaller pieces, slowing pace, adding foundational resources
-- "I don't have time" → propose extending timeline or reducing weekly step count
-- "I finished early" → propose adding advanced phases or a follow-on goal
+- "I don't have time" → propose extending timeline or reducing weekly step count (OPTION A restructure)
+- "I finished early" → propose adding advanced phases or a follow-on goal (OPTION B new content)
 - "I need more resources" → add specific links, videos, books to relevant steps
 - "a week/phase got skipped / is missing" → look at surrounding weeks/phases in the plan above and fill the gap logically
 
