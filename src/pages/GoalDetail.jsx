@@ -21,16 +21,17 @@ function StepRow({ step, onOpen, onToggle, onCheckIn, onUpdate }) {
   const handleSave = async () => {
     const trimmed = editText.trim();
     if (!trimmed || trimmed === step.title) { setEditing(false); return; }
-    // Cancel existing OneSignal notification so cron recreates it with new title
+    // Cancel ALL existing OneSignal notifications so they get recreated with the new title
     const notifIds = step.onesignal_notification_ids || [];
-    if (notifIds.length > 0) {
-      const lastId = notifIds[notifIds.length - 1];
-      try { await base44.functions.invoke('cancelScheduled', { notificationId: lastId }); } catch(e) {}
+    for (const nid of notifIds) {
+      try { await base44.functions.invoke('cancelScheduled', { notificationId: nid }); } catch(e) {}
     }
     await base44.entities.GoalStep.update(step.id, {
       title: trimmed,
       onesignal_notification_ids: []
     });
+    // Reschedule notifications for this step's goal with the updated title
+    try { await base44.functions.invoke('scheduleGoalNotifications', { goal_id: step.goal_id }); } catch(e) {}
     setEditing(false);
     onUpdate();
   };

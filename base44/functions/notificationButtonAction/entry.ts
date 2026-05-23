@@ -100,6 +100,20 @@ Deno.serve(async (req) => {
         });
         shifted++;
       }
+      // Also shift the goal's target_date by 1 week and reschedule all notifications
+      if (goalId) {
+        const goalArr = await base44.asServiceRole.entities.Goal.filter({ id: goalId });
+        const g = goalArr[0];
+        if (g?.target_date) {
+          const td = new Date(g.target_date + 'T00:00:00Z');
+          td.setDate(td.getDate() + 7);
+          await base44.asServiceRole.entities.Goal.update(goalId, {
+            target_date: td.toISOString().split('T')[0],
+          });
+        }
+        // Reschedule all OneSignal notifications with updated dates
+        await base44.asServiceRole.functions.invoke('scheduleGoalNotifications', { goal_id: goalId });
+      }
       result = { action: 'shift_week', steps_shifted: shifted };
 
     } else {
