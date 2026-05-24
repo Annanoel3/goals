@@ -6,7 +6,6 @@ import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { checkAndAwardAchievements } from "../utils/achievementTracker";
-import { awardPoints, getPointsForAction } from "../utils/gamification";
 import { base44 } from "@/api/base44Client";
 import { motion } from "framer-motion";
 import TaskCompletionCelebration from "../tasks/TaskCompletionCelebration";
@@ -72,15 +71,7 @@ export default function TodaysTasks({ tasks, theme, onTaskAction, onViewDetails 
       await onTaskAction(task);
       await updateTodaysSummary();
       
-      const points = task.urgency === 'urgent' 
-        ? getPointsForAction('urgent_task_completed')
-        : getPointsForAction('task_completed');
-      
       const hour = new Date().getHours();
-      const bonusPoints = hour < 9 ? getPointsForAction('early_morning_task') : 0;
-      
-      await awardPoints(points + bonusPoints);
-      
       const allTasks = await base44.entities.Task.list();
       const completedTasks = allTasks.filter(t => t.status === 'completed');
       const summaries = await base44.entities.DailySummary.list('-date', 1);
