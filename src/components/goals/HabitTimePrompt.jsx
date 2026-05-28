@@ -15,16 +15,12 @@ export default function HabitTimePrompt({ step, onScheduled }) {
     setLoading(true);
     try {
       const timezoneOffsetMinutes = new Date().getTimezoneOffset();
-      const res = await base44.functions.invoke("scheduleHabitNotification", {
+      await base44.functions.invoke("scheduleHabitNotification", {
         stepId: step.id,
         habitTime: time,
         timezoneOffsetMinutes
       });
-      if (res?.data?.warning) {
-        toast({ title: "⏰ Habit time saved!", description: `Reminder set for ${formatTime(time)}. Enable push notifications for daily nudges.` });
-      } else {
-        toast({ title: "🔔 Daily reminder set!", description: `You'll get a nudge every day at ${formatTime(time)}` });
-      }
+      toast({ title: "🔔 Daily reminder set!", description: `You'll get a nudge every day at ${formatTime(time)}` });
       if (onScheduled) onScheduled();
     } catch (err) {
       toast({ title: "Couldn't set reminder", description: err?.message || "Please try again.", variant: "destructive" });

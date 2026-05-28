@@ -74,9 +74,8 @@ Deno.serve(async (req) => {
     const { stepId, habitTime, timezoneOffsetMinutes } = await req.json();
     if (!stepId || !habitTime) return Response.json({ error: 'stepId and habitTime required' }, { status: 400 });
 
-    // Get step
-    const steps = await base44.entities.GoalStep.filter({ });
-    const step = steps.find(s => s.id === stepId);
+    // Get step directly by ID
+    const step = await base44.entities.GoalStep.get(stepId);
     if (!step) return Response.json({ error: 'Step not found' }, { status: 404 });
 
     // Cancel previous notification if any
@@ -97,23 +96,10 @@ Deno.serve(async (req) => {
     const appId = Deno.env.get("ONESIGNAL_APP_ID")?.trim();
     const restApiKey = Deno.env.get("ONESIGNAL_REST_API_KEY")?.trim();
 
-    // Get user's OneSignal player IDs
-    const users = await base44.asServiceRole.entities.User.filter({ email: user.email });
-    const targetUser = users[0];
-    const playerIds = targetUser?.onesignal_player_ids || [];
-
-    if (playerIds.length === 0) {
-      // Still save the habit time so the user sees it's set, even without push
-      await base44.entities.GoalStep.update(stepId, {
-        is_daily_habit: true,
-        habit_time: habitTime,
-      });
-      return Response.json({ success: true, notificationId: null, sendAt: null, warning: 'No push device registered — habit time saved without push notification' });
-    }
-
     const notificationPayload = {
       app_id: appId,
-      include_player_ids: playerIds,
+      include_aliases: { external_id: [user.email] },
+      target_channel: 'push',
       headings: { en: msg.title },
       contents: { en: msg.body },
       send_after: sendAt,
