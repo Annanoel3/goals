@@ -113,28 +113,36 @@ function getConsecutiveMissedDays(step) {
   return missedDays;
 }
 
-async function scheduleHabitNotificationForUser(base44, step, userEmail, timezoneOffset = 0) {
-  if (!step.habit_time || !step.is_daily_habit) return;
+async function scheduleHabitNotificationForUser(base44, step, userEmail, timezoneOffset = 0, goal = null) {
+   if (!step.habit_time || !step.is_daily_habit) return;
 
-  const today = new Date().toISOString().split('T')[0];
+   const today = new Date().toISOString().split('T')[0];
 
-  // 1. Schedule today's regular habit reminder
-  if (step.last_habit_notification_date !== today) {
-    // Cancel old notification if exists
-    if (step.habit_notification_id) {
-      try {
-        await fetch(`https://onesignal.com/api/v1/notifications/${step.habit_notification_id}?app_id=${ONESIGNAL_APP_ID}`, {
-          method: 'DELETE',
-          headers: { 'Authorization': `Basic ${ONESIGNAL_REST_API_KEY}` }
-        });
-      } catch (_) { /* best effort */ }
-    }
+   // 1. Schedule today's regular habit reminder
+   if (step.last_habit_notification_date !== today) {
+     // Cancel old notification if exists
+     if (step.habit_notification_id) {
+       try {
+         await fetch(`https://onesignal.com/api/v1/notifications/${step.habit_notification_id}?app_id=${ONESIGNAL_APP_ID}`, {
+           method: 'DELETE',
+           headers: { 'Authorization': `Basic ${ONESIGNAL_REST_API_KEY}` }
+         });
+       } catch (_) { /* best effort */ }
+     }
 
-    const sendAtDate = new Date();
-    const dayOfWeek = sendAtDate.getDay();
+     const sendAtDate = new Date();
+     const dayOfWeek = sendAtDate.getDay();
 
-    const msg = getMessageForHabit(step.title, step.description, dayOfWeek);
-    const sendAt = buildSendAtISO(step.habit_time, timezoneOffset);
+     // Get current month number (1-indexed) for month_titles lookup
+     const currentMonth = sendAtDate.getMonth() + 1;
+     const monthTitle = goal?.month_titles && goal.month_titles[currentMonth] 
+       ? goal.month_titles[currentMonth] 
+       : null;
+
+     // Use month-specific title if available, otherwise fall back to step description
+     const displayTitle = monthTitle || step.description || step.title;
+     const msg = getMessageForHabit(step.title, displayTitle, dayOfWeek);
+     const sendAt = buildSendAtISO(step.habit_time, timezoneOffset);
 
     const notificationPayload = {
       app_id: ONESIGNAL_APP_ID,
@@ -192,8 +200,14 @@ async function scheduleHabitNotificationForUser(base44, step, userEmail, timezon
       } catch (_) { /* best effort */ }
     }
 
-    const missedMsg = getMissedHabitMessage(step.title, step.description);
-    const sendAtMissed = buildMissedHabitSendAtISO(timezoneOffset);
+    const currentMonth = new Date().getMonth() + 1;
+     const monthTitle = goal?.month_titles && goal.month_titles[currentMonth] 
+       ? goal.month_titles[currentMonth] 
+       : null;
+     const displayTitle = monthTitle || step.description || step.title;
+
+     const missedMsg = getMissedHabitMessage(step.title, displayTitle);
+     const sendAtMissed = buildMissedHabitSendAtISO(timezoneOffset);
 
     const missedNotificationPayload = {
       app_id: ONESIGNAL_APP_ID,
@@ -237,7 +251,13 @@ async function scheduleHabitNotificationForUser(base44, step, userEmail, timezon
   const hasThreeDayNotificationToday = step.last_three_day_miss_notification_date === today;
 
   if (consecutiveMissed >= 3 && !hasThreeDayNotificationToday) {
-    const threeMsg = getThreeDayMissMessage(step.title, step.description);
+    const currentMonth = new Date().getMonth() + 1;
+    const monthTitle = goal?.month_titles && goal.month_titles[currentMonth] 
+      ? goal.month_titles[currentMonth] 
+      : null;
+    const displayTitle = monthTitle || step.description || step.title;
+
+    const threeMsg = getThreeDayMissMessage(step.title, displayTitle);
     const sendAtThree = buildMissedHabitSendAtISO(timezoneOffset);
 
     const threeNotificationPayload = {
@@ -286,22 +306,22 @@ Deno.serve(async (req) => {
     let scheduledCount = 0;
 
     for (const goal of allGoals) {
-      const steps = await base44.asServiceRole.entities.GoalStep.filter({ goal_id: goal.id });
-      const habitSteps = steps.filter(s => s.is_daily_habit && s.habit_time && s.status !== 'completed');
+       const steps = await base44.asServiceRole.entities.GoalStep.filter({ goal_id: goal.id });
+       const habitSteps = steps.filter(s => s.is_daily_habit && s.habit_time && s.status !== 'completed');
 
-      if (habitSteps.length > 0) {
-        const user = await base44.asServiceRole.entities.User.get(goal.created_by_id);
-        if (user) {
-          // Estimate timezone offset from user profile if available, default to 0 (UTC)
-          const timezoneOffset = user.timezone_offset || 0;
+       if (habitSteps.length > 0) {
+         const user = await base44.asServiceRole.entities.User.get(goal.created_by_id);
+         if (user) {
+           // Estimate timezone offset from user profile if available, default to 0 (UTC)
+           const timezoneOffset = user.timezone_offset || 0;
 
-          for (const step of habitSteps) {
-            await scheduleHabitNotificationForUser(base44, step, user.email, timezoneOffset);
-            scheduledCount++;
-          }
-        }
-      }
-    }
+           for (const step of habitSteps) {
+             await scheduleHabitNotificationForUser(base44, step, user.email, timezoneOffset, goal);
+             scheduledCount++;
+           }
+         }
+       }
+     }
 
     return Response.json({ ok: true, scheduled: scheduledCount });
   } catch (err) {
