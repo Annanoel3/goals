@@ -101,6 +101,11 @@
       },
       "description": "Scheduled OneSignal notification IDs for goal-level notifications (monthly summaries, etc.)",
       "default": []
+    },
+    "month_titles": {
+      "type": "object",
+      "description": "Map of month numbers to their descriptive titles (e.g. {1: 'Book Title', 2: 'Next Book Title'} for reading goals)",
+      "default": {}
     }
   },
   "required": [

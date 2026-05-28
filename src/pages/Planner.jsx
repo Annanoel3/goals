@@ -125,9 +125,9 @@ export default function Planner() {
       if (editingGoal) payload.goal_id = editingGoal.id;
 
       const res = await base44.functions.invoke("goalPlannerChat", payload);
-      const { message, action, goal_id } = res.data;
+      const { message, action, goal_id, month_titles } = res.data;
 
-      setMessages(prev => [...prev, { role: "assistant", content: message }]);
+      setMessages(prev => [...prev, { role: "assistant", content: message, goalMonthTitles: month_titles || {} }]);
 
       if (action === 'plan_proposed' || (action === 'chat' && message?.includes('Month 1') && (message?.includes('Month 2') || message?.includes('Week 1')))) {
         setPendingAction('plan_proposed');
@@ -206,8 +206,10 @@ export default function Planner() {
         category: plan.category || "personal",
         status: "active",
         preferred_time: plan.preferred_time || null,
+        notification_frequency: plan.notification_frequency || "daily",
         reminder_interval: plan.reminder_interval || "2hours",
-        conversation_history: allMessages
+        conversation_history: allMessages,
+        month_titles: plan.month_titles || {}
       });
 
       if (plan.steps?.length > 0) {
@@ -788,9 +790,14 @@ function WeekDropdown({ week }) {
 }
 
 
-function MonthDropdown({ month }) {
+function MonthDropdown({ month, goalMonthTitles = {} }) {
    const [open, setOpen] = React.useState(false);
    const isDark = localStorage.getItem('adhd_theme') === 'dark';
+   
+   // Extract month number from title (e.g., "Month 1" → 1)
+   const monthNum = month.title.match(/\d+/)?.[0];
+   const displayTitle = monthNum && goalMonthTitles[monthNum] ? goalMonthTitles[monthNum] : month.subtitle;
+   
    return (
      <div className={`border rounded-xl overflow-hidden mb-2 shadow-sm ${isDark ? 'border-gray-700' : 'border-violet-100'}`}>
        <button
@@ -799,8 +806,8 @@ function MonthDropdown({ month }) {
        >
          <div className="flex-1 min-w-0">
              <span className={`font-semibold text-sm ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{month.title}</span>
-             {month.subtitle && (
-               <span className={`block text-sm font-medium mt-1 ${isDark ? 'text-violet-400' : 'text-violet-600'}`}>{month.subtitle}</span>
+             {displayTitle && (
+               <span className={`block text-sm font-medium mt-1 ${isDark ? 'text-violet-400' : 'text-violet-600'}`}>{displayTitle}</span>
              )}
            </div>
         <div className="flex items-center gap-2 flex-shrink-0">
@@ -821,10 +828,10 @@ function MonthDropdown({ month }) {
   );
 }
 
-function PlanView({ text }) {
-  const isDark = localStorage.getItem('adhd_theme') === 'dark';
-  const [showMarkdown, setShowMarkdown] = React.useState(false);
-  const { months, preamble } = parsePlanHierarchy(text);
+function PlanView({ text, goalMonthTitles = {} }) {
+   const isDark = localStorage.getItem('adhd_theme') === 'dark';
+   const [showMarkdown, setShowMarkdown] = React.useState(false);
+   const { months, preamble } = parsePlanHierarchy(text);
   const cleanedPreamble = preamble ? renderPreamble(preamble) : '';
 
   if (showMarkdown) {
@@ -855,8 +862,8 @@ function PlanView({ text }) {
         <p className={`text-sm leading-relaxed mb-3 whitespace-pre-wrap ${isDark ? 'text-gray-300' : 'text-gray-800'}`}>{renderInlineText(cleanedPreamble)}</p>
       )}
       {months.length > 0 ? (
-        months.map((month, i) => <MonthDropdown key={i} month={month} />)
-      ) : (
+         months.map((month, i) => <MonthDropdown key={i} month={month} goalMonthTitles={goalMonthTitles} />)
+       ) : (
         <span className={`whitespace-pre-wrap text-sm ${isDark ? 'text-gray-300' : 'text-gray-800'}`}>{renderInlineText(text)}</span>
       )}
     </div>
@@ -886,7 +893,7 @@ function MessageBubble({ msg, onExampleClick }) {
         }`}>
           {isUser ? renderInlineText(msg.content) : (
             isPlanMessage(msg.content) ? (
-              <PlanView text={msg.content} />
+              <PlanView text={msg.content} goalMonthTitles={msg.goalMonthTitles || {}} />
             ) : (
               <span className="whitespace-pre-wrap">{renderInlineText(msg.content)}</span>
             )

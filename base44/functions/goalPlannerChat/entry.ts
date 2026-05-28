@@ -62,6 +62,11 @@ Return JSON (no markdown) in EXACTLY this structure. CRITICAL STRUCTURAL RULE FO
 - EVERY SINGLE MONTH must have EXACTLY 4 steps (Week 1, Week 2, Week 3, Week 4). phase='Month X'. title='Week N: focus'. 4 steps × 12 months = 48 total steps.
 - REQUIRED: phase must be 'Month X, Week Y' (e.g. 'Month 1, Week 1', 'Month 2, Week 3'). ALWAYS include both month AND week number in phase.
 - NEVER combine weeks or months: "Week 1-2", "Weeks 3-4", "Months 4-6" are STRICTLY FORBIDDEN. Each STEP = exactly ONE week. phase='Month X' (month only). title='Week N: brief focus'. Exactly 4 steps per month.
+
+MONTH TITLES (CRITICAL FOR ALL GOALS):
+EVERY month MUST have a descriptive title that reflects its milestones or theme. For a reading goal: book title. For fitness: training phase. For learning: skill phase. For business: growth stage.
+Format in output: "Month 1 – Book Title" or "Month 1 – Introduction Phase" (with em dash or hyphen).
+This applies to ALL goal types. Users should see meaningful milestone titles, not just "Month 1".
 - For goals under 1 month, just use "Week 1", "Week 2" phases directly.
 
 NOTIFICATION FREQUENCY DETECTION:
@@ -178,13 +183,27 @@ CRITICAL:
 
       const plan = JSON.parse(extractionResponse.choices[0].message.content);
 
-      // Ensure all steps have required fields
-      plan.steps = (plan.steps || []).map(step => ({
-        ...step,
-        step_resources: step.step_resources || [],
-        success_criteria: step.success_criteria || [],
-        tips_and_guidance: step.tips_and_guidance || ""
-      }));
+      // Ensure all steps have required fields + extract month titles
+       const monthTitles = {};
+       plan.steps = (plan.steps || []).map(step => {
+         // Store month title for later use
+         if (step.phase && step.month_title) {
+           const monthMatch = step.phase.match(/Month\s+(\d+)/i);
+           if (monthMatch) {
+             const monthNum = parseInt(monthMatch[1], 10);
+             if (!monthTitles[monthNum]) {
+               monthTitles[monthNum] = step.month_title;
+             }
+           }
+         }
+         return {
+           ...step,
+           step_resources: step.step_resources || [],
+           success_criteria: step.success_criteria || [],
+           tips_and_guidance: step.tips_and_guidance || ""
+         };
+       });
+       plan.month_titles = monthTitles;
 
       // VALIDATE: ensure no gaps in phases/timeline with week structure for 3+ month goals
       const validatePlanCompleteness = (p) => {
@@ -330,7 +349,7 @@ CRITICAL:
         plan.notification_frequency = 'daily';
       }
       
-      return Response.json({ plan });
+      return Response.json({ plan, month_titles: plan.month_titles || {} });
     }
 
     // ── APPLY EDIT: commit approved edits to an existing goal ─────────────────
@@ -799,19 +818,19 @@ Always be specific, warm, encouraging, and treat the plan as a living document t
     }
 
     // Parse response type
-    if (isEditSession && finalReply.includes('EDIT_APPROVED')) {
-      return Response.json({ message: finalReply.replace(/EDIT_APPROVED\s*/i, '').trim(), action: 'edit_approved', goal_id });
-    }
-    if (finalReply.includes('PLAN_APPROVED')) {
-      return Response.json({ message: finalReply.replace(/PLAN_APPROVED\s*/i, '').trim(), action: 'plan_proposed' });
-    }
-    const editMatch = finalReply.match(/EDIT_APPROVED:([^\s]+)/i);
-    if (editMatch) {
-      const editGoalId = editMatch[1];
-      return Response.json({ message: finalReply.replace(/EDIT_APPROVED:[^\s]+\s*/i, '').trim(), action: 'edit_approved', goal_id: editGoalId });
-    }
+     if (isEditSession && finalReply.includes('EDIT_APPROVED')) {
+       return Response.json({ message: finalReply.replace(/EDIT_APPROVED\s*/i, '').trim(), action: 'edit_approved', goal_id });
+     }
+     if (finalReply.includes('PLAN_APPROVED')) {
+       return Response.json({ message: finalReply.replace(/PLAN_APPROVED\s*/i, '').trim(), action: 'plan_proposed' });
+     }
+     const editMatch = finalReply.match(/EDIT_APPROVED:([^\s]+)/i);
+     if (editMatch) {
+       const editGoalId = editMatch[1];
+       return Response.json({ message: finalReply.replace(/EDIT_APPROVED:[^\s]+\s*/i, '').trim(), action: 'edit_approved', goal_id: editGoalId });
+     }
 
-    return Response.json({ message: finalReply, action: 'chat' });
+     return Response.json({ message: finalReply, action: 'chat', month_titles: {} });
 
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
