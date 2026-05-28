@@ -98,14 +98,20 @@ export default function UniversalVoiceAssistant({ theme, currentPageName }) {
     setIsProcessing(true);
     setProcessingMessage("🎤 Converting speech to text...");
     try {
-      const uploadResult = await base44.integrations.Core.UploadFile({ file: audioFile });
-      if (!uploadResult?.file_url) throw new Error('Failed to upload audio');
+      // Convert file to base64 for transcription
+      const buffer = await audioFile.arrayBuffer();
+      const uint8Array = new Uint8Array(buffer);
+      const binaryString = Array.from(uint8Array).map(b => String.fromCharCode(b)).join('');
+      const audio_base64 = btoa(binaryString);
 
       setProcessingMessage("⏳ Transcribing...");
-      const response = await base44.functions.invoke('transcribeAudio', { file_url: uploadResult.file_url });
-      if (response?.data?.success && response?.data?.transcription) {
+      const response = await base44.functions.invoke('transcribeAudioNew', { 
+        audio_base64, 
+        filename: audioFile.name 
+      });
+      if (response?.data?.text) {
         setProcessingMessage("🤔 Understanding your request...");
-        await processVoiceCommand(response.data.transcription);
+        await processVoiceCommand(response.data.text);
       } else {
         throw new Error('Transcription failed');
       }
