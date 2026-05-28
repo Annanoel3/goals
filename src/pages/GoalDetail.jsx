@@ -163,36 +163,39 @@ export default function GoalDetail() {
   const completedSteps = steps.filter(s => s.status === 'completed').length;
   const progress = steps.length > 0 ? Math.round((completedSteps / steps.length) * 100) : 0;
 
-  // Build month->week->steps hierarchy with titles extracted from first step description
-  const monthsMap = {}; // { "Month 1": { title: "...", "Week 1": { title: "...", steps: [...] }, ... } }
-  const monthTitles = {};
-  const weekTitles = {};
-  
-  steps.forEach(s => {
-    const phase = s.phase || 'Uncategorized';
-    const monthMatch = phase.match(/Month\s*(\d+)/i);
-    const weekMatch = phase.match(/Week\s*(\d+)/i);
-    const monthKey = monthMatch ? `Month ${parseInt(monthMatch[1], 10)}` : 'Uncategorized';
-    const weekKey = weekMatch ? `Week ${parseInt(weekMatch[1], 10)}` : null;
+  // Build month->week->steps hierarchy with titles from goal.month_titles
+   const monthsMap = {};
+   const weekTitles = {};
 
-    if (!monthsMap[monthKey]) monthsMap[monthKey] = {};
-    const bucket = weekKey || '_month';
-    if (!monthsMap[monthKey][bucket]) monthsMap[monthKey][bucket] = [];
-    monthsMap[monthKey][bucket].push(s);
-    
-    // Extract month title from first step with description in this month
-    if (!monthTitles[monthKey] && s.description && weekMatch === null) {
-      monthTitles[monthKey] = s.description.split('\n')[0].trim();
-    }
-    
-    // Extract week title from first step with description in this week
-    if (weekKey && !weekTitles[`${monthKey}-${weekKey}`] && s.description) {
-      const firstLine = s.description.split('\n')[0].trim();
-      if (firstLine && !/^week/i.test(firstLine)) {
-        weekTitles[`${monthKey}-${weekKey}`] = firstLine;
-      }
-    }
-  });
+   steps.forEach(s => {
+     const phase = s.phase || 'Uncategorized';
+     const monthMatch = phase.match(/Month\s*(\d+)/i);
+     const weekMatch = phase.match(/Week\s*(\d+)/i);
+     const monthKey = monthMatch ? `Month ${parseInt(monthMatch[1], 10)}` : 'Uncategorized';
+     const weekKey = weekMatch ? `Week ${parseInt(weekMatch[1], 10)}` : null;
+
+     if (!monthsMap[monthKey]) monthsMap[monthKey] = {};
+     const bucket = weekKey || '_month';
+     if (!monthsMap[monthKey][bucket]) monthsMap[monthKey][bucket] = [];
+     monthsMap[monthKey][bucket].push(s);
+
+     // Extract week title from first step with description in this week
+     if (weekKey && !weekTitles[`${monthKey}-${weekKey}`] && s.description) {
+       const firstLine = s.description.split('\n')[0].trim();
+       if (firstLine && !/^week/i.test(firstLine)) {
+         weekTitles[`${monthKey}-${weekKey}`] = firstLine;
+       }
+     }
+   });
+
+   // Build month titles from goal.month_titles
+   const monthTitles = {};
+   if (goal.month_titles) {
+     Object.entries(goal.month_titles).forEach(([monthNum, title]) => {
+       const monthKey = `Month ${monthNum}`;
+       monthTitles[monthKey] = title;
+     });
+   }
 
   const monthSort = (a, b) => {
     const n = (k) => { const m = k.match(/(\d+)/); return m ? parseInt(m[1], 10) : 999; };
