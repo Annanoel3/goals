@@ -103,7 +103,12 @@ Deno.serve(async (req) => {
     const playerIds = targetUser?.onesignal_player_ids || [];
 
     if (playerIds.length === 0) {
-      return Response.json({ error: 'No push device registered' }, { status: 400 });
+      // Still save the habit time so the user sees it's set, even without push
+      await base44.entities.GoalStep.update(stepId, {
+        is_daily_habit: true,
+        habit_time: habitTime,
+      });
+      return Response.json({ success: true, notificationId: null, sendAt: null, warning: 'No push device registered — habit time saved without push notification' });
     }
 
     const notificationPayload = {
