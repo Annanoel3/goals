@@ -177,6 +177,16 @@
       },
       "default": [],
       "description": "Array of ISO date strings (YYYY-MM-DD) on which the habit was completed"
+    },
+    "consecutive_missed_days": {
+      "type": "number",
+      "default": 0,
+      "description": "Count of consecutive days the habit was missed"
+    },
+    "last_three_day_miss_notification_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Last date a 3-day miss notification was sent (prevents duplicates)"
     }
   },
   "required": [

@@ -44,6 +44,14 @@ function getMissedHabitMessage(stepTitle, stepDescription) {
   };
 }
 
+function getThreeDayMissMessage(stepTitle, stepDescription) {
+  const context = stepDescription || stepTitle;
+  return {
+    title: "⏸️ Let's recalibrate",
+    body: `It looks like you've missed "${context}" for a few days. That's okay! Use the planner chat to adjust your plan if you need to, or keep up the great work catching up. I know you can do this! 💪`
+  };
+}
+
 function extractAction(text) {
   // Extract action verb from description
   // E.g., "read 25% of a book" → "read 25% of a book"
@@ -83,6 +91,26 @@ function buildMissedHabitSendAtISO(userTimezoneOffsetMinutes = 0) {
     candidate.setDate(candidate.getDate() + 1);
   }
   return candidate.toISOString();
+}
+
+function getConsecutiveMissedDays(step) {
+  // Count consecutive missed days from today backwards
+  const today = new Date();
+  let missedDays = 0;
+  
+  for (let i = 0; i < 10; i++) {
+    const checkDate = new Date(today);
+    checkDate.setDate(checkDate.getDate() - i);
+    const dateStr = checkDate.toISOString().split('T')[0];
+    
+    if (!step.habit_completions || !step.habit_completions.includes(dateStr)) {
+      missedDays++;
+    } else {
+      break;
+    }
+  }
+  
+  return missedDays;
 }
 
 async function scheduleHabitNotificationForUser(base44, step, userEmail, timezoneOffset = 0) {
@@ -201,6 +229,50 @@ async function scheduleHabitNotificationForUser(base44, step, userEmail, timezon
       }
     } catch (err) {
       console.error(`Failed to schedule missed habit notification for step ${step.id}:`, err.message);
+    }
+  }
+
+  // 3. Check if habit was missed 3+ days in a row and schedule check-in notification
+  const consecutiveMissed = getConsecutiveMissedDays(step);
+  const hasThreeDayNotificationToday = step.last_three_day_miss_notification_date === today;
+
+  if (consecutiveMissed >= 3 && !hasThreeDayNotificationToday) {
+    const threeMsg = getThreeDayMissMessage(step.title, step.description);
+    const sendAtThree = buildMissedHabitSendAtISO(timezoneOffset);
+
+    const threeNotificationPayload = {
+      app_id: ONESIGNAL_APP_ID,
+      include_aliases: { external_id: [userEmail] },
+      target_channel: 'push',
+      headings: { en: threeMsg.title },
+      contents: { en: threeMsg.body },
+      send_after: sendAtThree,
+      data: {
+        screen: '/Goals',
+        type: 'habit_three_day_miss',
+        step_id: step.id,
+        goal_id: step.goal_id
+      },
+    };
+
+    try {
+      const response = await fetch('https://onesignal.com/api/v1/notifications', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Basic ${ONESIGNAL_REST_API_KEY}`
+        },
+        body: JSON.stringify(threeNotificationPayload)
+      });
+
+      const result = await response.json();
+      if (result.id) {
+        await base44.asServiceRole.entities.GoalStep.update(step.id, {
+          last_three_day_miss_notification_date: today
+        });
+      }
+    } catch (err) {
+      console.error(`Failed to schedule 3-day miss notification for step ${step.id}:`, err.message);
     }
   }
 }

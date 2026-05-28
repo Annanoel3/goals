@@ -64,6 +64,11 @@
       "description": "Follow-up reminder interval if action not completed (for health goals)",
       "default": "2hours"
     },
+    "notification_frequency": {
+      "type": "string",
+      "description": "How often notifications should be sent for this goal (e.g., 'daily', 'weekdays', 'weekly', '3x_per_week', '2x_per_week', 'once_per_week')",
+      "default": "daily"
+    },
     "notes": {
       "type": "string",
       "description": "Personal notes about this goal"
