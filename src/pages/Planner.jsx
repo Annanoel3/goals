@@ -801,17 +801,42 @@ function MonthDropdown({ month }) {
 }
 
 function PlanView({ text }) {
+  const isDark = localStorage.getItem('adhd_theme') === 'dark';
+  const [showMarkdown, setShowMarkdown] = React.useState(false);
   const { months, preamble } = parsePlanHierarchy(text);
   const cleanedPreamble = preamble ? renderPreamble(preamble) : '';
+
+  if (showMarkdown) {
+    return (
+      <div>
+        <button
+          onClick={() => setShowMarkdown(false)}
+          className={`text-xs px-2 py-1 rounded mb-2 ${isDark ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+        >
+          Show Plan View
+        </button>
+        <pre className={`text-xs leading-relaxed overflow-auto p-3 rounded-lg ${isDark ? 'bg-gray-900 text-gray-300' : 'bg-gray-50 text-gray-700'}`} style={{maxHeight: '400px'}}>
+          {text}
+        </pre>
+      </div>
+    );
+  }
+
   return (
     <div>
+      <button
+        onClick={() => setShowMarkdown(true)}
+        className={`text-xs px-2 py-1 rounded mb-2 ${isDark ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+      >
+        Show Markdown
+      </button>
       {cleanedPreamble && (
-        <p className="text-sm text-gray-800 leading-relaxed mb-3 whitespace-pre-wrap">{renderInlineText(cleanedPreamble)}</p>
+        <p className={`text-sm leading-relaxed mb-3 whitespace-pre-wrap ${isDark ? 'text-gray-300' : 'text-gray-800'}`}>{renderInlineText(cleanedPreamble)}</p>
       )}
       {months.length > 0 ? (
         months.map((month, i) => <MonthDropdown key={i} month={month} />)
       ) : (
-        <span className="whitespace-pre-wrap text-sm">{renderInlineText(text)}</span>
+        <span className={`whitespace-pre-wrap text-sm ${isDark ? 'text-gray-300' : 'text-gray-800'}`}>{renderInlineText(text)}</span>
       )}
     </div>
   );
