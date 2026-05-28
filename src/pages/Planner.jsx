@@ -714,8 +714,6 @@ function GifCarousel({ gifs, onComplete }) {
         className="w-52 h-52 object-contain rounded-2xl shadow-lg animate-in zoom-in duration-300"
         style={{imageRendering:'auto'}}
       />
-      <p className="text-sm text-gray-400 mt-3 font-medium text-center">Your goal will be ready in a few minutes.</p>
-      <p className="text-xs text-gray-300 mt-1 text-center">Feel free to navigate away — we'll keep building it in the background.</p>
     </div>
   );
 }
