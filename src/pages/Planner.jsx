@@ -789,20 +789,20 @@ function WeekDropdown({ week }) {
 
 
 function MonthDropdown({ month }) {
-  const [open, setOpen] = React.useState(false);
-  const isDark = localStorage.getItem('adhd_theme') === 'dark';
-  return (
-    <div className={`border rounded-xl overflow-hidden mb-2 shadow-sm ${isDark ? 'border-gray-700' : 'border-violet-100'}`}>
-      <button
-        onClick={() => setOpen(v => !v)}
-        className={`w-full flex items-center justify-between gap-2 px-4 py-3 text-left transition-colors ${isDark ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-violet-50/50'}`}
-      >
-        <div className="flex-1 min-w-0">
-            <span className={`font-semibold text-sm ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{month.title}</span>
-            {month.subtitle && (
-              <span className={`text-xs ml-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>— {month.subtitle}</span>
-            )}
-          </div>
+   const [open, setOpen] = React.useState(false);
+   const isDark = localStorage.getItem('adhd_theme') === 'dark';
+   return (
+     <div className={`border rounded-xl overflow-hidden mb-2 shadow-sm ${isDark ? 'border-gray-700' : 'border-violet-100'}`}>
+       <button
+         onClick={() => setOpen(v => !v)}
+         className={`w-full flex items-center justify-between gap-2 px-4 py-3 text-left transition-colors ${isDark ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-violet-50/50'}`}
+       >
+         <div className="flex-1 min-w-0">
+             <span className={`font-semibold text-sm ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{month.title}</span>
+             {month.subtitle && (
+               <span className={`block text-sm font-medium mt-1 ${isDark ? 'text-violet-400' : 'text-violet-600'}`}>{month.subtitle}</span>
+             )}
+           </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           <span className={`text-[10px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{month.weeks.length} weeks</span>
           {open ? <ChevronUp className={`w-4 h-4 flex-shrink-0 ${isDark ? 'text-gray-500' : 'text-violet-400'}`} /> : <ChevronDown className={`w-4 h-4 flex-shrink-0 ${isDark ? 'text-gray-500' : 'text-violet-400'}`} />}
