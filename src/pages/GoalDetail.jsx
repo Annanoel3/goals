@@ -163,8 +163,11 @@ export default function GoalDetail() {
   const completedSteps = steps.filter(s => s.status === 'completed').length;
   const progress = steps.length > 0 ? Math.round((completedSteps / steps.length) * 100) : 0;
 
-  // Build month->week->steps hierarchy
-  const monthsMap = {}; // { "Month 1": { "Week 1": [...], "Week 2": [...] }, "Month 2": { ... } }
+  // Build month->week->steps hierarchy with titles extracted from first step description
+  const monthsMap = {}; // { "Month 1": { title: "...", "Week 1": { title: "...", steps: [...] }, ... } }
+  const monthTitles = {};
+  const weekTitles = {};
+  
   steps.forEach(s => {
     const phase = s.phase || 'Uncategorized';
     const monthMatch = phase.match(/Month\s*(\d+)/i);
@@ -176,6 +179,19 @@ export default function GoalDetail() {
     const bucket = weekKey || '_month';
     if (!monthsMap[monthKey][bucket]) monthsMap[monthKey][bucket] = [];
     monthsMap[monthKey][bucket].push(s);
+    
+    // Extract month title from first step with description in this month
+    if (!monthTitles[monthKey] && s.description && weekMatch === null) {
+      monthTitles[monthKey] = s.description.split('\n')[0].trim();
+    }
+    
+    // Extract week title from first step with description in this week
+    if (weekKey && !weekTitles[`${monthKey}-${weekKey}`] && s.description) {
+      const firstLine = s.description.split('\n')[0].trim();
+      if (firstLine && !/^week/i.test(firstLine)) {
+        weekTitles[`${monthKey}-${weekKey}`] = firstLine;
+      }
+    }
   });
 
   const monthSort = (a, b) => {
@@ -269,7 +285,12 @@ export default function GoalDetail() {
                   className="w-full flex items-center gap-3 px-4 py-3 bg-white hover:bg-gray-50 transition-all text-left"
                 >
                   <div className="w-1.5 h-5 bg-violet-500 rounded-full flex-shrink-0" />
-                  <h3 className="text-sm font-bold text-gray-900 flex-1">{monthKey}</h3>
+                  <div className="flex-1">
+                    <h3 className="text-sm font-bold text-gray-900">{monthKey}</h3>
+                    {monthTitles[monthKey] && (
+                      <p className="text-xs text-gray-500 mt-0.5">— {monthTitles[monthKey]}</p>
+                    )}
+                  </div>
                   <span className="text-xs text-gray-400 mr-2">{allMonthSteps.filter(s => s.status === 'completed').length}/{allMonthSteps.length}</span>
                   <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isMonthOpen ? 'rotate-180' : ''}`} />
                 </button>
@@ -292,7 +313,12 @@ export default function GoalDetail() {
                             className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 transition-all text-left"
                           >
                             <div className="w-1 h-4 bg-indigo-300 rounded-full flex-shrink-0" />
-                            <span className="text-xs font-semibold text-gray-700 flex-1">{weekKey}</span>
+                            <div className="flex-1 flex items-baseline gap-2">
+                              <span className="text-xs font-semibold text-gray-700">{weekKey}</span>
+                              {weekTitles[weekId] && (
+                                <span className="text-xs text-gray-500">— {weekTitles[weekId]}</span>
+                              )}
+                            </div>
                             <span className="text-xs text-gray-400 mr-2">{weekSteps.filter(s => s.status === 'completed').length}/{weekSteps.length}</span>
                             <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${isWeekOpen ? 'rotate-180' : ''}`} />
                           </button>
