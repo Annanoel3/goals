@@ -33,8 +33,17 @@ export default function Planner() {
 
   // Load goals and user city
   useEffect(() => {
-    base44.entities.Goal.filter({ status: 'active' }).then(setGoals).catch(() => {});
+    base44.entities.Goal.list().then(allGoals => {
+      setGoals(allGoals);
+    }).catch(() => {});
     base44.auth.me().then(u => { if (u?.city) setUserCity(u.city); }).catch(() => {});
+
+    // Subscribe to goal changes to catch pending goals being created
+    const unsubscribe = base44.entities.Goal.subscribe((event) => {
+      if (event.type === 'create' || event.type === 'update') {
+        base44.entities.Goal.list().then(setGoals).catch(() => {});
+      }
+    });
 
     // If navigated here with ?edit=goalId, auto-start edit session
     const editId = searchParams.get('edit');
@@ -59,25 +68,33 @@ export default function Planner() {
         }
       });
     }
+
+    return unsubscribe;
   }, []);
 
   const startEditSession = (goal) => {
     setEditingGoal(goal);
-    setMessages([{
-      role: "assistant",
-      content: `I'm ready to help you update **"${goal.title}"**. What would you like to change?`,
-      editExamples: [
-        "Extend the timeline by 2 months",
-        "Make the steps easier and more manageable",
-        "I've been slacking — help me get back on track",
-        "Add a new phase focused on accountability",
-        "Remove Month 3 and compress the rest",
-        "Change my goal's focus to be more practical",
-        "I finished early — what should I do next?",
-        "The deadlines feel too tight, can you loosen them?",
-      ]
-    }]);
-    setPendingAction(null);
+    // Load conversation history if available, otherwise show edit prompt
+    if (goal.conversation_history && goal.conversation_history.length > 0) {
+      setMessages(goal.conversation_history);
+      setPendingAction(null);
+    } else {
+      setMessages([{
+        role: "assistant",
+        content: `I'm ready to help you update **"${goal.title}"**. What would you like to change?`,
+        editExamples: [
+          "Extend the timeline by 2 months",
+          "Make the steps easier and more manageable",
+          "I've been slacking — help me get back on track",
+          "Add a new phase focused on accountability",
+          "Remove Month 3 and compress the rest",
+          "Change my goal's focus to be more practical",
+          "I finished early — what should I do next?",
+          "The deadlines feel too tight, can you loosen them?",
+        ]
+      }]);
+      setPendingAction(null);
+    }
     setSaved(false);
   };
 
@@ -246,16 +263,22 @@ export default function Planner() {
     setIsSaving(true);
     try {
       const allMessages = messagesRef.current.filter(m => m.role !== "system");
+      const gid = pendingGoalId || editingGoal?.id;
+      
+      // Save conversation history to the goal before applying edits
+      if (gid && editingGoal) {
+        await base44.entities.Goal.update(gid, { conversation_history: allMessages });
+      }
+
       await base44.functions.invoke("goalPlannerChat", {
         messages: allMessages,
         mode: "apply_edit",
-        goal_id: pendingGoalId || editingGoal?.id
+        goal_id: gid
       });
 
       setSaved(true);
 
       // Reschedule all notifications for this goal (cancels old ones first)
-      const gid = pendingGoalId || editingGoal?.id;
       if (gid) {
         base44.functions.invoke('scheduleGoalNotifications', { goal_id: gid, timezoneOffsetMinutes: new Date().getTimezoneOffset() }).catch(() => {});
       }
@@ -968,6 +991,11 @@ function TypingIndicator() {
 
 function GoalsList({ goals, onSelectGoal, onNewChat }) {
   const isDark = localStorage.getItem('adhd_theme') === 'dark';
+  
+  // Separate active and pending goals
+  const activeGoals = goals.filter(g => g.status === 'active');
+  const pendingGoals = goals.filter(g => g.status !== 'active' && g.id); // Show any non-active goals as "building"
+  
   return (
     <div className="flex flex-col items-center py-12 px-6">
       <div className={`w-20 h-20 rounded-3xl flex items-center justify-center mb-6 shadow-sm ${isDark ? 'bg-violet-900/40' : 'bg-gradient-to-br from-violet-100 to-indigo-100'}`}>
@@ -978,7 +1006,7 @@ function GoalsList({ goals, onSelectGoal, onNewChat }) {
         Click any goal to refine, extend, or adjust your plan.
       </p>
       <div className="w-full max-w-sm space-y-3 mb-8">
-        {goals.map(goal => (
+        {activeGoals.map(goal => (
           <button
             key={goal.id}
             onClick={() => onSelectGoal(goal)}
@@ -993,6 +1021,29 @@ function GoalsList({ goals, onSelectGoal, onNewChat }) {
             </div>
           </button>
         ))}
+        {pendingGoals.length > 0 && (
+          <>
+            <div className={`text-xs font-semibold mb-2 mt-4 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Building…</div>
+            {pendingGoals.map(goal => (
+              <button
+                key={goal.id}
+                onClick={() => onSelectGoal(goal)}
+                disabled
+                className={`w-full border rounded-xl px-4 py-3.5 text-left transition-all opacity-50 cursor-not-allowed ${isDark ? 'bg-gray-800/50 border-gray-700' : 'bg-gray-50 border-gray-200'}`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className={`font-semibold text-sm truncate ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{goal.title}</p>
+                    <p className={`text-xs mt-1 line-clamp-1 ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>Creating plan…</p>
+                  </div>
+                  <div className="flex-shrink-0 mt-1">
+                    <Loader2 className={`w-4 h-4 animate-spin ${isDark ? 'text-gray-500' : 'text-gray-400'}`} />
+                  </div>
+                </div>
+              </button>
+            ))}
+          </>
+        )}
       </div>
       <Button
         onClick={onNewChat}
