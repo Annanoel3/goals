@@ -556,6 +556,17 @@ function renderInlineText(text) {
   });
 }
 
+function renderPreamble(text) {
+  // Strip markdown headers, dividers, and render clean text
+  const lines = text.split('\n').map(l => l
+    .replace(/^#{1,6}\s+/, '')   // remove ## headers
+    .replace(/^---+$/, '')        // remove --- dividers
+    .replace(/\*\*/g, '')         // remove bold markers
+    .trim()
+  ).filter(l => l.length > 0);
+  return lines.join('\n');
+}
+
 // Parse plan text into Month > Week > Tasks hierarchy
 function parsePlanHierarchy(text) {
   const lines = text.split('\n').map(l => l.trim()).filter(l => l);
@@ -566,13 +577,13 @@ function parsePlanHierarchy(text) {
 
   // "Month 1, Week 2" or "Month 1 Week 2" — combined header
   const isCombinedHeader = (l) => /Month\s+\d+[,\s]+Week\s+\d+/i.test(l.replace(/\*\*/g, ''));
-  // Pure "Month 1" header (no week)
-  const isPureMonthHeader = (l) => /^(#{1,3}\s+)?(\*\*)?Month\s+\d+(\*\*)?(?:[:\s].*)?$/i.test(l.replace(/\*\*/g, '').trim());
-  // Pure "Week 1" or "Week 1:" standalone
-  const isPureWeekHeader = (l) => /^(#{1,3}\s+)?(\*\*)?Week\s+\d+(\*\*)?[:\s]*$/i.test(l.replace(/\*\*/g, '').trim());
+  // Pure "Month 1" header (no week) — also matches "#### Month 1 - Title"
+  const isPureMonthHeader = (l) => /^(#{1,4}\s+)?(\*\*)?Month\s+\d+(\*\*)?(?:[:\s-].*)?$/i.test(l.replace(/\*\*/g, '').trim());
+  // Pure "Week 1" or "Week 1:" standalone — also matches "#### Week 1 - Title"
+  const isPureWeekHeader = (l) => /^(#{1,4}\s+)?(\*\*)?Week\s+\d+(\*\*)?[:\s-]*/i.test(l.replace(/\*\*/g, '').trim()) && !/Month/i.test(l);
   const isTaskLine = (l) => /^[-•*]\s+/.test(l) || /^\d+\.\s+/.test(l) || /^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|Day\s*\d+)/i.test(l);
 
-  const cleanHeader = (l) => l.replace(/^#{1,3}\s+/, '').replace(/\*\*/g, '').replace(/:$/, '').trim();
+  const cleanHeader = (l) => l.replace(/^#{1,4}\s+/, '').replace(/\*\*/g, '').replace(/:$/, '').trim();
   const cleanTask = (l) => l.replace(/^[-•*]\s+/, '').replace(/^\d+\.\s+/, '').trim();
 
   const getOrCreateMonth = (mNum) => {
@@ -595,16 +606,20 @@ function parsePlanHierarchy(text) {
         currentMonth.weeks.push(currentWeek);
       }
     } else if (isPureMonthHeader(line)) {
-      // Standalone "Month 1" header
+      // Standalone "Month 1" or "#### Month 1 - Title" header
       const mNum = line.match(/Month\s+(\d+)/i)?.[1];
       if (mNum) {
         currentMonth = getOrCreateMonth(mNum);
+        // Extract subtitle e.g. "Month 1 - Begin Immersion" → store as month subtitle
+        const subtitle = cleanHeader(line).replace(/^Month\s+\d+\s*[-:]\s*/i, '').trim();
+        if (subtitle) currentMonth.subtitle = subtitle;
         currentWeek = null;
       }
     } else if (isPureWeekHeader(line)) {
       // Standalone "Week 1" — attach to current month
       if (currentMonth) {
-        currentWeek = { title: cleanHeader(line), tasks: [] };
+        const weekTitle = cleanHeader(line).replace(/^Week\s+(\d+)\s*[-:]\s*/i, (_, n) => `Week ${n}: `).replace(/:\s*$/, '').trim();
+        currentWeek = { title: weekTitle, tasks: [] };
         currentMonth.weeks.push(currentWeek);
       }
     } else if (isTaskLine(line)) {
@@ -756,8 +771,13 @@ function MonthDropdown({ month }) {
         onClick={() => setOpen(v => !v)}
         className={`w-full flex items-center justify-between gap-2 px-4 py-3 text-left transition-colors ${isDark ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-violet-50/50'}`}
       >
-        <span className={`font-semibold text-sm ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{month.title}</span>
-        <div className="flex items-center gap-2">
+        <div className="flex-1 min-w-0">
+            <span className={`font-semibold text-sm ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{month.title}</span>
+            {month.subtitle && (
+              <span className={`text-xs ml-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>— {month.subtitle}</span>
+            )}
+          </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
           <span className={`text-[10px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{month.weeks.length} weeks</span>
           {open ? <ChevronUp className={`w-4 h-4 flex-shrink-0 ${isDark ? 'text-gray-500' : 'text-violet-400'}`} /> : <ChevronDown className={`w-4 h-4 flex-shrink-0 ${isDark ? 'text-gray-500' : 'text-violet-400'}`} />}
         </div>
@@ -777,10 +797,11 @@ function MonthDropdown({ month }) {
 
 function PlanView({ text }) {
   const { months, preamble } = parsePlanHierarchy(text);
+  const cleanedPreamble = preamble ? renderPreamble(preamble) : '';
   return (
     <div>
-      {preamble && (
-        <p className="text-sm text-gray-800 leading-relaxed mb-3 whitespace-pre-wrap">{renderInlineText(preamble)}</p>
+      {cleanedPreamble && (
+        <p className="text-sm text-gray-800 leading-relaxed mb-3 whitespace-pre-wrap">{renderInlineText(cleanedPreamble)}</p>
       )}
       {months.length > 0 ? (
         months.map((month, i) => <MonthDropdown key={i} month={month} />)
