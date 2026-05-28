@@ -64,6 +64,15 @@ Return JSON (no markdown) in EXACTLY this structure. CRITICAL STRUCTURAL RULE FO
 - NEVER combine weeks or months: "Week 1-2", "Weeks 3-4", "Months 4-6" are STRICTLY FORBIDDEN. Each STEP = exactly ONE week. phase='Month X' (month only). title='Week N: brief focus'. Exactly 4 steps per month.
 - For goals under 1 month, just use "Week 1", "Week 2" phases directly.
 
+NOTIFICATION FREQUENCY DETECTION:
+Analyze the conversation for clues about how often the user wants to be reminded:
+- Daily tasks / morning routine / meditation / exercise / practice → "daily"
+- Weekday focus only (Mon-Fri) / work-related → "weekdays"
+- Once per week check-in / milestone goals → "weekly"
+- Multiple times per week → "3x_per_week" or "2x_per_week"
+- If unclear or they're doing daily actions → default to "daily"
+Set "notification_frequency" in the returned JSON to one of: "daily", "weekdays", "weekly", "3x_per_week", "2x_per_week", "once_per_week"
+
 GRANULARITY RULES — choose the right level of detail per goal type:
 
 MULTI-MONTH GOALS (2+ months): ALWAYS use week-steps with rich descriptions. No daily breakdowns. 4 steps per month, each with 2-4 sentences in description. TYPE A and TYPE B granularity only applies to single-month goals.
@@ -99,6 +108,7 @@ IMPORTANT: Generate 2-4 specific, actionable tasks per week-phase. Keep descript
   "timeline": "e.g. 5 months",
   "target_date": "YYYY-MM-DD calculated from today ${today}",
   "category": "one of: learning, health, career, finance, relationships, personal, creative, other",
+  "notification_frequency": "daily|weekdays|weekly|3x_per_week|2x_per_week|once_per_week — inferred from conversation",
   "plan_summary": "2-3 sentence summary of the overall plan",
   "steps": [
     {
@@ -314,6 +324,12 @@ CRITICAL:
       }
       
       plan.preferred_time = preferredTime;
+      
+      // Ensure notification_frequency is set (fallback to daily if not detected)
+      if (!plan.notification_frequency) {
+        plan.notification_frequency = 'daily';
+      }
+      
       return Response.json({ plan });
     }
 
@@ -564,8 +580,8 @@ ABSOLUTE RULES — VIOLATIONS ARE NOT ACCEPTABLE:
 RULE 1 — DEFAULT TO ACTION, NOT QUESTIONS: For virtually every request, you already have everything you need: the full step list, original conversation, description, timeline, time commitment, and creation date. Your default response to ANY edit request is a concrete proposal — not questions.
 
 RULE 2 — THE ONLY TIME YOU MAY ASK A QUESTION:
-  It is genuinely unclear WHICH goal the user is referring to (only possible if they have 2+ goals and haven't specified).
-  That's it. No other questions are ever allowed. Not "do these resonate?", not "what resources do you prefer?", not "what type of support do you want?" — nothing. Commit to a full, specific proposal and end with "Want me to add this to your plan?" or "Say 'yes' to save this."
+   It is genuinely unclear WHICH goal the user is referring to (only possible if they have 2+ goals and haven't specified).
+   That's it. No other questions are ever allowed. Not "do these resonate?", not "what resources do you prefer?", not "what type of support do you want?" — nothing. Commit to a full, specific proposal and end with "Want me to add this to your plan?" or "Say 'yes' to save this."
 
 RULE 3 — GAP-FILLING IS ALWAYS IMMEDIATE AND REQUIRES ZERO QUESTIONS: When the user asks to add a missing week or phase, you MUST respond with a fully-formed list of 5-8 specific steps RIGHT NOW. You have the full plan above — look at what comes before and after the gap and infer the logical progression. This is NON-NEGOTIABLE. There is NO scenario where asking a question is acceptable here. Your response MUST look like:
 
@@ -580,6 +596,34 @@ That's it. No "here are a couple of questions first", no "to tailor this to your
 RULE 4 — TIMELINE ACCURACY: The goal was created on ${currentGoal?.created_date ? new Date(currentGoal.created_date).toISOString().split('T')[0] : 'recently'}. Today is ${today}. Use these to know where the user is. Do NOT assume they are in a specific month unless you can calculate it.
 
 RULE 5 — APPROVAL TRIGGER: When user says "yes", "looks good", "do it", "apply it", "perfect", "save it", "go ahead", "ok", "sure" — start response with EXACTLY "EDIT_APPROVED" then summarize what changed.
+
+TIMELINE EXTENSION — CRITICAL RULES:
+When a user requests to extend the plan (e.g., "add 2 more months", "extend by 3 months", "I need more time", "give me longer"), NEVER just append months to the end. The original plan was designed to conclude at its current end date.
+
+INSTEAD, you must offer and recommend ONE of these two options based on context:
+
+OPTION A — FULL RESTRUCTURE (Recommended when: user is behind on schedule, hasn't started later phases, or is struggling to keep pace):
+- Recalculate the ENTIRE plan from scratch using the new total duration.
+- Redistribute the same goals and milestones across the longer timeline.
+- The final month of the restructured plan becomes the new completion point.
+- Delete all existing incomplete steps and replace with the new structured plan.
+- Message to user: "I'm restructuring your full plan to span [new total] months. This spreads everything out so you have more breathing room and everything flows naturally to the new end date."
+
+OPTION B — EXTEND WITH NEW ADVANCED CONTENT (ONLY if user explicitly wants MORE content, not just more time):
+- Only use this if the user says something like "I want to go deeper", "add advanced phases", "I want more material", "extend and add new things".
+- Add entirely new phases BEYOND the original completion point (e.g., adding Months 7-9 when the original plan ended at Month 6).
+- The new content should be genuinely advanced or exploratory, not just padding.
+- Message to user: "I've added [X] months of advanced content after your original completion point to build deeper expertise."
+
+DEFAULT: When in doubt, recommend OPTION A. It's almost always the right choice.
+
+When presenting the extension choice to the user, offer both options clearly so they understand the difference, but recommend the one you think best fits their situation. Format like:
+"I can help extend your timeline. Here are your options:
+**Option A: Restructure** (my recommendation) — I'll spread the whole plan across [new duration], giving you more time per phase...
+**Option B: Extend & Add** — I'll add [X] new months of advanced content beyond where your plan currently ends...
+Which would you prefer?"
+
+Wait for their choice before generating the actual extended plan.
 
 TIMELINE EXTENSION — CRITICAL RULE:
 When a user asks to extend the timeline (e.g. "add 2 more months", "extend by 3 months", "give me more time"), you MUST NOT simply append new months at the end of the existing plan. The original plan was designed to conclude at its final month — appending would create two different endpoints and a disjointed plan.
