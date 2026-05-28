@@ -69,26 +69,26 @@ export default function VoiceTaskInput({ onTranscription, theme, inline = true }
   };
 
   const transcribeAudio = async (audioFile) => {
-    setIsProcessing(true);
-    try {
-      const uploadResult = await base44.integrations.Core.UploadFile({ file: audioFile });
-      if (!uploadResult?.file_url) throw new Error('Failed to upload audio file');
+     setIsProcessing(true);
+     try {
+       const uploadResult = await base44.integrations.Core.UploadFile({ file: audioFile });
+       if (!uploadResult?.file_url) throw new Error('Failed to upload audio file');
 
-      const result = await base44.functions.invoke('transcribeAudio', { file_url: uploadResult.file_url });
-      const responseData = result?.data || result;
+       const result = await base44.functions.invoke('transcribeAudio', { file_url: uploadResult.file_url });
+       const responseData = result?.data || result;
 
-      if (responseData?.success && responseData?.transcription) {
-        await onTranscription(responseData.transcription);
-      } else {
-        const errorMsg = responseData?.error || "Failed to transcribe audio. Please try again.";
-        alert(errorMsg);
-      }
-    } catch (error) {
-      console.error('[VOICE INPUT] Error transcribing audio:', error);
-      alert(error.message || "Failed to transcribe audio. Please try again.");
-    }
-    setIsProcessing(false);
-  };
+       if (responseData?.success && responseData?.transcription) {
+         await onTranscription(responseData.transcription);
+       } else {
+         const errorMsg = responseData?.error || "Failed to transcribe audio. Please try again.";
+         alert(errorMsg);
+       }
+     } catch (error) {
+       console.error('[VOICE INPUT] Error transcribing audio:', error);
+       alert(error.message || "Failed to transcribe audio. Please try again.");
+     }
+     setIsProcessing(false);
+   };
 
   if (inline) {
     return (
