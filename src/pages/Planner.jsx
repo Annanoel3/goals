@@ -583,8 +583,8 @@ function parsePlanHierarchy(text) {
   const isPureWeekHeader = (l) => /^(#{1,4}\s+)?(\*\*)?Week\s+\d+(\*\*)?[:\s-]*/i.test(l.replace(/\*\*/g, '').trim()) && !/Month/i.test(l);
   const isTaskLine = (l) => /^[-•*]\s+/.test(l) || /^\d+\.\s+/.test(l) || /^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|Day\s*\d+)/i.test(l);
 
-  const cleanHeader = (l) => l.replace(/^#{1,4}\s+/, '').replace(/\*\*/g, '').replace(/:$/, '').trim();
-  const cleanTask = (l) => l.replace(/^[-•*]\s+/, '').replace(/^\d+\.\s+/, '').trim();
+  const cleanHeader = (l) => l.replace(/^#{1,4}\s+/, '').replace(/\*\*/g, '').replace(/\*/g, '').replace(/:$/, '').trim();
+  const cleanTask = (l) => l.replace(/^[-•*]\s+/, '').replace(/^\d+\.\s+/, '').replace(/\*\*/g, '').replace(/\*/g, '').trim();
 
   const getOrCreateMonth = (mNum) => {
     const mTitle = `Month ${mNum}`;
@@ -612,13 +612,16 @@ function parsePlanHierarchy(text) {
         currentMonth = getOrCreateMonth(mNum);
         // Extract subtitle e.g. "Month 1 - Begin Immersion" → store as month subtitle
         const subtitle = cleanHeader(line).replace(/^Month\s+\d+\s*[-:]\s*/i, '').trim();
-        if (subtitle) currentMonth.subtitle = subtitle;
+        // Only set subtitle if it's different from just "Month N"
+        if (subtitle && !/^Month\s+\d+$/i.test(subtitle)) currentMonth.subtitle = subtitle;
         currentWeek = null;
       }
     } else if (isPureWeekHeader(line)) {
       // Standalone "Week 1" — attach to current month
       if (currentMonth) {
-        const weekTitle = cleanHeader(line).replace(/^Week\s+(\d+)\s*[-:]\s*/i, (_, n) => `Week ${n}: `).replace(/:\s*$/, '').trim();
+        const baseTitle = cleanHeader(line);
+        // Keep "Week N" and any subtitle after dash/colon, strip trailing colon
+        const weekTitle = baseTitle.replace(/:\s*$/, '').trim();
         currentWeek = { title: weekTitle, tasks: [] };
         currentMonth.weeks.push(currentWeek);
       }
@@ -637,7 +640,10 @@ function parsePlanHierarchy(text) {
       if (months.length === 0) {
         preamble.push(line);
       }
-      if (currentWeek && line.trim().length > 3) { currentWeek.description = (currentWeek.description ? currentWeek.description + ' ' : '') + line.trim(); }
+      if (currentWeek && line.trim().length > 3) {
+        const cleanLine = line.trim().replace(/^#{1,4}\s+/, '').replace(/\*\*/g, '').replace(/\*/g, '').replace(/^---+$/, '').trim();
+        if (cleanLine) currentWeek.description = (currentWeek.description ? currentWeek.description + ' ' : '') + cleanLine;
+      }
     }
   }
 
