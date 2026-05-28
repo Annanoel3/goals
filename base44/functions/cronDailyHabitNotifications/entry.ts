@@ -3,50 +3,48 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 const ONESIGNAL_APP_ID = Deno.env.get("ONESIGNAL_APP_ID")?.trim();
 const ONESIGNAL_REST_API_KEY = Deno.env.get("ONESIGNAL_REST_API_KEY")?.trim();
 
-const habitMessages = {
-  affirmation: [
-    { title: "🌅 Morning magic time!", body: "Your affirmations are waiting. 2 minutes now = a whole different day. You in? 💪" },
-    { title: "✨ This is your moment", body: "The most powerful thing you'll do today takes 2 minutes. Let's go! 🌟" },
-    { title: "🔥 Wake up your inner champion", body: "Those affirmations won't say themselves! Your future self is counting on you. 💫" },
-  ],
-  meditation: [
-    { title: "🧘 Your calm is calling", body: "Just 5 minutes of stillness = a superpower for the whole day. Ready? 🌿" },
-    { title: "🌊 Breathe in, tune in", body: "The world can wait 5 minutes. Your mind deserves this. Sit down, let's go! ✨" },
-    { title: "💆 Mental reset time!", body: "Hit pause on life for a sec. Your meditation session is ready and waiting. 🧠" },
-  ],
-  journal: [
-    { title: "📓 Brain dump o'clock!", body: "Your journal is judging you (kidding 😄). 5 minutes of writing = clarity all day!" },
-    { title: "✍️ Time to spill the tea — to yourself", body: "What's on your mind? Write it down. You'll thank yourself later. 📝" },
-    { title: "💭 Thoughts need a home!", body: "Get them out of your head and onto paper. Your journal is open and ready! 🌸" },
-  ],
-  exercise: [
-    { title: "💪 Move it, move it!", body: "Your body called — it wants a workout. No negotiations, let's GO! 🏃" },
-    { title: "🔥 Time to sweat!", body: "Future you is already proud. Your workout is waiting — no excuses today! 💥" },
-    { title: "⚡ Energy boost incoming!", body: "Every rep is a vote for the person you're becoming. Time to vote! 🏋️" },
-  ],
-  reading: [
-    { title: "📚 Book o'clock!", body: "Your reading session is waiting. Dive in — even 10 pages changes your brain! 🧠" },
-    { title: "📖 Wisdom is calling", body: "The smartest version of you is one reading session away. Let's go! ✨" },
-    { title: "🌟 Power hour: reading edition", body: "Turn off the noise, open the book. This is YOUR time! 📚" },
-  ],
-  default: [
-    { title: "⏰ Habit check-in!", body: "Time to work on your goal. Small steps today = big results tomorrow. You've got this! 💪" },
-    { title: "🎯 Your daily habit is calling", body: "Consistency is your superpower. Show up today — future you will be so grateful! ✨" },
-    { title: "🌟 Time to level up!", body: "Every day you show up is a win. Today's your day — let's do this! 🔥" },
-  ]
-};
+function getMessageForHabit(stepTitle, stepDescription, dayOfWeek) {
+  // dayOfWeek: 0 = Monday (start of week), 6 = Sunday (end of week)
+  // Use description if available, fall back to title
+  const context = stepDescription || stepTitle;
+  const lower = context.toLowerCase();
+  const isEarlyWeek = dayOfWeek <= 2; // Mon-Wed
+  const isLateWeek = dayOfWeek >= 4; // Fri-Sun
+  
+  // Extract key action from description (e.g., "read 25% of a book" → "read")
+  const action = extractAction(context);
+  
+  // Generate contextual message based on timing in the week
+  if (isEarlyWeek) {
+    // Start of week: encourage getting started
+    return {
+      title: "🚀 Let's kick this off!",
+      body: `Have you started ${action} today? This is your moment. Let's do this! 💪`
+    };
+  } else if (isLateWeek) {
+    // End of week: push for completion
+    return {
+      title: "📈 Almost there!",
+      body: `Are you on track with "${context}"? Push through today — you've got this! 🔥`
+    };
+  } else {
+    // Mid-week: keep momentum
+    return {
+      title: "⏰ Steady progress!",
+      body: `Keep the momentum going with "${action}". You're doing great! 🌟`
+    };
+  }
+}
 
-function getMessageForHabit(title) {
-  const lower = title.toLowerCase();
-  let category = 'default';
-  if (lower.includes('affirm') || lower.includes('mantra')) category = 'affirmation';
-  else if (lower.includes('meditat') || lower.includes('mindful') || lower.includes('breathe') || lower.includes('breathing')) category = 'meditation';
-  else if (lower.includes('journal') || lower.includes('gratitude') || lower.includes('write') || lower.includes('writing') || lower.includes('diary')) category = 'journal';
-  else if (lower.includes('exercise') || lower.includes('workout') || lower.includes('run') || lower.includes('gym') || lower.includes('yoga') || lower.includes('walk')) category = 'exercise';
-  else if (lower.includes('read') || lower.includes('book') || lower.includes('study')) category = 'reading';
-
-  const messages = habitMessages[category];
-  return messages[Math.floor(Math.random() * messages.length)];
+function extractAction(text) {
+  // Extract action verb from description
+  // E.g., "read 25% of a book" → "read 25% of a book"
+  // E.g., "complete a workout" → "complete a workout"
+  const words = text.toLowerCase().split(' ');
+  if (words.length > 1) {
+    return text.substring(0, 40) + (text.length > 40 ? '...' : '');
+  }
+  return text;
 }
 
 function buildSendAtISO(habitTime, userTimezoneOffsetMinutes = 0) {
@@ -67,7 +65,27 @@ function buildSendAtISO(habitTime, userTimezoneOffsetMinutes = 0) {
 async function scheduleHabitNotificationForUser(base44, step, userEmail, timezoneOffset = 0) {
   if (!step.habit_time || !step.is_daily_habit) return;
 
-  const msg = getMessageForHabit(step.title);
+  // Check if we already scheduled a notification for today
+  const today = new Date().toISOString().split('T')[0];
+  if (step.last_habit_notification_date === today) {
+    return; // Already scheduled for today
+  }
+
+  // Cancel old notification if exists
+  if (step.habit_notification_id) {
+    try {
+      await fetch(`https://onesignal.com/api/v1/notifications/${step.habit_notification_id}?app_id=${ONESIGNAL_APP_ID}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Basic ${ONESIGNAL_REST_API_KEY}` }
+      });
+    } catch (_) { /* best effort */ }
+  }
+
+  // Determine day of week for contextual messaging
+  const sendAtDate = new Date();
+  const dayOfWeek = sendAtDate.getDay();
+
+  const msg = getMessageForHabit(step.title, step.description, dayOfWeek);
   const sendAt = buildSendAtISO(step.habit_time, timezoneOffset);
 
   const notificationPayload = {
@@ -97,9 +115,10 @@ async function scheduleHabitNotificationForUser(base44, step, userEmail, timezon
 
     const result = await response.json();
     if (result.id) {
-      // Save the new notification ID
+      // Save the new notification ID and today's date to prevent duplicates
       await base44.asServiceRole.entities.GoalStep.update(step.id, {
-        habit_notification_id: result.id
+        habit_notification_id: result.id,
+        last_habit_notification_date: today
       });
     }
   } catch (err) {
