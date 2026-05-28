@@ -88,7 +88,7 @@ TYPE B — MILESTONE/PROJECT GOALS (save money, find a job, start a business, wr
 
 DECISION RULE: Look at the goal's category and description. If it involves a SKILL that requires daily repetition to build muscle memory or habit → TYPE A. If it's about achieving outcomes through periodic actions and milestones → TYPE B. When in doubt, lean TYPE B (fewer, clearer steps per week).
 
-READING & BOOK GOALS: Classify as TYPE B always. Each month = 1 book split into 4 week-phases. Week 1 = first 25% of book, Week 2 = 25-50%, Week 3 = 50-75%, Week 4 = finish + brief reflection notes. NEVER compress a whole book into 1 week-phase. NEVER mark book-reading steps as is_daily_habit.
+READING & BOOK GOALS: Each month = 1 book split into 4 week-phases. Week 1 = first 25% of book, Week 2 = 25-50%, Week 3 = 50-75%, Week 4 = finish + brief reflection notes. NEVER compress a whole book into 1 week-phase. If the goal involves reading EVERY DAY (e.g. "read 12 books in 12 months", "daily reading habit", "read 30 pages a day"), set is_daily_habit: true on each weekly reading step. If reading is occasional/milestone-based, leave is_daily_habit: false.
 
 TOKEN PRIORITY RULE: Completing ALL ${detectedMonths} months x 4 weeks = ${detectedMonths * 4} total week-phases is the HIGHEST priority. Trade depth for coverage always. Use 2-4 steps per week-phase. Never sacrifice later weeks just to add detail to earlier ones.
 
@@ -136,7 +136,7 @@ IMPORTANT: Generate 2-4 specific, actionable tasks per week-phase. Keep descript
 }
 
 CRITICAL:
-0b. CRITICAL — For each step, set "is_daily_habit": true if the step is something the user must DO EVERY DAY (e.g. morning affirmations, daily meditation, daily journaling, daily gratitude, daily exercise, daily reading, morning routine, nightly review, practice, rehearsal). The words "daily", "every day", "each morning", "each night", "routine", "practice", "affirmation", "habit" are strong signals. Set it false only for one-time tasks or milestones.
+0b. CRITICAL — For each step, set "is_daily_habit": true if the step is something the user must DO EVERY DAY (e.g. morning affirmations, daily meditation, daily journaling, daily gratitude, daily exercise, daily reading, morning routine, nightly review, practice, rehearsal). The words "daily", "every day", "each morning", "each night", "routine", "practice", "affirmation", "habit" are strong signals. ALSO: if the goal is something like "read 12 books in 12 months", "read X books this year", or any goal requiring consistent daily reading to hit the target — each weekly reading step MUST be is_daily_habit: true. Set it false only for one-time tasks or milestones.
 0. NEVER skip weeks or phases. If you have Month 1 Week 1, Month 1 Week 2, Month 1 Week 3 — ALL must appear. No gaps. If a month has 4 weeks, all 4 weeks must have steps. Do not jump from Week 1 to Week 3.
 1. Generate 2-4 specific steps per week-phase. Coverage of ALL week-phases is the top priority. Keep descriptions brief (1 sentence each).
 2. FOR EVERY STEP, include step_resources with specific links and guidance (videos, books, articles, tools, websites, local venues/clubs if discussed)

@@ -91,7 +91,9 @@ Deno.serve(async (req) => {
     // tzOffset: minutes to add to UTC to get local time (e.g. CDT = -300 → offset = -300)
     // timezoneOffsetMinutes from JS Date.getTimezoneOffset() is positive for west-of-UTC (e.g. CDT = +300)
     // So to convert local hour → UTC: utcHour = localHour + (timezoneOffsetMinutes / 60)
-    const tzOffsetMinutes = typeof timezoneOffsetMinutes === 'number' ? timezoneOffsetMinutes : 360; // default CDT
+    // timezoneOffsetMinutes from JS Date.getTimezoneOffset(): positive = west of UTC (e.g. CDT=300, IST=-330)
+    // Default 0 (UTC) if not provided — better than assuming a specific timezone
+    const tzOffsetMinutes = typeof timezoneOffsetMinutes === 'number' ? timezoneOffsetMinutes : 0;
 
     // Get user's preferred notification time (default 9 AM local)
     let prefHour = 9;
