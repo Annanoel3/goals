@@ -1,6 +1,8 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
-// Personality-driven habit notification messages
+const ONESIGNAL_APP_ID = Deno.env.get("ONESIGNAL_APP_ID")?.trim();
+const ONESIGNAL_REST_API_KEY = Deno.env.get("ONESIGNAL_REST_API_KEY")?.trim();
+
 const habitMessages = {
   affirmation: [
     { title: "🌅 Morning magic time!", body: "Your affirmations are waiting. 2 minutes now = a whole different day. You in? 💪" },
@@ -48,100 +50,92 @@ function getMessageForHabit(title) {
 }
 
 function buildSendAtISO(habitTime, userTimezoneOffsetMinutes = 0) {
-  // habitTime is "HH:MM" in user's local time
   const [hour, minute] = habitTime.split(':').map(Number);
   const now = new Date();
   
-  // Create today's send time in UTC by adjusting for user timezone offset
   const candidate = new Date(now);
   candidate.setUTCHours(hour, minute, 0, 0);
-  // Shift from local → UTC
   candidate.setTime(candidate.getTime() - userTimezoneOffsetMinutes * 60 * 1000);
 
-  // If that time has already passed today, schedule for tomorrow
+  // Always schedule for tomorrow (or today if time hasn't passed)
   if (candidate <= now) {
     candidate.setDate(candidate.getDate() + 1);
   }
   return candidate.toISOString();
 }
 
-Deno.serve(async (req) => {
+async function scheduleHabitNotificationForUser(base44, step, userEmail, timezoneOffset = 0) {
+  if (!step.habit_time || !step.is_daily_habit) return;
+
+  const msg = getMessageForHabit(step.title);
+  const sendAt = buildSendAtISO(step.habit_time, timezoneOffset);
+
+  const notificationPayload = {
+    app_id: ONESIGNAL_APP_ID,
+    include_aliases: { external_id: [userEmail] },
+    target_channel: 'push',
+    headings: { en: msg.title },
+    contents: { en: msg.body },
+    send_after: sendAt,
+    data: {
+      screen: '/Goals',
+      type: 'habit_checkin',
+      step_id: step.id,
+      goal_id: step.goal_id
+    },
+  };
+
   try {
-    const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
-    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
-
-    const { stepId, habitTime, timezoneOffsetMinutes } = await req.json();
-    if (!stepId || !habitTime) return Response.json({ error: 'stepId and habitTime required' }, { status: 400 });
-
-    // Get step directly by ID
-    const step = await base44.entities.GoalStep.get(stepId);
-    if (!step) return Response.json({ error: 'Step not found' }, { status: 404 });
-
-    // Cancel previous notification if any
-    if (step.habit_notification_id) {
-      try {
-        const appId = Deno.env.get("ONESIGNAL_APP_ID")?.trim();
-        const restApiKey = Deno.env.get("ONESIGNAL_REST_API_KEY")?.trim();
-        await fetch(`https://onesignal.com/api/v1/notifications/${step.habit_notification_id}?app_id=${appId}`, {
-          method: 'DELETE',
-          headers: { 'Authorization': `Basic ${restApiKey}` }
-        });
-      } catch (_) { /* best effort */ }
-    }
-
-    const msg = getMessageForHabit(step.title);
-    const sendAt = buildSendAtISO(habitTime, timezoneOffsetMinutes || 0);
-
-    const appId = Deno.env.get("ONESIGNAL_APP_ID")?.trim();
-    const restApiKey = Deno.env.get("ONESIGNAL_REST_API_KEY")?.trim();
-
-    const notificationPayload = {
-      app_id: appId,
-      include_aliases: { external_id: [user.email] },
-      target_channel: 'push',
-      headings: { en: msg.title },
-      contents: { en: msg.body },
-      send_after: sendAt,
-      data: {
-        screen: '/Goals',
-        type: 'habit_checkin',
-        step_id: stepId,
-        goal_id: step.goal_id
-      },
-    };
-
     const response = await fetch('https://onesignal.com/api/v1/notifications', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Basic ${restApiKey}`
+        'Authorization': `Basic ${ONESIGNAL_REST_API_KEY}`
       },
       body: JSON.stringify(notificationPayload)
     });
 
     const result = await response.json();
-    if (result.errors) {
-      return Response.json({ error: result.errors }, { status: 500 });
+    if (result.id) {
+      // Save the new notification ID
+      await base44.asServiceRole.entities.GoalStep.update(step.id, {
+        habit_notification_id: result.id
+      });
+    }
+  } catch (err) {
+    console.error(`Failed to schedule habit notification for step ${step.id}:`, err.message);
+  }
+}
+
+Deno.serve(async (req) => {
+  try {
+    const base44 = createClientFromRequest(req);
+    
+    // Get all active goals with habit steps
+    const allGoals = await base44.asServiceRole.entities.Goal.filter({ status: 'active' });
+    let scheduledCount = 0;
+
+    for (const goal of allGoals) {
+      const steps = await base44.asServiceRole.entities.GoalStep.filter({ goal_id: goal.id });
+      const habitSteps = steps.filter(s => s.is_daily_habit && s.habit_time && s.status !== 'completed');
+
+      if (habitSteps.length > 0) {
+        const user = await base44.asServiceRole.entities.User.get(goal.created_by_id);
+        if (user) {
+          // Estimate timezone offset from user profile if available, default to 0 (UTC)
+          const timezoneOffset = user.timezone_offset || 0;
+
+          for (const step of habitSteps) {
+            await scheduleHabitNotificationForUser(base44, step, user.email, timezoneOffset);
+            scheduledCount++;
+          }
+        }
+      }
     }
 
-    // Save to step
-    await base44.entities.GoalStep.update(stepId, {
-      is_daily_habit: true,
-      habit_time: habitTime,
-      habit_notification_id: result.id || null
-    });
-
-    // Also save timezone offset on the user profile for future cron runs to use
-    const currentUser = await base44.auth.me();
-    if (currentUser && timezoneOffsetMinutes !== undefined) {
-      try {
-        await base44.auth.updateMe({ timezone_offset: timezoneOffsetMinutes });
-      } catch (_) { /* best effort */ }
-    }
-
-    return Response.json({ success: true, notificationId: result.id, sendAt });
-  } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    return Response.json({ ok: true, scheduled: scheduledCount });
+  } catch (err) {
+    console.error('Error in cronDailyHabitNotifications:', err);
+    return Response.json({ error: err.message }, { status: 500 });
   }
 });
