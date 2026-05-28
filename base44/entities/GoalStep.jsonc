@@ -145,10 +145,19 @@
       "type": "string",
       "description": "OneSignal notification ID for the scheduled daily habit reminder"
     },
+    "missed_habit_notification_id": {
+      "type": "string",
+      "description": "OneSignal notification ID for the missed habit follow-up reminder (10 AM)"
+    },
     "last_habit_notification_date": {
       "type": "string",
       "format": "date",
       "description": "Last date a notification was scheduled for this habit (prevents duplicate daily notifications)"
+    },
+    "last_missed_notification_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Last date a missed habit follow-up was scheduled (prevents duplicate missed notifications)"
     },
     "habit_checkin_pending": {
       "type": "boolean",

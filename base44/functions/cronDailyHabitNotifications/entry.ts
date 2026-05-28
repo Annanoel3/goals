@@ -36,6 +36,14 @@ function getMessageForHabit(stepTitle, stepDescription, dayOfWeek) {
   }
 }
 
+function getMissedHabitMessage(stepTitle, stepDescription) {
+  const context = stepDescription || stepTitle;
+  return {
+    title: "🙌 Let's get back on track",
+    body: `I noticed you missed your "${context}" yesterday, but don't worry. You can do this! Let's go. 💪`
+  };
+}
+
 function extractAction(text) {
   // Extract action verb from description
   // E.g., "read 25% of a book" → "read 25% of a book"
@@ -62,67 +70,138 @@ function buildSendAtISO(habitTime, userTimezoneOffsetMinutes = 0) {
   return candidate.toISOString();
 }
 
+function buildMissedHabitSendAtISO(userTimezoneOffsetMinutes = 0) {
+  // Schedule missed habit notification for 10 AM today (or tomorrow if past 10 AM)
+  const now = new Date();
+  
+  const candidate = new Date(now);
+  candidate.setUTCHours(10, 0, 0, 0);
+  candidate.setTime(candidate.getTime() - userTimezoneOffsetMinutes * 60 * 1000);
+
+  // If 10 AM has already passed today, schedule for tomorrow
+  if (candidate <= now) {
+    candidate.setDate(candidate.getDate() + 1);
+  }
+  return candidate.toISOString();
+}
+
 async function scheduleHabitNotificationForUser(base44, step, userEmail, timezoneOffset = 0) {
   if (!step.habit_time || !step.is_daily_habit) return;
 
-  // Check if we already scheduled a notification for today
   const today = new Date().toISOString().split('T')[0];
-  if (step.last_habit_notification_date === today) {
-    return; // Already scheduled for today
-  }
 
-  // Cancel old notification if exists
-  if (step.habit_notification_id) {
-    try {
-      await fetch(`https://onesignal.com/api/v1/notifications/${step.habit_notification_id}?app_id=${ONESIGNAL_APP_ID}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Basic ${ONESIGNAL_REST_API_KEY}` }
-      });
-    } catch (_) { /* best effort */ }
-  }
-
-  // Determine day of week for contextual messaging
-  const sendAtDate = new Date();
-  const dayOfWeek = sendAtDate.getDay();
-
-  const msg = getMessageForHabit(step.title, step.description, dayOfWeek);
-  const sendAt = buildSendAtISO(step.habit_time, timezoneOffset);
-
-  const notificationPayload = {
-    app_id: ONESIGNAL_APP_ID,
-    include_aliases: { external_id: [userEmail] },
-    target_channel: 'push',
-    headings: { en: msg.title },
-    contents: { en: msg.body },
-    send_after: sendAt,
-    data: {
-      screen: '/Goals',
-      type: 'habit_checkin',
-      step_id: step.id,
-      goal_id: step.goal_id
-    },
-  };
-
-  try {
-    const response = await fetch('https://onesignal.com/api/v1/notifications', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Basic ${ONESIGNAL_REST_API_KEY}`
-      },
-      body: JSON.stringify(notificationPayload)
-    });
-
-    const result = await response.json();
-    if (result.id) {
-      // Save the new notification ID and today's date to prevent duplicates
-      await base44.asServiceRole.entities.GoalStep.update(step.id, {
-        habit_notification_id: result.id,
-        last_habit_notification_date: today
-      });
+  // 1. Schedule today's regular habit reminder
+  if (step.last_habit_notification_date !== today) {
+    // Cancel old notification if exists
+    if (step.habit_notification_id) {
+      try {
+        await fetch(`https://onesignal.com/api/v1/notifications/${step.habit_notification_id}?app_id=${ONESIGNAL_APP_ID}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Basic ${ONESIGNAL_REST_API_KEY}` }
+        });
+      } catch (_) { /* best effort */ }
     }
-  } catch (err) {
-    console.error(`Failed to schedule habit notification for step ${step.id}:`, err.message);
+
+    const sendAtDate = new Date();
+    const dayOfWeek = sendAtDate.getDay();
+
+    const msg = getMessageForHabit(step.title, step.description, dayOfWeek);
+    const sendAt = buildSendAtISO(step.habit_time, timezoneOffset);
+
+    const notificationPayload = {
+      app_id: ONESIGNAL_APP_ID,
+      include_aliases: { external_id: [userEmail] },
+      target_channel: 'push',
+      headings: { en: msg.title },
+      contents: { en: msg.body },
+      send_after: sendAt,
+      data: {
+        screen: '/Goals',
+        type: 'habit_checkin',
+        step_id: step.id,
+        goal_id: step.goal_id
+      },
+    };
+
+    try {
+      const response = await fetch('https://onesignal.com/api/v1/notifications', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Basic ${ONESIGNAL_REST_API_KEY}`
+        },
+        body: JSON.stringify(notificationPayload)
+      });
+
+      const result = await response.json();
+      if (result.id) {
+        await base44.asServiceRole.entities.GoalStep.update(step.id, {
+          habit_notification_id: result.id,
+          last_habit_notification_date: today
+        });
+      }
+    } catch (err) {
+      console.error(`Failed to schedule habit notification for step ${step.id}:`, err.message);
+    }
+  }
+
+  // 2. Check if habit was missed yesterday and schedule follow-up at 10 AM
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+  const wasCompletedYesterday = step.habit_completions && step.habit_completions.includes(yesterdayStr);
+  const hasMissedNotificationToday = step.last_missed_notification_date === today;
+
+  if (!wasCompletedYesterday && !hasMissedNotificationToday && step.last_habit_checkin_date !== yesterdayStr) {
+    // Cancel old missed notification if exists
+    if (step.missed_habit_notification_id) {
+      try {
+        await fetch(`https://onesignal.com/api/v1/notifications/${step.missed_habit_notification_id}?app_id=${ONESIGNAL_APP_ID}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Basic ${ONESIGNAL_REST_API_KEY}` }
+        });
+      } catch (_) { /* best effort */ }
+    }
+
+    const missedMsg = getMissedHabitMessage(step.title, step.description);
+    const sendAtMissed = buildMissedHabitSendAtISO(timezoneOffset);
+
+    const missedNotificationPayload = {
+      app_id: ONESIGNAL_APP_ID,
+      include_aliases: { external_id: [userEmail] },
+      target_channel: 'push',
+      headings: { en: missedMsg.title },
+      contents: { en: missedMsg.body },
+      send_after: sendAtMissed,
+      data: {
+        screen: '/Goals',
+        type: 'habit_missed_followup',
+        step_id: step.id,
+        goal_id: step.goal_id
+      },
+    };
+
+    try {
+      const response = await fetch('https://onesignal.com/api/v1/notifications', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Basic ${ONESIGNAL_REST_API_KEY}`
+        },
+        body: JSON.stringify(missedNotificationPayload)
+      });
+
+      const result = await response.json();
+      if (result.id) {
+        await base44.asServiceRole.entities.GoalStep.update(step.id, {
+          missed_habit_notification_id: result.id,
+          last_missed_notification_date: today
+        });
+      }
+    } catch (err) {
+      console.error(`Failed to schedule missed habit notification for step ${step.id}:`, err.message);
+    }
   }
 }
 
