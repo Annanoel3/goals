@@ -74,7 +74,7 @@ Deno.serve(async (req) => {
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json();
-    const { goal_id } = body;
+    const { goal_id, timezoneOffsetMinutes } = body;
     if (!goal_id) return Response.json({ error: 'Missing goal_id' }, { status: 400 });
 
     const goalResults = await base44.entities.Goal.filter({ id: goal_id });
@@ -88,8 +88,13 @@ Deno.serve(async (req) => {
     let scheduled = 0;
     let cancelled = 0;
 
-    // Get user's preferred notification time (default 10 AM)
-    let prefHour = 10;
+    // tzOffset: minutes to add to UTC to get local time (e.g. CDT = -300 → offset = -300)
+    // timezoneOffsetMinutes from JS Date.getTimezoneOffset() is positive for west-of-UTC (e.g. CDT = +300)
+    // So to convert local hour → UTC: utcHour = localHour + (timezoneOffsetMinutes / 60)
+    const tzOffsetMinutes = typeof timezoneOffsetMinutes === 'number' ? timezoneOffsetMinutes : 360; // default CDT
+
+    // Get user's preferred notification time (default 9 AM local)
+    let prefHour = 9;
     let prefMin = 0;
     if (user?.preferred_notification_time) {
       const tp = user.preferred_notification_time.match(/(\d{1,2}):(\d{2})/);
@@ -97,6 +102,14 @@ Deno.serve(async (req) => {
         prefHour = parseInt(tp[1]);
         prefMin = parseInt(tp[2]);
       }
+    }
+
+    // Helper: given a local hour/min and a date string (YYYY-MM-DD), return a UTC Date at that local time
+    function localTimeOnDate(dateStr, localHour, localMin) {
+      const d = new Date(dateStr + 'T00:00:00Z');
+      // Set to local time by adding tzOffset (getTimezoneOffset is positive for west)
+      d.setUTCHours(localHour + Math.floor(tzOffsetMinutes / 60), localMin + (tzOffsetMinutes % 60), 0, 0);
+      return d;
     }
 
     for (const step of steps) {
@@ -113,17 +126,14 @@ Deno.serve(async (req) => {
 
       if (step.is_daily_habit) {
         // ── DAILY HABIT STEPS ───────────────────────────────────────────────
-        // Schedule a daily notification for the next 30 days starting from
-        // the step's due_date (or today if no due_date), stopping at the goal's target_date.
         const startDate = step.due_date ? new Date(step.due_date + 'T00:00:00Z') : now;
-        // If start is in the past, start from tomorrow
         const habitStart = startDate < now
-          ? new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
+          ? new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1))
           : startDate;
 
         const goalEnd = goal.target_date
           ? new Date(goal.target_date + 'T23:59:59Z')
-          : new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000); // default 90 days
+          : new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
 
         // Use step habit_time, goal preferred_time, or user's global preferred time
         let notifHour = prefHour;
@@ -142,11 +152,12 @@ Deno.serve(async (req) => {
           }
         }
 
-        // Schedule daily reminders for every day until goal end
+        // Schedule daily reminders — cap at 60 days to avoid too many notifications
         let d = new Date(habitStart);
-        while (d <= goalEnd) {
-          const sendAt = new Date(d);
-          sendAt.setUTCHours(notifHour, notifMin, 0, 0);
+        const capEnd = new Date(Math.min(goalEnd.getTime(), now.getTime() + 60 * 24 * 60 * 60 * 1000));
+        while (d <= capEnd) {
+          const dateStr = d.toISOString().split('T')[0];
+          const sendAt = localTimeOnDate(dateStr, notifHour, notifMin);
           if (sendAt > now) {
             const nid = await scheduleNotification({
               externalId,
@@ -162,100 +173,74 @@ Deno.serve(async (req) => {
             });
             if (nid) { newNotifIds.push(nid); scheduled++; }
           }
-          d.setDate(d.getDate() + 1);
+          d.setUTCDate(d.getUTCDate() + 1);
         }
 
-        // Schedule weekly summaries (Sunday 8pm - beginning of week)
-        let weekStart = new Date(habitStart);
-        const dayOfWeek = weekStart.getDay();
-        if (dayOfWeek !== 0) {
-          weekStart.setDate(weekStart.getDate() + (7 - dayOfWeek));
-        }
-        while (weekStart <= goalEnd) {
-          const summaryTime = new Date(weekStart);
-          summaryTime.setUTCHours(20, 0, 0, 0); // 8 PM for week ahead
-          if (summaryTime > now) {
-            const weekNum = Math.ceil(((weekStart - habitStart) / (7 * 24 * 60 * 60 * 1000)) + 1);
-            const nid = await scheduleNotification({
-              externalId,
-              title: `📅 Week ${weekNum} ahead`,
-              body: `Check out what's coming up this week for "${goal.title}". Ready to crush it?`,
-              data: {
-                screen: 'GoalDetail',
-                goal_id: goal.id,
-                action: 'week_preview',
-              },
-              sendAt: summaryTime.toISOString(),
-            });
-            if (nid) { newNotifIds.push(nid); scheduled++; }
-          }
-          weekStart.setDate(weekStart.getDate() + 7);
-        }
-
-        // Schedule weekly recap (Friday 6pm - end of week)
-        let weekEnd = new Date(habitStart);
-        const dayOfWeekEnd = weekEnd.getDay();
-        if (dayOfWeekEnd !== 5) {
-          weekEnd.setDate(weekEnd.getDate() + (5 - dayOfWeekEnd + 7) % 7);
-        }
-        while (weekEnd <= goalEnd) {
-          const recapTime = new Date(weekEnd);
-          recapTime.setUTCHours(18, 0, 0, 0); // 6 PM for week recap
-          if (recapTime > now) {
-            const nid = await scheduleNotification({
-              externalId,
-              title: `🏆 Weekly recap`,
-              body: `Amazing work this week on "${goal.title}"! See what you accomplished.`,
-              data: {
-                screen: 'GoalDetail',
-                goal_id: goal.id,
-                action: 'week_recap',
-              },
-              sendAt: recapTime.toISOString(),
-            });
-            if (nid) { newNotifIds.push(nid); scheduled++; }
-          }
-          weekEnd.setDate(weekEnd.getDate() + 7);
-        }
       } else if (step.due_date) {
         // ── REGULAR STEP ────────────────────────────────────────────────────
-        // One notification the day of (at user's preferred time), and one the day before as a heads-up
+        // Daily reminder from today until due date (at preferred local time), plus a day-before heads-up
         const dueDate = new Date(step.due_date + 'T00:00:00Z');
-        dueDate.setUTCHours(prefHour, prefMin, 0, 0);
+        const dueSendAt = localTimeOnDate(step.due_date, prefHour, prefMin);
 
-        if (dueDate > now) {
+        // Day-before reminder
+        const dayBeforeDate = new Date(dueDate);
+        dayBeforeDate.setUTCDate(dayBeforeDate.getUTCDate() - 1);
+        const dayBeforeStr = dayBeforeDate.toISOString().split('T')[0];
+        const dayBeforeSendAt = localTimeOnDate(dayBeforeStr, prefHour, prefMin);
+
+        if (dayBeforeSendAt > now) {
           const nid = await scheduleNotification({
             externalId,
-            title: `Goal step due today`,
-            body: `"${step.title}" is due today in your goal: ${goal.title}`,
-            data: {
-              screen: 'GoalStepNotification',
-              action: 'goal_step_due',
-              goal_id: goal.id,
-              step_id: step.id,
-            },
-            sendAt: dueDate.toISOString(),
-          });
-          if (nid) { newNotifIds.push(nid); scheduled++; }
-        }
-
-        // Day-before reminder (at user's preferred time)
-        const dayBefore = new Date(dueDate);
-        dayBefore.setDate(dayBefore.getDate() - 1);
-        if (dayBefore > now) {
-          const nid2 = await scheduleNotification({
-            externalId,
-            title: `Goal step due tomorrow`,
-            body: `"${step.title}" is due tomorrow. Get a head start!`,
+            title: `"${step.title}" is due tomorrow`,
+            body: `Get a head start on this step for your goal: ${goal.title}`,
             data: {
               screen: 'GoalStepNotification',
               action: 'goal_step_tomorrow',
               goal_id: goal.id,
               step_id: step.id,
             },
-            sendAt: dayBefore.toISOString(),
+            sendAt: dayBeforeSendAt.toISOString(),
           });
-          if (nid2) { newNotifIds.push(nid2); scheduled++; }
+          if (nid) { newNotifIds.push(nid); scheduled++; }
+        }
+
+        if (dueSendAt > now) {
+          const nid = await scheduleNotification({
+            externalId,
+            title: `"${step.title}" is due today`,
+            body: `Time to work on this step for your goal: ${goal.title}`,
+            data: {
+              screen: 'GoalStepNotification',
+              action: 'goal_step_due',
+              goal_id: goal.id,
+              step_id: step.id,
+            },
+            sendAt: dueSendAt.toISOString(),
+          });
+          if (nid) { newNotifIds.push(nid); scheduled++; }
+        }
+
+        // Daily reminder every day from today until due date
+        let d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+        while (d < dueDate) {
+          const dateStr = d.toISOString().split('T')[0];
+          const sendAt = localTimeOnDate(dateStr, prefHour, prefMin);
+          if (sendAt > now) {
+            const nid = await scheduleNotification({
+              externalId,
+              title: `Daily reminder: ${goal.title}`,
+              body: generateDailyMessage(goal, step),
+              data: {
+                screen: 'GoalStepNotification',
+                action: 'goal_step',
+                goal_id: goal.id,
+                step_id: step.id,
+              },
+              sendAt: sendAt.toISOString(),
+            });
+            if (nid) { newNotifIds.push(nid); scheduled++; }
+          }
+          d.setUTCDate(d.getUTCDate() + 1);
         }
       }
 
@@ -281,11 +266,12 @@ Deno.serve(async (req) => {
     let monthNum = 1;
 
     while (curMonth <= (goal.target_date ? new Date(goal.target_date) : new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000))) {
-      // Month start: first day at 9 AM
+      // Month start: first day at 9 AM local
       const mStart = new Date(curMonth);
       mStart.setUTCDate(1);
-      mStart.setUTCHours(9, 0, 0, 0);
-      if (mStart > now) {
+      const mStartStr = mStart.toISOString().split('T')[0];
+      const mStartLocal = localTimeOnDate(mStartStr, 9, 0);
+      if (mStartLocal > now) {
         const nid = await scheduleNotification({
           externalId,
           title: `🚀 Month ${monthNum} begins`,
@@ -295,17 +281,18 @@ Deno.serve(async (req) => {
             goal_id: goal.id,
             action: 'month_preview',
           },
-          sendAt: mStart.toISOString(),
+          sendAt: mStartLocal.toISOString(),
         });
         if (nid) { goalNotifIds.push(nid); scheduled++; }
       }
 
-      // Month end: last day at 7 PM
+      // Month end: last day at 7 PM local
       const mEnd = new Date(curMonth);
       mEnd.setUTCMonth(mEnd.getUTCMonth() + 1);
       mEnd.setUTCDate(0); // Last day of current month
-      mEnd.setUTCHours(19, 0, 0, 0);
-      if (mEnd > now) {
+      const mEndStr = mEnd.toISOString().split('T')[0];
+      const mEndLocal = localTimeOnDate(mEndStr, 19, 0);
+      if (mEndLocal > now) {
         const nid = await scheduleNotification({
           externalId,
           title: `✨ Month ${monthNum} complete`,
@@ -315,7 +302,7 @@ Deno.serve(async (req) => {
             goal_id: goal.id,
             action: 'month_recap',
           },
-          sendAt: mEnd.toISOString(),
+          sendAt: mEndLocal.toISOString(),
         });
         if (nid) { goalNotifIds.push(nid); scheduled++; }
       }

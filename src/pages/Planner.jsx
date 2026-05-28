@@ -234,7 +234,7 @@ export default function Planner() {
       setPendingGoalId(goal.id);
 
       // Schedule all notifications for this goal in the background
-      base44.functions.invoke('scheduleGoalNotifications', { goal_id: goal.id }).catch(() => {});
+      base44.functions.invoke('scheduleGoalNotifications', { goal_id: goal.id, timezoneOffsetMinutes: new Date().getTimezoneOffset() }).catch(() => {});
     } catch (err) {
       toast({ title: "Error saving goal", description: "Please try again.", variant: "destructive" });
     } finally {
@@ -257,7 +257,7 @@ export default function Planner() {
       // Reschedule all notifications for this goal (cancels old ones first)
       const gid = pendingGoalId || editingGoal?.id;
       if (gid) {
-        base44.functions.invoke('scheduleGoalNotifications', { goal_id: gid }).catch(() => {});
+        base44.functions.invoke('scheduleGoalNotifications', { goal_id: gid, timezoneOffsetMinutes: new Date().getTimezoneOffset() }).catch(() => {});
       }
     } catch (err) {
       toast({ title: "Error applying changes", description: "Please try again.", variant: "destructive" });
