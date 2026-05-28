@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Send, Loader2, Mic, Sparkles, Target, Plus, Check, ChevronDown, ChevronUp, ChevronRight } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
-import GoalPlanLoadingAnimation from "@/components/shared/GoalPlanLoadingAnimation";
 
 export default function Planner() {
   const [messages, setMessages] = useState([]);
@@ -413,7 +412,7 @@ export default function Planner() {
 
             {isSaving && (pendingAction === 'plan_approved' || pendingAction === 'plan_proposed') && (
               <div className="flex justify-center py-4">
-                <GoalPlanLoadingAnimation />
+                <SavingProgressBar isEdit={false} done={!isSaving} />
               </div>
             )}
 
@@ -870,7 +869,7 @@ function MessageBubble({ msg, onExampleClick }) {
   );
 }
 
-function SavingProgressBar({ isEdit = false }) {
+function SavingProgressBar({ isEdit = false, done = false }) {
   const newGoalSteps = [
     "Laying out the timeline…",
     "Structuring your milestones…",
@@ -892,16 +891,22 @@ function SavingProgressBar({ isEdit = false }) {
   const [progress, setProgress] = React.useState(5);
 
   React.useEffect(() => {
-    const totalDuration = isEdit ? 8000 : 14000;
+    if (done) {
+      setProgress(100);
+      setStepIndex(steps.length - 1);
+      return;
+    }
+    // Crawl to max 90% while still saving — never reaches 100 until done
+    const totalDuration = isEdit ? 8000 : 50000;
     const interval = totalDuration / steps.length;
     const stepTimer = setInterval(() => {
       setStepIndex(i => Math.min(i + 1, steps.length - 1));
     }, interval);
     const progressTimer = setInterval(() => {
-      setProgress(p => Math.min(p + 1, 92));
-    }, totalDuration / 92);
+      setProgress(p => Math.min(p + 1, 90));
+    }, totalDuration / 90);
     return () => { clearInterval(stepTimer); clearInterval(progressTimer); };
-  }, []);
+  }, [done]);
 
   const isDark = localStorage.getItem('adhd_theme') === 'dark';
   return (
