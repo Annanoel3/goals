@@ -102,16 +102,25 @@ TYPE B — MILESTONE/PROJECT GOALS (save money, find a job, start a business, wr
 
 DECISION RULE: Look at the goal's category and description. If it involves a SKILL that requires daily repetition to build muscle memory or habit → TYPE A. If it's about achieving outcomes through periodic actions and milestones → TYPE B. When in doubt, lean TYPE B (fewer, clearer steps per week).
 
-READING & BOOK GOALS: Each month = 1 book split into 4 week-phases. CRITICAL — NEVER guess or fabricate chapter/page counts. Before assigning chapter ranges, you MUST use the web_search tool to look up the exact number of chapters and pages for that specific book. Then divide: chapters ÷ 4 = chapters per week (round evenly). Example: 25 chapters → Week 1: Ch 1-6, Week 2: Ch 7-12, Week 3: Ch 13-19, Week 4: Ch 20-25. If the book has no chapters (only pages), divide total pages by 4. Week 4 = final section + brief reflection notes. NEVER compress a whole book into 1 week-phase. CRITICAL ENFORCEMENT: Your step titles and descriptions MUST include the specific chapter/page ranges (e.g. "Read Chapters 1-6" or "Pages 1-50"). Do NOT use vague percentages like "~50% progress" when actual chapter counts are available. Use real numbers.
+GOAL-TYPE-SPECIFIC ENRICHMENT — EVERY goal needs depth tailored to its category:
 
-FOR ALL READING GOALS — ADD DEPTH BEYOND JUST PAGE COUNTS:
-- Week 1 (beginning): Reading target + curiosity prompt (e.g., "What themes stand out to you so far?" or "Who's your favorite character?")
-- Week 2 (mid-way): Reading target + research task (e.g., "Look up the author's background" or "Research the historical context")
-- Week 3 (approaching end): Reading target + analysis question (e.g., "What's the turning point in the story?" or "What has changed since the start?")
-- Week 4 (completion): Finish the book + reflection/discussion activity (e.g., "What's one concept you'll carry forward?" or "If you could discuss this with the author, what would you ask?")
-- Include these enrichment activities in the "tips_and_guidance" field so users know WHAT to do, not just HOW MUCH to read.
+READING GOALS: Each month = 1 book split into 4 week-phases. NEVER guess chapter counts—use web_search first. Divide chapters evenly: chapters ÷ 4 = per week. ALWAYS include chapter/page ranges in titles (e.g., "Read Ch 1-6"). Week 1: Reading + curiosity prompt. Week 2: Reading + research (author background, historical context). Week 3: Reading + analysis ("What's the turning point?"). Week 4: Finish + reflection/discussion activity. Include in tips_and_guidance.
 
-If the goal involves reading EVERY DAY (e.g. "read 12 books in 12 months", "daily reading habit", "read 30 pages a day"), set is_daily_habit: true on each weekly reading step. If reading is occasional/milestone-based, leave is_daily_habit: false.
+FITNESS GOALS: Each week: specific exercises + form/technique tips + progression strategy + recovery guidelines. Week 1-2: Foundation (proper form, warm-ups, baseline assessment). Week 3-4: Progressive increase (reps, weight, duration). Include: metrics to track, injury prevention, rest days.
+
+LANGUAGE LEARNING: Each week: vocabulary target + real-world scenarios + cultural context. Week 1-2: Survival phrases, grammar fundamentals. Week 3-4: Practical usage (ordering food, asking directions, conversation). Include: podcasts, shows, news in target language + speaking practice suggestions.
+
+CREATIVE GOALS (art, music, writing, dance): Each week: specific technique/skill + creative challenge + feedback/showcase. Week 1-2: Fundamentals (tools, techniques, practice pieces). Week 3-4: Style exploration (experiment, get feedback, build portfolio). Include: critique opportunities, peer feedback, portfolio activities.
+
+CAREER & PROFESSIONAL: Each week: specific skill target + real-world application + networking. Week 1-2: Foundational knowledge (certifications, concepts, industry research). Week 3-4: Practical application (projects, case studies, portfolio, job prep). Include: industry trends, people to network with, certifications.
+
+FINANCE GOALS (saving, investing, budgeting): Each week: specific action + education + tracking. Week 1-2: Knowledge (research products, fees, strategies). Week 3-4: Action (open accounts, set transfers, review progress). Include: budget breakdowns, investment research, comparisons.
+
+HEALTH & WELLNESS: Each week: specific habit target + educational context + measurement. Week 1-2: Baseline & education (track current state, learn why, research best practices). Week 3-4: Implementation & adjustment (gradual changes, measure, refine). Include: why it matters, obstacles/solutions, metrics.
+
+LEARNING/SKILL GOALS (coding, design, public speaking): Each week: specific concept/skill + hands-on project + real-world application. Week 1-2: Core concepts (tutorials, theory, foundational projects). Week 3-4: Application (build real thing, solve problems, portfolio piece). Include: example projects, debugging tips, resources.
+
+For reading/daily practice goals: set is_daily_habit: true. For milestone-based goals: set is_daily_habit: false.
 
 TOKEN PRIORITY RULE: Completing ALL ${detectedMonths} months x 4 weeks = ${detectedMonths * 4} total week-phases is the HIGHEST priority. Trade depth for coverage always. Use 2-4 steps per week-phase. Never sacrifice later weeks just to add detail to earlier ones.
 
