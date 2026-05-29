@@ -669,14 +669,6 @@ function parsePlanHierarchy(text) {
         currentWeek = null;
         prevLineWasMonthHeader = true;
       }
-    } else if (prevLineWasMonthHeader && currentMonth && !currentMonth.subtitle && !isTaskLine(line) && !isPureWeekHeader(line) && !isCombinedHeader(line)) {
-      // Line immediately after a Month header with no subtitle yet — treat as the book/subtitle line
-      // e.g. "*A Court of Thorns and Roses*" or "A Court of Thorns and Roses"
-      const candidateSubtitle = line.replace(/\*+/g, '').replace(/^[-–—:]\s*/, '').trim();
-      const isDateOnly = /^(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}$/i.test(candidateSubtitle);
-      const isTooLong = candidateSubtitle.length > 80;
-      if (candidateSubtitle && !isDateOnly && !isTooLong) currentMonth.subtitle = candidateSubtitle;
-      prevLineWasMonthHeader = false;
     } else if (isPureWeekHeader(line)) {
       prevLineWasMonthHeader = false;
       // Standalone "Week 1" — attach to current month
@@ -700,6 +692,14 @@ function parsePlanHierarchy(text) {
         currentWeek.tasks.push(task);
       }
     } else {
+      // If we're right after a month header and no subtitle yet, this non-task, non-week line might be the book title
+      if (prevLineWasMonthHeader && currentMonth && !currentMonth.subtitle) {
+        const candidateSubtitle = line.replace(/\*+/g, '').replace(/^[-–—:]\s*/, '').trim();
+        const isDateOnly = /^(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}$/i.test(candidateSubtitle);
+        const isTooLong = candidateSubtitle.length > 80;
+        if (candidateSubtitle && !isDateOnly && !isTooLong) currentMonth.subtitle = candidateSubtitle;
+      }
+      prevLineWasMonthHeader = false;
       if (months.length === 0) {
         preamble.push(line);
       }

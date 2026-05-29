@@ -823,16 +823,45 @@ Always be specific, warm, encouraging, and treat the plan as a living document t
        return Response.json({ message: finalReply.replace(/EDIT_APPROVED:[^\s]+\s*/i, '').trim(), action: 'edit_approved', goal_id: editGoalId });
      }
 
-     // Parse month titles from the chat response text (e.g. "Month 1 – Book Title" or "Month 1: Title")
+     // Parse month titles from the chat response text
+     // Handles two formats:
+     //   1. Inline: "Month 1 – Book Title" or "**Month 1** – Book Title"
+     //   2. Next line: "**Month 1**\n*Book Title*" or "Month 1\nBook Title"
      const chatMonthTitles = {};
-     const monthTitleRegex = /Month\s+(\d+)\s*[–—:\-]\s*([^\n*#]+)/gi;
-     let mtMatch;
-     while ((mtMatch = monthTitleRegex.exec(finalReply)) !== null) {
-       const num = mtMatch[1];
-       const title = mtMatch[2].trim().replace(/\*+/g, '').trim();
-       // Skip if the title looks like a pure date (e.g. "June 2026", "January 2025")
-       const isDateOnly = /^(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}$/i.test(title);
-       if (title && !isDateOnly && !chatMonthTitles[num]) chatMonthTitles[num] = title;
+     const replyLines = finalReply.split('\n');
+     const isDateOnly = (t) => /^(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}$/i.test(t);
+     const isPureMonthLine = (l) => /^[#*\s]*(Month\s+\d+)[*\s]*$/i.test(l.trim());
+     const isMonthWithInlineTitle = (l) => /Month\s+(\d+)\s*[–—:\-]\s*([^\n*#]+)/i.test(l.replace(/\*\*/g, ''));
+
+     for (let li = 0; li < replyLines.length; li++) {
+       const rawLine = replyLines[li];
+       const cleanLine = rawLine.replace(/\*\*/g, '').trim();
+
+       // Format 1: "Month 1 – Title" on same line
+       const inlineMatch = cleanLine.match(/Month\s+(\d+)\s*[–—:\-]\s*(.+)/i);
+       if (inlineMatch) {
+         const num = inlineMatch[1];
+         const title = inlineMatch[2].replace(/\*/g, '').trim();
+         if (title && !isDateOnly(title) && !chatMonthTitles[num]) chatMonthTitles[num] = title;
+         continue;
+       }
+
+       // Format 2: "Month 1" alone, then next non-empty line is the title
+       const monthNumMatch = cleanLine.match(/^Month\s+(\d+)$/i);
+       if (monthNumMatch) {
+         const num = monthNumMatch[1];
+         // Look at next non-empty line
+         let nextLine = '';
+         for (let nli = li + 1; nli < replyLines.length && nli < li + 3; nli++) {
+           const candidate = replyLines[nli].replace(/\*/g, '').replace(/^[#\s]+/, '').trim();
+           if (candidate.length > 0) { nextLine = candidate; break; }
+         }
+         const isWeekLine = /^Week\s+\d+/i.test(nextLine);
+         const isMonthLine = /^Month\s+\d+/i.test(nextLine);
+         if (nextLine && !isWeekLine && !isMonthLine && !isDateOnly(nextLine) && nextLine.length <= 80) {
+           if (!chatMonthTitles[num]) chatMonthTitles[num] = nextLine;
+         }
+       }
      }
      return Response.json({ message: finalReply, action: 'chat', month_titles: chatMonthTitles });
 
