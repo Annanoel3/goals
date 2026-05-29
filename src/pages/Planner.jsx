@@ -963,6 +963,49 @@ function MessageBubble({ msg, onExampleClick }) {
     return /Month\s+\d+/i.test(text) && /Week\s+\d+/i.test(text);
   };
 
+  const renderMarkdown = (text) => {
+    // Parse markdown and return JSX
+    const lines = text.split('\n');
+    const elements = [];
+    
+    lines.forEach((line, idx) => {
+      // Headers
+      if (line.startsWith('###')) {
+        elements.push(<h3 key={`h3-${idx}`} className={`font-bold text-sm mt-2 ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>{line.replace(/^#+\s*/, '')}</h3>);
+      } else if (line.startsWith('##')) {
+        elements.push(<h2 key={`h2-${idx}`} className={`font-bold text-base mt-2 ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>{line.replace(/^#+\s*/, '')}</h2>);
+      } else if (line.startsWith('#')) {
+        elements.push(<h1 key={`h1-${idx}`} className={`font-bold text-lg mt-2 ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>{line.replace(/^#+\s*/, '')}</h1>);
+      }
+      // Bold and links
+      else if (line.trim()) {
+        const parts = line.split(/(\*\*[^*]+\*\*|\[([^\]]+)\]\(([^)]+)\)|-\s)/g);
+        const jsxParts = parts.map((part, i) => {
+          if (!part) return null;
+          if (part.startsWith('**') && part.endsWith('**')) {
+            return <strong key={`bold-${i}`}>{part.slice(2, -2)}</strong>;
+          }
+          if (part.match(/^\[([^\]]+)\]\(([^)]+)\)$/)) {
+            const match = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+            return <a key={`link-${i}`} href={match[2]} className="text-blue-500 underline hover:text-blue-600" target="_blank" rel="noopener noreferrer">{match[1]}</a>;
+          }
+          if (part === '- ') return null;
+          return <span key={`text-${i}`}>{part}</span>;
+        });
+        
+        if (line.startsWith('-')) {
+          elements.push(<li key={`li-${idx}`} className={`ml-4 text-sm ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{jsxParts}</li>);
+        } else {
+          elements.push(<p key={`p-${idx}`} className={`text-sm ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{jsxParts}</p>);
+        }
+      } else if (idx > 0) {
+        elements.push(<div key={`br-${idx}`} className="h-2" />);
+      }
+    });
+    
+    return <div className="space-y-1">{elements}</div>;
+  };
+
   return (
     <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'}`}>
       <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} w-full`}>
@@ -971,7 +1014,7 @@ function MessageBubble({ msg, onExampleClick }) {
             <Sparkles className="w-3.5 h-3.5 text-white" />
           </div>
         )}
-        <div className={`max-w-[88%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
+        <div className={`max-w-[88%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
           isUser
             ? isDark ? 'bg-violet-700 text-white rounded-br-sm shadow-md shadow-violet-900/30' : 'bg-gradient-to-br from-violet-600 to-indigo-600 text-white rounded-br-sm shadow-md shadow-violet-100'
             : isDark ? 'bg-gray-800 border border-gray-700 text-gray-100 rounded-bl-sm shadow-sm' : 'bg-white border border-gray-100 text-gray-800 rounded-bl-sm shadow-sm'
@@ -980,7 +1023,7 @@ function MessageBubble({ msg, onExampleClick }) {
             isPlanMessage(msg.content) ? (
               <PlanView text={msg.content} goalMonthTitles={msg.goalMonthTitles || {}} />
             ) : (
-              <span className="whitespace-pre-wrap">{renderInlineText(msg.content)}</span>
+              renderMarkdown(msg.content)
             )
           )}
         </div>
