@@ -291,7 +291,7 @@ export default function Planner() {
       localStorage.removeItem('plannerInProgress');
 
       // Schedule all notifications for this goal in the background
-      base44.functions.invoke('scheduleGoalNotifications', { goal_id: goal.id, timezoneOffsetMinutes: new Date().getTimezoneOffset() }).catch(() => {});
+      base44.functions.invoke('scheduleGoalNotifications', { goal_id: goal.id, preferred_time: plan.preferred_time, timezoneOffsetMinutes: new Date().getTimezoneOffset() }).catch(() => {});
     } catch (err) {
       setSaveError(true);
     } finally {
@@ -322,7 +322,8 @@ export default function Planner() {
 
       // Reschedule all notifications for this goal (cancels old ones first)
       if (gid) {
-        base44.functions.invoke('scheduleGoalNotifications', { goal_id: gid, timezoneOffsetMinutes: new Date().getTimezoneOffset() }).catch(() => {});
+        const currentGoal = goals.find(g => g.id === gid);
+        base44.functions.invoke('scheduleGoalNotifications', { goal_id: gid, preferred_time: currentGoal?.preferred_time, timezoneOffsetMinutes: new Date().getTimezoneOffset() }).catch(() => {});
       }
     } catch (err) {
       toast({ title: "Error applying changes", description: "Please try again.", variant: "destructive" });
