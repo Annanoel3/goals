@@ -134,10 +134,12 @@ export default function Planner() {
       const res = await base44.functions.invoke("goalPlannerChat", payload);
       const { message, action, goal_id, month_titles } = res.data;
 
-      // Merge new month_titles with any existing ones from the editing goal
-      const existingMonthTitles = editingGoal?.month_titles || {};
-      const mergedMonthTitles = { ...existingMonthTitles, ...(month_titles || {}) };
-      setMessages(prev => [...prev, { role: "assistant", content: message, goalMonthTitles: mergedMonthTitles }]);
+      // If the AI returned new month_titles, use them exclusively (they reflect the new plan).
+      // Only fall back to the existing goal's titles if the AI returned nothing at all.
+      const newMonthTitles = (month_titles && Object.keys(month_titles).length > 0)
+        ? month_titles
+        : (editingGoal?.month_titles || {});
+      setMessages(prev => [...prev, { role: "assistant", content: message, goalMonthTitles: newMonthTitles }]);
 
       // Detect if AI proposed a full plan (new or edit) — show approval buttons
       const looksLikeFullPlan = message?.includes('Month 1') && (message?.includes('Month 2') || message?.includes('Week 1') || message?.includes('Week 2'));

@@ -866,42 +866,41 @@ Always be specific, warm, encouraging, and treat the plan as a living document t
      }
 
      // Parse month titles from the chat response text
-     // Handles two formats:
-     //   1. Inline: "Month 1 – Book Title" or "**Month 1** – Book Title"
-     //   2. Next line: "**Month 1**\n*Book Title*" or "Month 1\nBook Title"
+     // Handles formats like:
+     //   "Month 1 – Book Title", "Month 1 – *Book Title*", "**Month 1** – Book Title"
+     //   "Month 1\n*Book Title*", "Month 1\nBook Title"
      const chatMonthTitles = {};
      const replyLines = finalReply.split('\n');
      const isDateOnly = (t) => /^(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}$/i.test(t);
-     const isPureMonthLine = (l) => /^[#*\s]*(Month\s+\d+)[*\s]*$/i.test(l.trim());
-     const isMonthWithInlineTitle = (l) => /Month\s+(\d+)\s*[–—:\-]\s*([^\n*#]+)/i.test(l.replace(/\*\*/g, ''));
+     const stripFormatting = (s) => s.replace(/\*+/g, '').replace(/^[#>\s-]+/, '').trim();
 
      for (let li = 0; li < replyLines.length; li++) {
-       const rawLine = replyLines[li];
-       const cleanLine = rawLine.replace(/\*\*/g, '').trim();
+       const cleanLine = stripFormatting(replyLines[li]);
 
-       // Format 1: "Month 1 – Title" on same line
-       const inlineMatch = cleanLine.match(/Month\s+(\d+)\s*[–—:\-]\s*(.+)/i);
+       // Format 1: "Month 1 – Title" or "Month 1 - *Title*" on same line
+       const inlineMatch = cleanLine.match(/^Month\s+(\d+)\s*[–—:\-]+\s*(.+)/i);
        if (inlineMatch) {
          const num = inlineMatch[1];
-         const title = inlineMatch[2].replace(/\*/g, '').trim();
-         if (title && !isDateOnly(title) && !chatMonthTitles[num]) chatMonthTitles[num] = title;
+         const title = stripFormatting(inlineMatch[2]);
+         if (title && !isDateOnly(title) && title.length <= 120 && !chatMonthTitles[num]) {
+           chatMonthTitles[num] = title;
+         }
          continue;
        }
 
-       // Format 2: "Month 1" alone, then next non-empty line is the title
+       // Format 2: "Month 1" alone (or "**Month 1**"), next non-empty line is the title
        const monthNumMatch = cleanLine.match(/^Month\s+(\d+)$/i);
        if (monthNumMatch) {
          const num = monthNumMatch[1];
-         // Look at next non-empty line
-         let nextLine = '';
-         for (let nli = li + 1; nli < replyLines.length && nli < li + 3; nli++) {
-           const candidate = replyLines[nli].replace(/\*/g, '').replace(/^[#\s]+/, '').trim();
-           if (candidate.length > 0) { nextLine = candidate; break; }
-         }
-         const isWeekLine = /^Week\s+\d+/i.test(nextLine);
-         const isMonthLine = /^Month\s+\d+/i.test(nextLine);
-         if (nextLine && !isWeekLine && !isMonthLine && !isDateOnly(nextLine) && nextLine.length <= 80) {
-           if (!chatMonthTitles[num]) chatMonthTitles[num] = nextLine;
+         for (let nli = li + 1; nli < replyLines.length && nli < li + 4; nli++) {
+           const candidate = stripFormatting(replyLines[nli]);
+           if (!candidate) continue;
+           const isWeekLine = /^Week\s+\d+/i.test(candidate);
+           const isMonthLine = /^Month\s+\d+/i.test(candidate);
+           if (!isWeekLine && !isMonthLine && !isDateOnly(candidate) && candidate.length <= 120) {
+             if (!chatMonthTitles[num]) chatMonthTitles[num] = candidate;
+           }
+           break;
          }
        }
      }
