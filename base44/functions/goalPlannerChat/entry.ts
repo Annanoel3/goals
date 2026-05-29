@@ -406,12 +406,9 @@ Extract every single step. If the planner listed 48 steps, return all 48.`
         if (Object.keys(otherUpdates).length > 0) {
           await base44.entities.Goal.update(goal_id, otherUpdates);
         }
-        // Update month_titles separately (merge with existing)
+        // Fully replace month_titles with the new ones from the revised plan
         if (month_titles && Object.keys(month_titles).length > 0) {
-          const currentGoalFresh = await base44.entities.Goal.list().then(all => all.find(g => g.id === goal_id));
-          await base44.entities.Goal.update(goal_id, {
-            month_titles: { ...(currentGoalFresh?.month_titles || {}), ...month_titles }
-          });
+          await base44.entities.Goal.update(goal_id, { month_titles });
         }
       }
 

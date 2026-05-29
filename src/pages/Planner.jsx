@@ -280,14 +280,9 @@ export default function Planner() {
       const allMessages = messagesRef.current.filter(m => m.role !== "system");
       const gid = pendingGoalId || editingGoal?.id;
       
-      // Save conversation history + latest month_titles to the goal before applying edits
-      if (gid && editingGoal) {
-        // Collect merged month_titles from all assistant messages
-        const latestMonthTitles = allMessages.reduce((acc, m) => {
-          if (m.role === 'assistant' && m.goalMonthTitles) return { ...acc, ...m.goalMonthTitles };
-          return acc;
-        }, editingGoal.month_titles || {});
-        await base44.entities.Goal.update(gid, { conversation_history: allMessages, month_titles: latestMonthTitles });
+      // Save conversation history only — let apply_edit handle month_titles from the new plan
+      if (gid) {
+        await base44.entities.Goal.update(gid, { conversation_history: allMessages });
       }
 
       await base44.functions.invoke("goalPlannerChat", {
