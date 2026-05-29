@@ -659,9 +659,10 @@ function parsePlanHierarchy(text) {
       if (mNum) {
         currentMonth = getOrCreateMonth(mNum);
         // Extract subtitle e.g. "Month 1 - Begin Immersion" → store as month subtitle
-        const subtitle = cleanHeader(line).replace(/^Month\s+\d+\s*[-:]\s*/i, '').trim();
-        // Only set subtitle if it's different from just "Month N"
-        if (subtitle && !/^Month\s+\d+$/i.test(subtitle)) currentMonth.subtitle = subtitle;
+        const subtitle = cleanHeader(line).replace(/^Month\s+\d+\s*[-–—:]\s*/i, '').trim();
+        // Only set subtitle if it's different from just "Month N" and not a pure date (e.g. "June 2026")
+        const isDateOnly = /^(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}$/i.test(subtitle);
+        if (subtitle && !isDateOnly && !/^Month\s+\d+$/i.test(subtitle)) currentMonth.subtitle = subtitle;
         currentWeek = null;
       }
     } else if (isPureWeekHeader(line)) {

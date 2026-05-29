@@ -830,7 +830,9 @@ Always be specific, warm, encouraging, and treat the plan as a living document t
      while ((mtMatch = monthTitleRegex.exec(finalReply)) !== null) {
        const num = mtMatch[1];
        const title = mtMatch[2].trim().replace(/\*+/g, '').trim();
-       if (title && !chatMonthTitles[num]) chatMonthTitles[num] = title;
+       // Skip if the title looks like a pure date (e.g. "June 2026", "January 2025")
+       const isDateOnly = /^(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}$/i.test(title);
+       if (title && !isDateOnly && !chatMonthTitles[num]) chatMonthTitles[num] = title;
      }
      return Response.json({ message: finalReply, action: 'chat', month_titles: chatMonthTitles });
 
