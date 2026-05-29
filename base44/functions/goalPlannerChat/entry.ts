@@ -348,166 +348,99 @@ CRITICAL:
     // ── APPLY EDIT: commit approved edits to an existing goal ─────────────────
     if (mode === 'apply_edit') {
 
-      // Fetch existing goal & steps for context (user-scoped so RLS returns their data)
+      // Fetch existing goal & steps
       const existingGoal = await base44.entities.Goal.list().then(all => all.find(g => g.id === goal_id));
       const existingSteps = await base44.entities.GoalStep.filter({ goal_id });
 
-      const stepsJson = JSON.stringify(existingSteps.map(s => ({
-        id: s.id, title: s.title, phase: s.phase, priority: s.priority, due_date: s.due_date, order_index: s.order_index, status: s.status
-      })));
+      // Separate completed steps (keep) from pending/in_progress (will be replaced)
+      const completedSteps = existingSteps.filter(s => s.status === 'completed');
+      const replaceableSteps = existingSteps.filter(s => s.status !== 'completed');
 
+      // Extract the new plan from the conversation using AI
       const extractionResponse = await openai.chat.completions.create({
         model: "gpt-4o",
         messages: [
           {
             role: "system",
-            content: `You extract approved goal edits from a conversation. Return ONLY valid JSON, no markdown. CRITICAL: Extract EVERY proposed step from the planner's response, not just a sample. If the planner proposed 30 steps, return all 30.`
+            content: `You extract the new goal plan proposed in a conversation. Return ONLY valid JSON, no markdown.
+CRITICAL: Extract EVERY step the planner proposed in their latest plan. Do NOT omit any steps.
+The output is used to completely replace all existing steps, so you must be exhaustive and complete.`
           },
           {
             role: "user",
-            content: `Current goal: ${existingGoal?.title || 'Unknown'}
-Current steps (ALL existing step IDs):
-${stepsJson}
+            content: `Goal: "${existingGoal?.title || 'Unknown'}"
 
-Conversation about edits:
+Conversation:
 ${conversationText}
 
-Extract the APPROVED changes. CRITICAL RULES:
-
-RULE 1 — FULL RESTRUCTURE DETECTION (MOST IMPORTANT):
-If the planner proposed a REVISED or UPDATED full plan — meaning the conversation contains a new complete list of books, activities, phases, or steps replacing the old ones — then this is a FULL RESTRUCTURE. You MUST:
-  a) Put EVERY existing step ID from the current steps list into steps_to_delete (all of them, keeping nothing except "completed" status steps).
-  b) Extract EVERY SINGLE step/book/activity from the planner's latest proposed plan into steps_to_add.
-  c) Do NOT try to patch individual steps — replace everything.
-
-Signs this is a full restructure (ANY of these = full restructure):
-- The planner presented a new list of books for each month
-- The planner said "revised plan", "updated plan", "new plan", "here's the new plan"  
-- The planner changed 3 or more months worth of content
-- The user asked to change books, replace content, fix genre mix, or redo the plan
-- The planner apologized and presented a corrected version
-
-RULE 2 — EXTRACT EVERYTHING:
-If the planner proposed new months/weeks, extract EVERY SINGLE STEP from that proposal. Count the steps in the proposal and ensure your steps_to_add array has the SAME count. Do NOT omit any.
-
-RULE 3 — PHASE NAMING:
-Preserve the exact phase naming from the proposal (e.g. "Month 6, Week 1").
-
-RULE 4 — PARTIAL EDITS (only when it's clearly NOT a full restructure):
-Only use steps_to_update for truly minor tweaks (e.g. changing a due date, updating a description). If more than 2-3 steps changed, treat it as a full restructure per Rule 1.
+Extract ALL steps from the planner's most recent proposed plan/changes. Include goal-level updates if the title, timeline, or description changed.
 
 Return JSON:
 {
   "goal_updates": {
-    "title": "optional - only if changed",
-    "description": "optional - only if changed",
-    "plan_summary": "optional - only if changed",
-    "timeline": "optional - only if changed",
-    "target_date": "YYYY-MM-DD - optional - only if changed"
+    "title": "only if changed",
+    "description": "only if changed",
+    "plan_summary": "only if changed",
+    "timeline": "only if changed",
+    "target_date": "YYYY-MM-DD only if changed",
+    "month_titles": { "1": "title", "2": "title" }
   },
-  "steps_to_add": [
-    { "title": "...", "description": "...", "phase": "...", "priority": "low|medium|high|critical", "due_date": "YYYY-MM-DD", "order_index": 999, "step_resources": [], "success_criteria": [], "tips_and_guidance": "" }
-  ],
-  "steps_to_update": [
-    { "id": "existing step id", "title": "...", "description": "...", "phase": "...", "priority": "...", "due_date": "YYYY-MM-DD" }
-  ],
-  "steps_to_delete": ["step_id_1", "step_id_2"]
+  "new_steps": [
+    { "title": "...", "description": "...", "phase": "Month X, Week Y", "priority": "low|medium|high|critical", "due_date": "YYYY-MM-DD", "order_index": 0, "step_resources": [], "success_criteria": [], "tips_and_guidance": "", "is_daily_habit": false }
+  ]
 }
-today = ${today}`
+today = ${today}
+Extract every single step. If the planner listed 48 steps, return all 48.`
           }
         ],
         max_tokens: 16000,
         response_format: { type: "json_object" }
       });
 
-      const edits = JSON.parse(extractionResponse.choices[0].message.content);
+      const extracted = JSON.parse(extractionResponse.choices[0].message.content);
 
-      // VALIDATE: ensure no steps are duplicated or missing from complete phases
-      if (edits.steps_to_add && edits.steps_to_add.length > 0) {
-        const allStepsAfterEdit = [
-          ...existingSteps.filter(s => !edits.steps_to_delete?.includes(s.id)),
-          ...edits.steps_to_add
-        ];
-        
-        const phaseCheck = {};
-        allStepsAfterEdit.forEach(s => {
-          const phase = s.phase || 'Uncategorized';
-          if (!phaseCheck[phase]) phaseCheck[phase] = [];
-          phaseCheck[phase].push(s.title);
-        });
-        
-        // Log for debugging — ensure phases are sequential
-        const phaseNames = Object.keys(phaseCheck).sort();
-        // Warn if there are obvious gaps (e.g., Month 1, Month 3 but no Month 2)
-        const monthPhases = phaseNames.filter(p => /Month \d+/.test(p));
-        if (monthPhases.length > 1) {
-          const months = monthPhases.map(p => parseInt(p.match(/\d+/)[0])).sort((a, b) => a - b);
-          for (let i = 0; i < months.length - 1; i++) {
-            if (months[i + 1] - months[i] > 1) {
-              // Gap detected — log but still apply (user may know what they're doing)
-              console.warn(`Gap detected: Month ${months[i]} to Month ${months[i + 1]}`);
-            }
-          }
+      // Apply goal-level updates
+      const goalUpdates = extracted.goal_updates || {};
+      if (Object.keys(goalUpdates).length > 0) {
+        const { month_titles, ...otherUpdates } = goalUpdates;
+        if (Object.keys(otherUpdates).length > 0) {
+          await base44.entities.Goal.update(goal_id, otherUpdates);
         }
-      }
-
-      // Apply goal-level updates (user-scoped so created_by is preserved)
-      if (edits.goal_updates && Object.keys(edits.goal_updates).length > 0) {
-        await base44.entities.Goal.update(goal_id, edits.goal_updates);
-      }
-
-      // Add new steps (user-scoped so created_by is set correctly for RLS)
-      if (edits.steps_to_add?.length > 0) {
-        for (const step of edits.steps_to_add) {
-          const createdStep = await base44.entities.GoalStep.create({
-            goal_id,
-            title: step.title,
-            description: step.description || "",
-            phase: step.phase || "",
-            priority: step.priority || "medium",
-            due_date: step.due_date || "",
-            order_index: step.order_index ?? 999,
-            status: "pending",
-            step_resources: step.step_resources || [],
-            success_criteria: step.success_criteria || [],
-            tips_and_guidance: step.tips_and_guidance || ""
+        // Update month_titles separately (merge with existing)
+        if (month_titles && Object.keys(month_titles).length > 0) {
+          const currentGoalFresh = await base44.entities.Goal.list().then(all => all.find(g => g.id === goal_id));
+          await base44.entities.Goal.update(goal_id, {
+            month_titles: { ...(currentGoalFresh?.month_titles || {}), ...month_titles }
           });
-
-          // Create sub-steps if provided
-          if (step.sub_steps?.length > 0) {
-            for (const subStep of step.sub_steps) {
-              await base44.entities.GoalStep.create({
-                goal_id,
-                parent_step_id: createdStep.id,
-                title: subStep.title,
-                description: subStep.description || "",
-                phase: step.phase || "",
-                priority: subStep.priority || "low",
-                due_date: subStep.due_date || "",
-                order_index: 0,
-                status: "pending"
-              });
-            }
-          }
         }
       }
 
-      // Update existing steps
-      if (edits.steps_to_update?.length > 0) {
-        for (const step of edits.steps_to_update) {
-          const { id, ...updates } = step;
-          await base44.entities.GoalStep.update(id, updates);
-        }
+      // Delete ALL replaceable (non-completed) steps
+      for (const step of replaceableSteps) {
+        await base44.entities.GoalStep.delete(step.id);
       }
 
-      // Delete steps
-      if (edits.steps_to_delete?.length > 0) {
-        for (const stepId of edits.steps_to_delete) {
-          await base44.entities.GoalStep.delete(stepId);
-        }
+      // Create all new steps from the proposed plan
+      const newSteps = extracted.new_steps || [];
+      for (let i = 0; i < newSteps.length; i++) {
+        const step = newSteps[i];
+        await base44.entities.GoalStep.create({
+          goal_id,
+          title: step.title,
+          description: step.description || "",
+          phase: step.phase || "",
+          priority: step.priority || "medium",
+          due_date: step.due_date || "",
+          order_index: step.order_index ?? i,
+          status: "pending",
+          step_resources: step.step_resources || [],
+          success_criteria: step.success_criteria || [],
+          tips_and_guidance: step.tips_and_guidance || "",
+          is_daily_habit: step.is_daily_habit === true
+        });
       }
 
-      return Response.json({ success: true, edits });
+      return Response.json({ success: true, steps_replaced: replaceableSteps.length, steps_created: newSteps.length, completed_kept: completedSteps.length });
     }
 
     // ── CHAT: main conversational mode ────────────────────────────────────────
