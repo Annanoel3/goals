@@ -678,6 +678,24 @@ BEFORE WRITING YOUR RESPONSE: Mentally compile the full banned list from this co
 This is NON-NEGOTIABLE. Including a banned item is a critical failure that undermines the entire plan.
 ██████████████████████████████████████████████████████████
 
+██████████████████████████████████████████████████████████
+ABSOLUTE RULE — RESPECT GENRE/CONTENT RATIO CONSTRAINTS
+██████████████████████████████████████████████████████████
+If the user said things like "less X", "not so much X", "too many X", "minimize X", "fewer X" about a genre or topic — at ANY point in this conversation OR the original planning conversation:
+
+1. Identify the restricted category X (e.g. "mythology", "romance", "beginner content").
+2. COUNT how many items of type X appear in your proposed edit.
+3. "Less X" = AT MOST 1 item of type X in the entire plan. "Way less" or "too much" = 0 or 1 maximum.
+4. BEFORE SENDING: count your X items. If you have more than 1, replace the excess with non-X alternatives.
+
+CRITICAL EXAMPLE that must NEVER happen:
+- User says "I like mythology" → AI gives 5 mythology books → User says "too much mythology, less please"
+- AI's next response must have AT MOST 1 mythology book. Having 3-4 mythology books after being told "less" is a critical failure.
+- "Less mythology" ≠ "swap a few books". It means: nearly zero mythology. Count and enforce.
+
+Liking a genre ≠ wanting that genre to dominate the plan. Honor the explicit ratio request.
+██████████████████████████████████████████████████████████
+
 Always be specific, warm, and treat the plan as a living document.`;
     } else {
       const userCity = body.city || null;
@@ -781,6 +799,26 @@ Examples of what triggers this ban:
 If the user says they LIKED a book, that means they ALREADY READ IT. Liking = read = banned from the plan.
 
 BEFORE WRITING YOUR RESPONSE: List to yourself (mentally) every banned item from this conversation, then verify your proposed plan contains NONE of them. If you catch yourself about to include one, stop and pick a different item.
+██████████████████████████████████████████████████████████
+
+██████████████████████████████████████████████████████████
+ABSOLUTE RULE — RESPECT GENRE/CONTENT RATIO CONSTRAINTS
+██████████████████████████████████████████████████████████
+If the user says things like "less X", "not so much X", "too many X", "minimize X", "fewer X", "cut back on X" — where X is a genre, topic, theme, or type of content:
+
+1. COUNT how many items of type X you are including. Then count the total items.
+2. "Less X" means AT MOST 1 item of type X per plan, or ZERO if the user says "no X" / "none".
+3. "Too much X" or "way less X" = maximum 1 out of every 8-10 items can be X. If that rounds to zero for your plan length, include ZERO.
+4. BEFORE FINALIZING your response, literally count: "I have N mythology books out of M total. Is N/M ≤ 1/8?" If not, replace the excess X items with non-X alternatives.
+
+Examples:
+- User says "less mythology" in a 12-book plan → maximum 1 mythology book, ideally 0
+- User says "too much romance" → maximum 1 romance book in the whole plan
+- User says "fewer beginner exercises" → at most 1-2 beginner items, rest must be intermediate/advanced
+
+This rule applies to ANY content category: genres (mythology, romance, sci-fi), themes (beginner, advanced), types (videos, books), topics (Greek myths, fantasy, etc.).
+
+CRITICAL: "I like mythology" means the user has general interest — it does NOT mean they want 50% mythology content. Match the proportion they requested, not the proportion they mentioned liking.
 ██████████████████████████████████████████████████████████
 
 WHEN ADJUSTING/EDITING AN EXISTING GOAL (user mentions their plan is too easy, too hard, want more resources, want to skip ahead, restructure, add a week, change something, etc.):
