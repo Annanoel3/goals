@@ -102,7 +102,7 @@ TYPE B — MILESTONE/PROJECT GOALS (save money, find a job, start a business, wr
 
 DECISION RULE: Look at the goal's category and description. If it involves a SKILL that requires daily repetition to build muscle memory or habit → TYPE A. If it's about achieving outcomes through periodic actions and milestones → TYPE B. When in doubt, lean TYPE B (fewer, clearer steps per week).
 
-READING & BOOK GOALS: Each month = 1 book split into 4 week-phases. CRITICAL — NEVER guess or fabricate chapter/page counts. Before assigning chapter ranges, you MUST use the web_search tool to look up the exact number of chapters and pages for that specific book. Then divide: chapters ÷ 4 = chapters per week (round evenly). Example: 25 chapters → Week 1: Ch 1-6, Week 2: Ch 7-12, Week 3: Ch 13-19, Week 4: Ch 20-25. If the book has no chapters (only pages), divide total pages by 4. Week 4 = final section + brief reflection notes. NEVER compress a whole book into 1 week-phase. If the goal involves reading EVERY DAY (e.g. "read 12 books in 12 months", "daily reading habit", "read 30 pages a day"), set is_daily_habit: true on each weekly reading step. If reading is occasional/milestone-based, leave is_daily_habit: false.
+READING & BOOK GOALS: Each month = 1 book split into 4 week-phases. CRITICAL — NEVER guess or fabricate chapter/page counts. Before assigning chapter ranges, you MUST use the web_search tool to look up the exact number of chapters and pages for that specific book. Then divide: chapters ÷ 4 = chapters per week (round evenly). Example: 25 chapters → Week 1: Ch 1-6, Week 2: Ch 7-12, Week 3: Ch 13-19, Week 4: Ch 20-25. If the book has no chapters (only pages), divide total pages by 4. Week 4 = final section + brief reflection notes. NEVER compress a whole book into 1 week-phase. CRITICAL ENFORCEMENT: Your step titles and descriptions MUST include the specific chapter/page ranges (e.g. "Read Chapters 1-6" or "Pages 1-50"). Do NOT use vague percentages like "~50% progress" when actual chapter counts are available. Use real numbers. If the goal involves reading EVERY DAY (e.g. "read 12 books in 12 months", "daily reading habit", "read 30 pages a day"), set is_daily_habit: true on each weekly reading step. If reading is occasional/milestone-based, leave is_daily_habit: false.
 
 TOKEN PRIORITY RULE: Completing ALL ${detectedMonths} months x 4 weeks = ${detectedMonths * 4} total week-phases is the HIGHEST priority. Trade depth for coverage always. Use 2-4 steps per week-phase. Never sacrifice later weeks just to add detail to earlier ones.
 
@@ -363,8 +363,11 @@ CRITICAL:
           {
             role: "system",
             content: `You extract the new goal plan proposed in a conversation. Return ONLY valid JSON, no markdown.
-CRITICAL: Extract EVERY step the planner proposed in their latest plan. Do NOT omit any steps.
-The output is used to completely replace all existing steps, so you must be exhaustive and complete.`
+CRITICAL RULES:
+1. Extract EVERY step the planner proposed in their latest plan. Do NOT omit any steps.
+2. ENFORCE WEEK ORDERING: For each month, steps MUST appear in order: Week 1, Week 2, Week 3, Week 4 (not scrambled or out of order).
+3. FOR READING GOALS: If the planner mentioned looking up chapter counts or specific chapter ranges (e.g. "Ch 1-15", "chapters 1-12"), you MUST include those exact chapter ranges in the step titles and descriptions. Do NOT use vague percentages like "~50%" when a chapter count is available. Use the actual chapter numbers.
+4. The output is used to completely replace all existing steps, so you must be exhaustive and complete.`
           },
           {
             role: "user",
@@ -418,7 +421,17 @@ Extract every single step. If the planner listed 48 steps, return all 48.`
       }
 
       // Create all new steps from the proposed plan
+      // ENFORCE WEEK ORDERING: Sort steps so weeks appear in correct sequence within each month
       const newSteps = extracted.new_steps || [];
+      newSteps.sort((a, b) => {
+        const aMonth = parseInt(a.phase?.match(/Month (\d+)/i)?.[1] || 0);
+        const bMonth = parseInt(b.phase?.match(/Month (\d+)/i)?.[1] || 0);
+        if (aMonth !== bMonth) return aMonth - bMonth;
+        const aWeek = parseInt(a.phase?.match(/Week (\d+)/i)?.[1] || 0);
+        const bWeek = parseInt(b.phase?.match(/Week (\d+)/i)?.[1] || 0);
+        return aWeek - bWeek;
+      });
+
       for (let i = 0; i < newSteps.length; i++) {
         const step = newSteps[i];
         await base44.entities.GoalStep.create({
