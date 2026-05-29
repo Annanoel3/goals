@@ -20,6 +20,7 @@ export default function Planner() {
   const [goals, setGoals] = useState([]);
   const [editingGoal, setEditingGoal] = useState(null); // goal being edited in current session
   const [userCity, setUserCity] = useState(null);
+  const [saveError, setSaveError] = useState(false);
   const messagesEndRef = useRef(null);
   const messagesRef = useRef(messages);
   const navigate = useNavigate();
@@ -186,6 +187,7 @@ export default function Planner() {
 
   const handleSaveNewGoal = async () => {
     setIsSaving(true);
+    setSaveError(false);
     try {
       const allMessages = messagesRef.current.filter(m => m.role !== "system");
       const res = await base44.functions.invoke("goalPlannerChat", { messages: allMessages, mode: "extract_plan" });
@@ -255,7 +257,7 @@ export default function Planner() {
       // Schedule all notifications for this goal in the background
       base44.functions.invoke('scheduleGoalNotifications', { goal_id: goal.id, timezoneOffsetMinutes: new Date().getTimezoneOffset() }).catch(() => {});
     } catch (err) {
-      toast({ title: "Error saving goal", description: "Please try again.", variant: "destructive" });
+      setSaveError(true);
     } finally {
       setIsSaving(false);
     }
@@ -422,7 +424,17 @@ export default function Planner() {
             {pendingAction === 'plan_proposed' && !isLoading && !saved && !editingGoal && showCelebration && (
         <>
           <GifCarousel gifs={COMIC_GIFS} onComplete={() => {}} />
-          {isSaving && (
+          {saveError ? (
+            <div className="flex flex-col items-center gap-3 py-2">
+              <p className={`text-sm font-medium ${isDark ? 'text-red-400' : 'text-red-600'}`}>Something went wrong saving your goal.</p>
+              <Button
+                onClick={handleSaveNewGoal}
+                className={`rounded-2xl px-6 py-2.5 font-semibold ${isDark ? 'bg-violet-600 hover:bg-violet-700 text-white' : 'bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white'}`}
+              >
+                Retry
+              </Button>
+            </div>
+          ) : isSaving && (
             <div className="flex justify-center">
               <SavingProgressBar isEdit={false} done={!isSaving} />
             </div>
