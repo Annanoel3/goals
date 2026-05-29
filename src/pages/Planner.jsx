@@ -408,11 +408,15 @@ export default function Planner() {
             ))}
             {isLoading && (
         <div className="flex justify-center py-4">
-          <div className="flex gap-1.5 items-center">
-            <div className="w-2.5 h-2.5 bg-violet-400 rounded-full animate-bounce" style={{animationDelay:'0ms'}} />
-            <div className="w-2.5 h-2.5 bg-violet-400 rounded-full animate-bounce" style={{animationDelay:'150ms'}} />
-            <div className="w-2.5 h-2.5 bg-violet-400 rounded-full animate-bounce" style={{animationDelay:'300ms'}} />
-          </div>
+          {editingGoal ? (
+            <SavingProgressBar isEdit done={false} />
+          ) : (
+            <div className="flex gap-1.5 items-center">
+              <div className="w-2.5 h-2.5 bg-violet-400 rounded-full animate-bounce" style={{animationDelay:'0ms'}} />
+              <div className="w-2.5 h-2.5 bg-violet-400 rounded-full animate-bounce" style={{animationDelay:'150ms'}} />
+              <div className="w-2.5 h-2.5 bg-violet-400 rounded-full animate-bounce" style={{animationDelay:'300ms'}} />
+            </div>
+          )}
         </div>
       )}
 
@@ -566,7 +570,7 @@ export default function Planner() {
                   ? "Tell me your goal… e.g. 'I want to learn Spanish in 5 months'"
                   : "Continue the conversation…"
             }
-            className={`flex-1 min-h-[42px] max-h-32 text-sm resize-none rounded-2xl transition-colors ${isDark ? 'border-gray-700 focus:border-gray-600 bg-gray-800 focus:bg-gray-700 text-white placeholder-gray-500' : 'border-gray-200 focus:border-violet-300 bg-gray-50 focus:bg-white text-gray-900'}`}
+            className={`flex-1 min-h-[56px] max-h-64 text-sm resize-none rounded-2xl transition-colors ${isDark ? 'border-gray-700 focus:border-gray-600 bg-gray-800 focus:bg-gray-700 text-white placeholder-gray-500' : 'border-gray-200 focus:border-violet-300 bg-gray-50 focus:bg-white text-gray-900'}`}
             disabled={isLoading}
             rows={1}
           />
