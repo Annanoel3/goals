@@ -366,21 +366,35 @@ CRITICAL:
           {
             role: "user",
             content: `Current goal: ${existingGoal?.title || 'Unknown'}
-Current steps: ${stepsJson}
+Current steps (ALL existing step IDs):
+${stepsJson}
 
 Conversation about edits:
 ${conversationText}
 
 Extract the APPROVED changes. CRITICAL RULES:
-1. If the planner proposed new months/weeks (e.g., "Here's Month 6-12" or "Here are the missing months"), extract EVERY SINGLE STEP from that proposal.
-2. Do NOT omit any steps. Count the steps in the proposal and ensure your steps_to_add array has the SAME count.
-3. For each step, include: title, description, phase (e.g. "Month 6, Week 1"), priority, due_date, order_index, step_resources, success_criteria, tips_and_guidance.
-4. Preserve the exact phase naming from the proposal (if it says "Month 6, Week 1", use exactly that).
-5. TIMELINE RESTRUCTURE: If the planner said it is restructuring the entire plan (e.g. "I'm restructuring your full plan", "spreading across X months", "rebuilding from scratch"), then:
-   a) Add ALL new steps from the proposal to steps_to_add.
-   b) Put ALL existing step IDs that have status "pending" or "in_progress" into steps_to_delete (keep only "completed" steps).
-   c) Update goal_updates with the new timeline and target_date.
-   This ensures the old structure is fully replaced and there are no duplicate/conflicting endpoints.
+
+RULE 1 — FULL RESTRUCTURE DETECTION (MOST IMPORTANT):
+If the planner proposed a REVISED or UPDATED full plan — meaning the conversation contains a new complete list of books, activities, phases, or steps replacing the old ones — then this is a FULL RESTRUCTURE. You MUST:
+  a) Put EVERY existing step ID from the current steps list into steps_to_delete (all of them, keeping nothing except "completed" status steps).
+  b) Extract EVERY SINGLE step/book/activity from the planner's latest proposed plan into steps_to_add.
+  c) Do NOT try to patch individual steps — replace everything.
+
+Signs this is a full restructure (ANY of these = full restructure):
+- The planner presented a new list of books for each month
+- The planner said "revised plan", "updated plan", "new plan", "here's the new plan"  
+- The planner changed 3 or more months worth of content
+- The user asked to change books, replace content, fix genre mix, or redo the plan
+- The planner apologized and presented a corrected version
+
+RULE 2 — EXTRACT EVERYTHING:
+If the planner proposed new months/weeks, extract EVERY SINGLE STEP from that proposal. Count the steps in the proposal and ensure your steps_to_add array has the SAME count. Do NOT omit any.
+
+RULE 3 — PHASE NAMING:
+Preserve the exact phase naming from the proposal (e.g. "Month 6, Week 1").
+
+RULE 4 — PARTIAL EDITS (only when it's clearly NOT a full restructure):
+Only use steps_to_update for truly minor tweaks (e.g. changing a due date, updating a description). If more than 2-3 steps changed, treat it as a full restructure per Rule 1.
 
 Return JSON:
 {
@@ -399,7 +413,7 @@ Return JSON:
   ],
   "steps_to_delete": ["step_id_1", "step_id_2"]
 }
-Only include fields that actually changed. today = ${today}`
+today = ${today}`
           }
         ],
         max_tokens: 16000,
