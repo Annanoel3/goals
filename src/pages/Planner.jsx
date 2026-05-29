@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Send, Loader2, Mic, Sparkles, Target, Plus, Check, ChevronDown, ChevronUp, ChevronRight } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import { setUserActive } from "@/lib/admob";
 
 export default function Planner() {
   const [messages, setMessages] = useState([]);
@@ -322,6 +323,7 @@ export default function Planner() {
       recorder.start();
       setMediaRecorder(recorder);
       setIsRecording(true);
+      setUserActive(true);
     } catch {
       toast({ title: "Microphone access denied", variant: "destructive" });
     }
@@ -331,6 +333,7 @@ export default function Planner() {
     if (mediaRecorder && mediaRecorder.state !== "inactive") {
       mediaRecorder.stop();
       setIsRecording(false);
+      setUserActive(false);
     }
   };
 
@@ -526,6 +529,8 @@ export default function Planner() {
           <Textarea
             value={input}
             onChange={e => setInput(e.target.value)}
+            onFocus={() => setUserActive(true)}
+            onBlur={() => setUserActive(false)}
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(input); } }}
             placeholder={
               editingGoal
@@ -815,7 +820,11 @@ function MonthDropdown({ month, goalMonthTitles = {} }) {
    
    // Extract month number from title (e.g., "Month 1" → 1)
    const monthNum = month.title.match(/\d+/)?.[0];
-   const displayTitle = monthNum && goalMonthTitles[monthNum] ? goalMonthTitles[monthNum] : month.subtitle;
+   // Try both string and number keys for robustness
+   const rawTitle = monthNum ? (goalMonthTitles[monthNum] || goalMonthTitles[parseInt(monthNum)]) : null;
+   // Strip any leading "N: " prefix the AI may have added (e.g. "4: Building the Habit" → "Building the Habit")
+   const cleanedTitle = rawTitle ? rawTitle.replace(/^\d+:\s*/, '').trim() : null;
+   const displayTitle = cleanedTitle || month.subtitle;
    
    return (
      <div className={`border rounded-xl overflow-hidden mb-2 shadow-sm ${isDark ? 'border-gray-700' : 'border-violet-100'}`}>

@@ -115,6 +115,11 @@ IMPORTANT: Generate 2-4 specific, actionable tasks per week-phase. Keep descript
   "category": "one of: learning, health, career, finance, relationships, personal, creative, other",
   "notification_frequency": "daily|weekdays|weekly|3x_per_week|2x_per_week|once_per_week — inferred from conversation",
   "plan_summary": "2-3 sentence summary of the overall plan",
+  "month_titles": {
+    "1": "Descriptive title for Month 1 (e.g. book title, phase name, milestone name)",
+    "2": "Descriptive title for Month 2",
+    "N": "Continue for every month in the plan"
+  },
   "steps": [
     {
       "title": "specific, granular subtask (e.g., 'Complete Lesson 2: Present Tense Conjugation')",
@@ -183,27 +188,15 @@ CRITICAL:
 
       const plan = JSON.parse(extractionResponse.choices[0].message.content);
 
-      // Ensure all steps have required fields + extract month titles
-       const monthTitles = {};
-       plan.steps = (plan.steps || []).map(step => {
-         // Store month title for later use
-         if (step.phase && step.month_title) {
-           const monthMatch = step.phase.match(/Month\s+(\d+)/i);
-           if (monthMatch) {
-             const monthNum = parseInt(monthMatch[1], 10);
-             if (!monthTitles[monthNum]) {
-               monthTitles[monthNum] = step.month_title;
-             }
-           }
-         }
-         return {
-           ...step,
-           step_resources: step.step_resources || [],
-           success_criteria: step.success_criteria || [],
-           tips_and_guidance: step.tips_and_guidance || ""
-         };
-       });
-       plan.month_titles = monthTitles;
+      // Ensure all steps have required fields
+       plan.steps = (plan.steps || []).map(step => ({
+         ...step,
+         step_resources: step.step_resources || [],
+         success_criteria: step.success_criteria || [],
+         tips_and_guidance: step.tips_and_guidance || ""
+       }));
+       // month_titles comes directly from the top-level JSON field
+       plan.month_titles = plan.month_titles || {};
 
       // VALIDATE: ensure no gaps in phases/timeline with week structure for 3+ month goals
       const validatePlanCompleteness = (p) => {
@@ -830,7 +823,16 @@ Always be specific, warm, encouraging, and treat the plan as a living document t
        return Response.json({ message: finalReply.replace(/EDIT_APPROVED:[^\s]+\s*/i, '').trim(), action: 'edit_approved', goal_id: editGoalId });
      }
 
-     return Response.json({ message: finalReply, action: 'chat', month_titles: {} });
+     // Parse month titles from the chat response text (e.g. "Month 1 – Book Title" or "Month 1: Title")
+     const chatMonthTitles = {};
+     const monthTitleRegex = /Month\s+(\d+)\s*[–—:\-]\s*([^\n*#]+)/gi;
+     let mtMatch;
+     while ((mtMatch = monthTitleRegex.exec(finalReply)) !== null) {
+       const num = mtMatch[1];
+       const title = mtMatch[2].trim().replace(/\*+/g, '').trim();
+       if (title && !chatMonthTitles[num]) chatMonthTitles[num] = title;
+     }
+     return Response.json({ message: finalReply, action: 'chat', month_titles: chatMonthTitles });
 
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });

@@ -8,6 +8,10 @@ let AdMob = null;
 let hasShownAdThisLaunch = false;
 let hasInitializedAdMob = false;
 
+// Global flag — set to true when user is typing or recording
+let userIsActive = false;
+export function setUserActive(active) { userIsActive = active; }
+
 export async function initAdMob() {
   if (hasInitializedAdMob) return;
   hasInitializedAdMob = true;
@@ -43,6 +47,8 @@ export async function maybeShowAdOnOpen() {
 
   if (count % SHOW_EVERY_N_OPENS === 0) {
     await new Promise(resolve => setTimeout(resolve, AD_DELAY_MS));
+    // Don't interrupt if the user is actively typing or recording
+    if (userIsActive) return;
     await showInterstitialAd();
   }
 }

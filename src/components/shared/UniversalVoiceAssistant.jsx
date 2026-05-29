@@ -11,6 +11,7 @@ import { User } from "@/entities/User";
 import { scheduleReminder } from "../utils/reminderScheduler";
 import { Capacitor } from '@capacitor/core';
 import { hasAudioPermission, requestAudioPermission, startNativeRecording, stopNativeRecording } from '@/lib/voiceRecorder';
+import { setUserActive } from '@/lib/admob';
 
 export default function UniversalVoiceAssistant({ theme, currentPageName }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -62,6 +63,7 @@ export default function UniversalVoiceAssistant({ theme, currentPageName }) {
         window._webRecorder = recorder;
       }
       setIsRecording(true);
+      setUserActive(true);
     } catch (error) {
       console.error("Microphone error:", error);
       setFeedbackMessage("❌ Could not access microphone");
@@ -71,6 +73,7 @@ export default function UniversalVoiceAssistant({ theme, currentPageName }) {
   const stopRecording = async () => {
     if (!isRecording) return;
     setIsRecording(false);
+    setUserActive(false);
 
     if (Capacitor.isNativePlatform()) {
       try {
