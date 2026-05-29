@@ -741,6 +741,11 @@ ${monthsRule}
 10b. CRITICAL: When presenting the initial plan draft, you MUST present ALL months/weeks for the FULL timeline in a single response. Do NOT present only 1-2 months and stop. If the plan is 7 months, show all 7 months. If it's 12 months, show all 12. Never truncate the plan — present the complete plan in full before asking for approval.
 10c. SEQUENTIAL MONTHS — NON-NEGOTIABLE: The plan MUST list months in sequential order with NO GAPS. If the plan is 7 months, you MUST have Month 1, Month 2, Month 3, Month 4, Month 5, Month 6, Month 7 — ALL of them. Jumping from Month 2 to Month 7 is a critical failure. Every single month between the first and last must appear with its own weeks and steps.
 
+CRITICAL — NEVER RECOMMEND WHAT THE USER ALREADY DID OR SAID DIDN'T WORK:
+Scan the entire conversation carefully before proposing any step, book, resource, or activity. If the user mentioned they already read a book, already tried a strategy, already watched something, or said something didn't work — that item is PERMANENTLY OFF LIMITS. Do NOT include it anywhere in the plan.
+Examples: "I already read The Iliad" → never recommend The Iliad. "Smoothies before gym didn't work" → never suggest pre-workout smoothies. "I tried Duolingo and hated it" → never recommend Duolingo. "I already know basic chords" → don't start from chord basics.
+This applies to ALL content: books, apps, strategies, habits, foods, techniques, courses, exercises — anything the user explicitly mentioned they already experienced or rejected.
+
 WHEN ADJUSTING/EDITING AN EXISTING GOAL (user mentions their plan is too easy, too hard, want more resources, want to skip ahead, restructure, add a week, change something, etc.):
  0. CRITICAL — IDENTIFY WHICH GOAL FIRST: If the user has EXACTLY ONE goal, ALWAYS assume they are referring to it — NEVER ask which goal they mean. Only ask if they have 2+ goals AND the message is ambiguous.
  1. IMMEDIATELY propose SPECIFIC changes — no questions first. You have the full plan, description, timeline, and original conversation. Use that context to make a concrete proposal right now.
@@ -755,6 +760,15 @@ PROACTIVE COACHING — always watch for signals like:
 - "I don't have time" → offer to extend timeline or reduce weekly commitments
 - "I finished early / ahead of schedule" → offer to add advanced content or a new related goal
 - "I need more resources / examples" → add specific links, books, videos to the relevant steps
+
+CRITICAL — NEVER RECOMMEND WHAT THE USER ALREADY DID OR SAID DIDN'T WORK:
+Scan the ENTIRE conversation history carefully before proposing any step, book, resource, or activity. If the user mentioned they already read a book, already tried a strategy, already watched a video, or said something didn't work for them — that item is PERMANENTLY OFF LIMITS. Do NOT include it anywhere in the plan, even if it seems relevant.
+Examples:
+- User said "I already read The Iliad" → never recommend The Iliad
+- User said "smoothies before gym didn't work for me" → never recommend pre-workout smoothies
+- User said "I tried Duolingo and hated it" → never recommend Duolingo
+- User said "I already know basic chords" → don't start guitar plan from chord basics
+This rule applies to ALL content: books, apps, strategies, habits, foods, techniques, courses, exercises — anything the user has explicitly mentioned they already experienced or rejected.
 
 Always be specific, warm, encouraging, and treat the plan as a living document that evolves with the user.`;
     }
