@@ -157,14 +157,39 @@ Deno.serve(async (req) => {
         // Schedule daily reminders — cap at 60 days to avoid too many notifications
         let d = new Date(habitStart);
         const capEnd = new Date(Math.min(goalEnd.getTime(), now.getTime() + 60 * 24 * 60 * 60 * 1000));
+        let dayCount = 0;
         while (d <= capEnd) {
           const dateStr = d.toISOString().split('T')[0];
           const sendAt = localTimeOnDate(dateStr, notifHour, notifMin);
           if (sendAt > now) {
+            // Make message phase-specific for steps with phases
+            let notifBody = generateDailyMessage(goal, step);
+            if (step.phase) {
+              const phaseMatch = step.phase.match(/Week\s+(\d+)/i);
+              if (phaseMatch) {
+                const weekNum = parseInt(phaseMatch[1]);
+                switch (weekNum) {
+                  case 1:
+                    notifBody = `${goal.title} - Week ${weekNum} begins! Let's dive in. 📖`;
+                    break;
+                  case 2:
+                    notifBody = `${goal.title} - Halfway through Week ${weekNum}. You're making progress! 💪`;
+                    break;
+                  case 3:
+                    notifBody = `${goal.title} - Week ${weekNum}: the home stretch. Keep going! 🎯`;
+                    break;
+                  case 4:
+                    notifBody = `${goal.title} - Final week! Finish strong and reflect. ✨`;
+                    break;
+                  default:
+                    notifBody = `${goal.title} - Week ${weekNum}: ${generateDailyMessage(goal, step)}`;
+                }
+              }
+            }
             const nid = await scheduleNotification({
               externalId,
               title: `Daily check-in`,
-              body: generateDailyMessage(goal, step),
+              body: notifBody,
               data: {
                 screen: 'GoalStepNotification',
                 action: 'habit_checkin',
@@ -176,6 +201,7 @@ Deno.serve(async (req) => {
             if (nid) { newNotifIds.push(nid); scheduled++; }
           }
           d.setUTCDate(d.getUTCDate() + 1);
+          dayCount++;
         }
 
       } else if (step.due_date) {
