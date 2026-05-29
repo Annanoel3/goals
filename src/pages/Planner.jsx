@@ -403,7 +403,7 @@ export default function Planner() {
             {pendingAction === 'plan_proposed' && !isLoading && !saved && !editingGoal && !showCelebration && (
               <div className="flex flex-col items-center gap-3 pt-4 pb-4">
                 <Button
-                  onClick={() => setShowCelebration(true)}
+                  onClick={() => { setShowCelebration(true); handleSaveNewGoal(); }}
                   className={`rounded-2xl px-6 py-2.5 font-semibold ${isDark ? 'bg-violet-600 hover:bg-violet-700 text-white shadow-lg shadow-violet-900/30' : 'bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white shadow-lg shadow-violet-100'}`}
                 >
                   <Check className="w-4 h-4 mr-2" />
@@ -420,7 +420,14 @@ export default function Planner() {
             )}
 
             {pendingAction === 'plan_proposed' && !isLoading && !saved && !editingGoal && showCelebration && (
-        <GifCarousel gifs={COMIC_GIFS} onComplete={handleSaveNewGoal} />
+        <>
+          <GifCarousel gifs={COMIC_GIFS} onComplete={() => {}} />
+          {isSaving && (
+            <div className="flex justify-center">
+              <SavingProgressBar isEdit={false} done={!isSaving} />
+            </div>
+          )}
+        </>
       )}
 
       {/* New goal approval */}
@@ -435,7 +442,7 @@ export default function Planner() {
              </div>
            )}
 
-            {isSaving && (pendingAction === 'plan_approved' || pendingAction === 'plan_proposed') && (
+            {isSaving && pendingAction === 'plan_approved' && (
               <div className="flex justify-center py-4">
                 <SavingProgressBar isEdit={false} done={!isSaving} />
               </div>
