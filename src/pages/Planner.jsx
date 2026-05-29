@@ -78,7 +78,12 @@ export default function Planner() {
     setEditingGoal(goal);
     // Load conversation history if available, otherwise show edit prompt
     if (goal.conversation_history && goal.conversation_history.length > 0) {
-      setMessages(goal.conversation_history);
+      // Attach the goal's saved month_titles to assistant messages so PlanView can show subtitles
+      const monthTitles = goal.month_titles || {};
+      const hydratedMessages = goal.conversation_history.map(m =>
+        m.role === 'assistant' ? { ...m, goalMonthTitles: m.goalMonthTitles || monthTitles } : m
+      );
+      setMessages(hydratedMessages);
       setPendingAction(null);
     } else {
       setMessages([{
@@ -129,9 +134,14 @@ export default function Planner() {
       const res = await base44.functions.invoke("goalPlannerChat", payload);
       const { message, action, goal_id, month_titles } = res.data;
 
-      setMessages(prev => [...prev, { role: "assistant", content: message, goalMonthTitles: month_titles || {} }]);
+      // Merge new month_titles with any existing ones from the editing goal
+      const existingMonthTitles = editingGoal?.month_titles || {};
+      const mergedMonthTitles = { ...existingMonthTitles, ...(month_titles || {}) };
+      setMessages(prev => [...prev, { role: "assistant", content: message, goalMonthTitles: mergedMonthTitles }]);
 
-      if (action === 'plan_proposed' || (action === 'chat' && message?.includes('Month 1') && (message?.includes('Month 2') || message?.includes('Week 1')))) {
+      // Detect if AI proposed a full plan (new or edit) — show approval buttons
+      const looksLikeFullPlan = message?.includes('Month 1') && (message?.includes('Month 2') || message?.includes('Week 1') || message?.includes('Week 2'));
+      if (action === 'plan_proposed' || (action === 'chat' && looksLikeFullPlan && !message?.includes('EDIT_APPROVED'))) {
         setPendingAction('plan_proposed');
       } else if (action === 'plan_approved' || message?.includes('PLAN_APPROVED')) {
         setPendingAction('plan_approved');
@@ -270,9 +280,14 @@ export default function Planner() {
       const allMessages = messagesRef.current.filter(m => m.role !== "system");
       const gid = pendingGoalId || editingGoal?.id;
       
-      // Save conversation history to the goal before applying edits
+      // Save conversation history + latest month_titles to the goal before applying edits
       if (gid && editingGoal) {
-        await base44.entities.Goal.update(gid, { conversation_history: allMessages });
+        // Collect merged month_titles from all assistant messages
+        const latestMonthTitles = allMessages.reduce((acc, m) => {
+          if (m.role === 'assistant' && m.goalMonthTitles) return { ...acc, ...m.goalMonthTitles };
+          return acc;
+        }, editingGoal.month_titles || {});
+        await base44.entities.Goal.update(gid, { conversation_history: allMessages, month_titles: latestMonthTitles });
       }
 
       await base44.functions.invoke("goalPlannerChat", {
@@ -404,7 +419,7 @@ export default function Planner() {
         </div>
       )}
 
-            {/* Plan preview before approval */}
+            {/* Plan preview before approval — new goal */}
             {pendingAction === 'plan_proposed' && !isLoading && !saved && !editingGoal && !showCelebration && (
               <div className="flex flex-col items-center gap-3 pt-4 pb-4">
                 <Button
@@ -424,14 +439,35 @@ export default function Planner() {
               </div>
             )}
 
-            {pendingAction === 'plan_proposed' && !isLoading && !saved && !editingGoal && showCelebration && (
+            {/* Plan preview before approval — edit session (AI suggested a revised plan) */}
+            {pendingAction === 'plan_proposed' && !isLoading && !saved && editingGoal && !showCelebration && (
+              <div className="flex flex-col items-center gap-3 pt-4 pb-4">
+                <Button
+                  onClick={() => { setShowCelebration(true); handleApplyEdits(); }}
+                  className={`rounded-2xl px-6 py-2.5 font-semibold ${isDark ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-900/30' : 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-lg shadow-emerald-100'}`}
+                >
+                  <Check className="w-4 h-4 mr-2" />
+                  Looks good! Apply changes
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => sendMessage("I'd like to adjust it some more")}
+                  className={`rounded-2xl px-6 py-2.5 border-2 font-semibold ${isDark ? 'border-gray-700 text-gray-300 hover:bg-gray-800' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}
+                >
+                  I'd like to adjust it some more
+                </Button>
+              </div>
+            )}
+
+            {/* Celebration + saving animation (shared between new goal and edit) */}
+            {pendingAction !== null && !isLoading && !saved && showCelebration && (
         <>
           <GifCarousel gifs={COMIC_GIFS} onComplete={() => {}} />
           {saveError ? (
             <div className="flex flex-col items-center gap-3 py-2">
               <p className={`text-sm font-medium ${isDark ? 'text-red-400' : 'text-red-600'}`}>Something went wrong saving your goal.</p>
               <Button
-                onClick={handleSaveNewGoal}
+                onClick={editingGoal ? handleApplyEdits : handleSaveNewGoal}
                 className={`rounded-2xl px-6 py-2.5 font-semibold ${isDark ? 'bg-violet-600 hover:bg-violet-700 text-white' : 'bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white'}`}
               >
                 Retry
@@ -439,41 +475,35 @@ export default function Planner() {
             </div>
           ) : isSaving && (
             <div className="flex justify-center">
-              <SavingProgressBar isEdit={false} done={!isSaving} />
+              <SavingProgressBar isEdit={!!editingGoal} done={!isSaving} />
             </div>
           )}
         </>
       )}
 
-      {/* New goal approval */}
-           {pendingAction === 'plan_approved' && !saved && !isSaving && (
+      {/* New goal approval (AI said PLAN_APPROVED explicitly) */}
+           {pendingAction === 'plan_approved' && !saved && !isSaving && !showCelebration && (
              <div className="flex justify-center py-4">
                <Button
-                 onClick={handleSaveNewGoal}
+                 onClick={() => { setShowCelebration(true); handleSaveNewGoal(); }}
                  className={`rounded-2xl px-6 py-2.5 font-semibold ${isDark ? 'bg-violet-600 hover:bg-violet-700 text-white shadow-lg shadow-violet-900/30' : 'bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white shadow-lg shadow-violet-100'}`}
                >
-                 <Plus className="w-4 h-4 mr-2" />Save This Goal
+                 <Check className="w-4 h-4 mr-2" />Looks good! Save goal
                </Button>
              </div>
            )}
 
-            {isSaving && pendingAction === 'plan_approved' && (
-              <div className="flex justify-center py-4">
-                <SavingProgressBar isEdit={false} done={!isSaving} />
-              </div>
-            )}
-
             {/* Edit approval */}
-            {pendingAction === 'edit_approved' && !saved && (
+            {pendingAction === 'edit_approved' && !saved && !showCelebration && (
               <div className="flex justify-center py-2">
                 {isSaving ? (
                   <SavingProgressBar isEdit />
                 ) : (
                   <Button
-                    onClick={handleApplyEdits}
+                    onClick={() => { setShowCelebration(true); handleApplyEdits(); }}
                     className={`rounded-2xl px-6 py-2.5 font-semibold ${isDark ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-900/30' : 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-lg shadow-emerald-100'}`}
                   >
-                    <Check className="w-4 h-4 mr-2" />Apply Changes
+                    <Check className="w-4 h-4 mr-2" />Looks good! Apply changes
                   </Button>
                 )}
               </div>
