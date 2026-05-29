@@ -871,17 +871,12 @@ function WeekDropdown({ week }) {
 }
 
 
-function MonthDropdown({ month, goalMonthTitles = {} }) {
+function MonthDropdown({ month }) {
    const [open, setOpen] = React.useState(false);
    const isDark = localStorage.getItem('adhd_theme') === 'dark';
    
-   // Extract month number from title (e.g., "Month 1" → 1)
-   const monthNum = month.title.match(/\d+/)?.[0];
-   // Try both string and number keys for robustness
-   const rawTitle = monthNum ? (goalMonthTitles[monthNum] || goalMonthTitles[parseInt(monthNum)]) : null;
-   // Strip any leading "N: " prefix the AI may have added (e.g. "4: Building the Habit" → "Building the Habit")
-   const cleanedTitle = rawTitle ? rawTitle.replace(/^\d+:\s*/, '').trim() : null;
-   const displayTitle = cleanedTitle || month.subtitle;
+   // Use the subtitle already extracted by parsePlanHierarchy from the AI's response text
+   const displayTitle = month.subtitle;
    
    return (
      <div className={`border rounded-xl overflow-hidden mb-2 shadow-sm ${isDark ? 'border-gray-700' : 'border-violet-100'}`}>
@@ -947,7 +942,7 @@ function PlanView({ text, goalMonthTitles = {} }) {
         <p className={`text-sm leading-relaxed mb-3 whitespace-pre-wrap ${isDark ? 'text-gray-300' : 'text-gray-800'}`}>{renderInlineText(cleanedPreamble)}</p>
       )}
       {months.length > 0 ? (
-         months.map((month, i) => <MonthDropdown key={i} month={month} goalMonthTitles={goalMonthTitles} />)
+         months.map((month, i) => <MonthDropdown key={i} month={month} />)
        ) : (
         <span className={`whitespace-pre-wrap text-sm ${isDark ? 'text-gray-300' : 'text-gray-800'}`}>{renderInlineText(text)}</span>
       )}
