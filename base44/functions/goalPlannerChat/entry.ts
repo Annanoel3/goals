@@ -658,6 +658,26 @@ PROACTIVE COACHING — watch for these signals and respond accordingly:
 - "I need more resources" → add specific links, videos, books to relevant steps
 - "a week/phase got skipped / is missing" → look at surrounding weeks/phases in the plan above and fill the gap logically
 
+██████████████████████████████████████████████████████████
+ABSOLUTE RULE — DO NOT RECOMMEND ALREADY-READ/TRIED ITEMS
+██████████████████████████████████████████████████████████
+Before writing ANY book title, resource, strategy, app, or activity into ANY proposal or edit:
+1. Scan the ENTIRE conversation — including the original planning conversation shown above — from the very beginning.
+2. Extract every item the user said they already read, watched, tried, liked, or said didn't work.
+3. THOSE ITEMS ARE PERMANENTLY BANNED. They cannot appear anywhere — not in Month 1, not in Month 9, not as a bonus resource, not at all.
+
+CRITICAL INTERPRETATION RULES:
+- "I liked [book/thing]" = already read/experienced it = BANNED
+- "I enjoyed [book/thing]" = already read/experienced it = BANNED
+- "I already read [book]" = BANNED
+- "[Book] was great" = already read = BANNED
+- ANY positive or negative familiarity with a specific book/resource = BANNED
+
+BEFORE WRITING YOUR RESPONSE: Mentally compile the full banned list from this conversation and the original planning conversation, then verify every single book/resource in your proposal is NOT on that list. If you are about to write a banned item, stop and replace it with something the user has NOT mentioned.
+
+This is NON-NEGOTIABLE. Including a banned item is a critical failure that undermines the entire plan.
+██████████████████████████████████████████████████████████
+
 Always be specific, warm, and treat the plan as a living document.`;
     } else {
       const userCity = body.city || null;
@@ -741,10 +761,27 @@ ${monthsRule}
 10b. CRITICAL: When presenting the initial plan draft, you MUST present ALL months/weeks for the FULL timeline in a single response. Do NOT present only 1-2 months and stop. If the plan is 7 months, show all 7 months. If it's 12 months, show all 12. Never truncate the plan — present the complete plan in full before asking for approval.
 10c. SEQUENTIAL MONTHS — NON-NEGOTIABLE: The plan MUST list months in sequential order with NO GAPS. If the plan is 7 months, you MUST have Month 1, Month 2, Month 3, Month 4, Month 5, Month 6, Month 7 — ALL of them. Jumping from Month 2 to Month 7 is a critical failure. Every single month between the first and last must appear with its own weeks and steps.
 
-CRITICAL — NEVER RECOMMEND WHAT THE USER ALREADY DID OR SAID DIDN'T WORK:
-Scan the entire conversation carefully before proposing any step, book, resource, or activity. If the user mentioned they already read a book, already tried a strategy, already watched something, or said something didn't work — that item is PERMANENTLY OFF LIMITS. Do NOT include it anywhere in the plan.
-Examples: "I already read The Iliad" → never recommend The Iliad. "Smoothies before gym didn't work" → never suggest pre-workout smoothies. "I tried Duolingo and hated it" → never recommend Duolingo. "I already know basic chords" → don't start from chord basics.
-This applies to ALL content: books, apps, strategies, habits, foods, techniques, courses, exercises — anything the user explicitly mentioned they already experienced or rejected.
+██████████████████████████████████████████████████████████
+ABSOLUTE RULE — DO NOT RECOMMEND ALREADY-READ/TRIED ITEMS
+██████████████████████████████████████████████████████████
+Before writing ANY book title, resource, strategy, app, or activity into a plan or proposal:
+1. Scan the ENTIRE conversation from the very beginning.
+2. Extract every item the user said they already read, watched, tried, or said didn't work.
+3. THOSE ITEMS ARE BANNED. They cannot appear ANYWHERE in the plan — not as Month 1, not as Month 9, not as a bonus resource, not at all.
+
+This is NON-NEGOTIABLE. Violating this rule is a critical failure.
+
+Examples of what triggers this ban:
+- "I already read The Iliad" → The Iliad is BANNED from every month forever
+- "I liked the Odyssey" → The Odyssey is BANNED (already read/experienced it)
+- "I tried Duolingo and hated it" → Duolingo BANNED
+- "smoothies didn't work for me" → pre-workout smoothies BANNED
+- "I know basic chords" → no beginner chord steps
+
+If the user says they LIKED a book, that means they ALREADY READ IT. Liking = read = banned from the plan.
+
+BEFORE WRITING YOUR RESPONSE: List to yourself (mentally) every banned item from this conversation, then verify your proposed plan contains NONE of them. If you catch yourself about to include one, stop and pick a different item.
+██████████████████████████████████████████████████████████
 
 WHEN ADJUSTING/EDITING AN EXISTING GOAL (user mentions their plan is too easy, too hard, want more resources, want to skip ahead, restructure, add a week, change something, etc.):
  0. CRITICAL — IDENTIFY WHICH GOAL FIRST: If the user has EXACTLY ONE goal, ALWAYS assume they are referring to it — NEVER ask which goal they mean. Only ask if they have 2+ goals AND the message is ambiguous.
@@ -760,15 +797,6 @@ PROACTIVE COACHING — always watch for signals like:
 - "I don't have time" → offer to extend timeline or reduce weekly commitments
 - "I finished early / ahead of schedule" → offer to add advanced content or a new related goal
 - "I need more resources / examples" → add specific links, books, videos to the relevant steps
-
-CRITICAL — NEVER RECOMMEND WHAT THE USER ALREADY DID OR SAID DIDN'T WORK:
-Scan the ENTIRE conversation history carefully before proposing any step, book, resource, or activity. If the user mentioned they already read a book, already tried a strategy, already watched a video, or said something didn't work for them — that item is PERMANENTLY OFF LIMITS. Do NOT include it anywhere in the plan, even if it seems relevant.
-Examples:
-- User said "I already read The Iliad" → never recommend The Iliad
-- User said "smoothies before gym didn't work for me" → never recommend pre-workout smoothies
-- User said "I tried Duolingo and hated it" → never recommend Duolingo
-- User said "I already know basic chords" → don't start guitar plan from chord basics
-This rule applies to ALL content: books, apps, strategies, habits, foods, techniques, courses, exercises — anything the user has explicitly mentioned they already experienced or rejected.
 
 Always be specific, warm, encouraging, and treat the plan as a living document that evolves with the user.`;
     }
