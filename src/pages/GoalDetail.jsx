@@ -291,7 +291,7 @@ export default function GoalDetail() {
                   <div className="flex-1">
                     <h3 className="text-sm font-bold text-gray-900">{monthKey}</h3>
                     {monthTitles[monthKey] && (
-                      <p className="text-xs text-gray-500 mt-0.5">— {monthTitles[monthKey]}</p>
+                      <p className="text-xs text-violet-500 mt-0.5">— {monthTitles[monthKey].replace(/\*+/g, '').trim()}</p>
                     )}
                   </div>
                   <span className="text-xs text-gray-400 mr-2">{allMonthSteps.filter(s => s.status === 'completed').length}/{allMonthSteps.length}</span>
