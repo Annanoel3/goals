@@ -616,7 +616,7 @@ function renderPreamble(text) {
 }
 
 // Parse plan text into Month > Week > Tasks hierarchy
-function parsePlanHierarchy(text) {
+function parsePlanHierarchy(text, goalMonthTitles = {}) {
   const lines = text.split('\n').map(l => l.trim()).filter(l => l);
   const months = [];
   let currentMonth = null;
@@ -726,14 +726,29 @@ function parsePlanHierarchy(text) {
   }
 
   // Detect total months from preamble/text ("12-month plan", "12 months", etc.)
+  // Also check goalMonthTitles keys to know how many months the AI intended
   const totalMonthsMatch = text.match(/(\d+)[\s-]month/i);
-  const totalMonths = totalMonthsMatch ? parseInt(totalMonthsMatch[1]) : 0;
+  const titlesMaxMonth = Object.keys(goalMonthTitles).length > 0
+    ? Math.max(...Object.keys(goalMonthTitles).map(k => parseInt(k)).filter(n => !isNaN(n)))
+    : 0;
+  const totalMonths = Math.max(totalMonthsMatch ? parseInt(totalMonthsMatch[1]) : 0, titlesMaxMonth);
   if (totalMonths > months.length) {
     for (let m = months.length + 1; m <= totalMonths; m++) {
       months.push({
         title: 'Month ' + m,
         weeks: [1,2,3,4].map(n => ({ title: 'Week ' + n, tasks: [], description: '' }))
       });
+    }
+  }
+
+  // Apply goalMonthTitles to all months (including stubs) that don't already have a subtitle
+  for (const month of months) {
+    const mNum = month.title.match(/\d+/)?.[0];
+    if (mNum && !month.subtitle) {
+      const rawTitle = goalMonthTitles[mNum] || goalMonthTitles[parseInt(mNum)];
+      if (rawTitle) {
+        month.subtitle = rawTitle.replace(/^\d+:\s*/, '').replace(/\*+/g, '').trim();
+      }
     }
   }
 
@@ -874,7 +889,7 @@ function MonthDropdown({ month, goalMonthTitles = {} }) {
 function PlanView({ text, goalMonthTitles = {} }) {
    const isDark = localStorage.getItem('adhd_theme') === 'dark';
    const [showMarkdown, setShowMarkdown] = React.useState(false);
-   const { months, preamble } = parsePlanHierarchy(text);
+   const { months, preamble } = parsePlanHierarchy(text, goalMonthTitles);
   const cleanedPreamble = preamble ? renderPreamble(preamble) : '';
 
   if (showMarkdown) {
