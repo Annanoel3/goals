@@ -37,6 +37,16 @@ export default function Planner() {
   useEffect(() => {
     base44.entities.Goal.list().then(allGoals => {
       setGoals(allGoals);
+      // If there's a saved in-progress session and it's still building, restore it
+      const saved = localStorage.getItem('plannerInProgress');
+      if (saved) {
+        try {
+          const sessionData = JSON.parse(saved);
+          if (sessionData.messages?.length > 0 || !sessionData.completed) {
+            // Session is still active
+          }
+        } catch (e) {}
+      }
     }).catch(() => {});
     base44.auth.me().then(u => { if (u?.city) setUserCity(u.city); }).catch(() => {});
 
@@ -112,14 +122,21 @@ export default function Planner() {
     setSaved(false);
     setInput("");
     setEditingGoal(null);
+    // Save that we're starting a new goal session
+    const sessionData = { startedAt: new Date().toISOString(), messages: [], pendingAction: null };
+    localStorage.setItem('plannerInProgress', JSON.stringify(sessionData));
   };
 
   const sendMessage = useCallback(async (content) => {
     if (!content.trim() || isLoading) return;
     const userMsg = { role: "user", content: content.trim() };
-    setMessages(prev => [...prev, userMsg]);
+    const newMessages = [...messages, userMsg];
+    setMessages(newMessages);
     setInput("");
     setIsLoading(true);
+    // Save progress to localStorage
+    const sessionData = { startedAt: new Date().toISOString(), messages: newMessages, pendingAction, completed: false };
+    localStorage.setItem('plannerInProgress', JSON.stringify(sessionData));
 
     try {
       const allMessages = [...messagesRef.current, userMsg];
@@ -139,7 +156,11 @@ export default function Planner() {
       const newMonthTitles = (month_titles && Object.keys(month_titles).length > 0)
         ? month_titles
         : (editingGoal?.month_titles || {});
-      setMessages(prev => [...prev, { role: "assistant", content: message, goalMonthTitles: newMonthTitles }]);
+      const updatedMessages = [...newMessages, { role: "assistant", content: message, goalMonthTitles: newMonthTitles }];
+      setMessages(updatedMessages);
+      // Update localStorage
+      const sessionData = { startedAt: new Date().toISOString(), messages: updatedMessages, pendingAction: action || pendingAction, completed: false };
+      localStorage.setItem('plannerInProgress', JSON.stringify(sessionData));
 
       // Detect if AI proposed a full plan (new or edit) — show approval buttons
       const looksLikeFullPlan = message?.includes('Month 1') && (message?.includes('Month 2') || message?.includes('Week 1') || message?.includes('Week 2'));
@@ -266,6 +287,8 @@ export default function Planner() {
 
       setSaved(true);
       setPendingGoalId(goal.id);
+      // Clear the in-progress session
+      localStorage.removeItem('plannerInProgress');
 
       // Schedule all notifications for this goal in the background
       base44.functions.invoke('scheduleGoalNotifications', { goal_id: goal.id, timezoneOffsetMinutes: new Date().getTimezoneOffset() }).catch(() => {});
@@ -294,6 +317,8 @@ export default function Planner() {
       });
 
       setSaved(true);
+      // Clear the in-progress session
+      localStorage.removeItem('plannerInProgress');
 
       // Reschedule all notifications for this goal (cancels old ones first)
       if (gid) {

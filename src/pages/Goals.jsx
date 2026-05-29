@@ -27,11 +27,18 @@ export default function Goals() {
   const [steps, setSteps] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("active");
+  const [inProgress, setInProgress] = useState(false);
   const navigate = useNavigate();
   const theme = localStorage.getItem('adhd_theme') || 'minimalist';
   const isDark = theme === 'dark';
 
   useEffect(() => { loadData(); }, []);
+  
+  useEffect(() => {
+    // Check if there's an in-progress goal session
+    const saved = localStorage.getItem('plannerInProgress');
+    setInProgress(!!saved);
+  }, []);
 
   const loadData = async () => {
     setLoading(true);
@@ -97,6 +104,23 @@ export default function Goals() {
             </button>
           ))}
         </div>
+
+        {/* In-Progress Indicator */}
+        {inProgress && activeTab === "active" && (
+          <div className={`mb-6 p-4 rounded-2xl border flex items-start gap-3 ${isDark ? 'bg-blue-900/30 border-blue-700 text-blue-200' : 'bg-blue-50 border-blue-200 text-blue-800'}`}>
+            <Loader2 className="w-4 h-4 animate-spin mt-0.5 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-sm">Goal in progress...</p>
+              <p className={`text-xs mt-1 ${isDark ? 'text-blue-300' : 'text-blue-700'}`}>A goal is being created. Go to Planner to continue or come back to see it appear here.</p>
+            </div>
+            <button
+              onClick={() => navigate("/Planner")}
+              className={`px-3 py-1 rounded-lg text-xs font-semibold flex-shrink-0 transition-all ${isDark ? 'hover:bg-blue-800 text-blue-300' : 'hover:bg-blue-100 text-blue-600'}`}
+            >
+              Continue
+            </button>
+          </div>
+        )}
 
         {/* Goals List */}
          {loading ? (
