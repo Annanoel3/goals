@@ -15,11 +15,11 @@ async function cancelNotification(notifId) {
 async function scheduleNotification({ externalId, title, body, data, sendAt }) {
   const payload = {
     app_id: ONESIGNAL_APP_ID,
-    include_external_user_ids: [String(externalId)],
+    include_aliases: { external_id: [String(externalId)] },
+    target_channel: 'push',
     headings: { en: title },
     contents: { en: body },
     data,
-    channel_for_external_user_ids: 'push',
     send_after: sendAt,
     buttons: [
       { id: 'complete', text: "✅ Done" },

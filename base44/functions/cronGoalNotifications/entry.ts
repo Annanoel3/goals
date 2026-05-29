@@ -6,11 +6,11 @@ const ONESIGNAL_REST_API_KEY = Deno.env.get("ONESIGNAL_REST_API_KEY");
 async function sendPush({ externalId, title, body, data, buttons }) {
   const payload = {
     app_id: ONESIGNAL_APP_ID,
-    include_external_user_ids: [String(externalId)],
+    include_aliases: { external_id: [String(externalId)] },
+    target_channel: 'push',
     headings: { en: title },
     contents: { en: body },
     data: data || {},
-    channel_for_external_user_ids: "push",
     ...(buttons ? { buttons } : {}),
   };
   const res = await fetch("https://onesignal.com/api/v1/notifications", {

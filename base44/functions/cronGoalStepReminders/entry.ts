@@ -36,8 +36,8 @@ Deno.serve(async (req) => {
 
       const payload = {
         app_id: ONESIGNAL_APP_ID,
-        include_external_user_ids: [externalId],
-        channel_for_external_user_ids: 'push',
+        include_aliases: { external_id: [String(externalId)] },
+        target_channel: 'push',
         headings: { en: `${step.title} is overdue` },
         contents: { en: `You have a step overdue in "${goal.title}". Tap to reschedule or mark complete.` },
         data: {
