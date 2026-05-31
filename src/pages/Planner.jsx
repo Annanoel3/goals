@@ -290,6 +290,15 @@ export default function Planner() {
       // Clear the in-progress session
       localStorage.removeItem('plannerInProgress');
 
+      // Back-fill month_titles into the last assistant message so PlanView shows all subtitles
+      if (plan.month_titles && Object.keys(plan.month_titles).length > 0) {
+        setMessages(prev => prev.map((m, i) =>
+          i === prev.length - 1 && m.role === 'assistant'
+            ? { ...m, goalMonthTitles: { ...plan.month_titles } }
+            : m
+        ));
+      }
+
       // Schedule all notifications for this goal in the background
       base44.functions.invoke('scheduleGoalNotifications', { goal_id: goal.id, preferred_time: plan.preferred_time, timezoneOffsetMinutes: new Date().getTimezoneOffset() }).catch(() => {});
     } catch (err) {

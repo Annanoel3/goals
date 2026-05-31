@@ -964,12 +964,15 @@ Always be specific, warm, encouraging, and treat the plan as a living document t
        const monthNumMatch = cleanLine.match(/^Month\s+(\d+)$/i);
        if (monthNumMatch) {
          const num = monthNumMatch[1];
-         for (let nli = li + 1; nli < replyLines.length && nli < li + 4; nli++) {
+         // Scan up to 5 lines ahead for the title (skip blank lines)
+         for (let nli = li + 1; nli < replyLines.length && nli < li + 6; nli++) {
            const candidate = stripFormatting(replyLines[nli]);
            if (!candidate) continue;
            const isWeekLine = /^Week\s+\d+/i.test(candidate);
            const isMonthLine = /^Month\s+\d+/i.test(candidate);
-           if (!isWeekLine && !isMonthLine && !isDateOnly(candidate) && candidate.length <= 120) {
+           // Skip lines that are just task bullets (very short or start with numbers like "1.")
+           const isTaskBullet = /^\d+\.\s/.test(candidate) && candidate.length < 60;
+           if (!isWeekLine && !isMonthLine && !isDateOnly(candidate) && candidate.length <= 150 && !isTaskBullet) {
              if (!chatMonthTitles[num]) chatMonthTitles[num] = candidate;
            }
            break;
