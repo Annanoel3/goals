@@ -135,60 +135,8 @@ Deno.serve(async (req) => {
       const newNotifIds = [];
 
       if (step.is_daily_habit) {
-        // ── DAILY HABIT STEPS ───────────────────────────────────────────────
-        const startDate = step.due_date ? new Date(step.due_date + 'T00:00:00Z') : now;
-        const habitStart = startDate < now
-          ? new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1))
-          : startDate;
-
-        const goalEnd = goal.target_date
-          ? new Date(goal.target_date + 'T23:59:59Z')
-          : new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
-
-        // Use step habit_time, goal preferred_time, or user's global preferred time
-        let notifHour = prefHour;
-        let notifMin = prefMin;
-        const timeStr = step.habit_time || goal.preferred_time;
-        if (timeStr) {
-          const tp = timeStr.match(/(\d{1,2}):(\d{2})/);
-          if (tp) { notifHour = parseInt(tp[1]); notifMin = parseInt(tp[2]); }
-          else {
-            const ampm = timeStr.match(/(\d{1,2})\s*(am|pm)/i);
-            if (ampm) {
-              notifHour = parseInt(ampm[1]);
-              if (ampm[2].toLowerCase() === 'pm' && notifHour !== 12) notifHour += 12;
-              if (ampm[2].toLowerCase() === 'am' && notifHour === 12) notifHour = 0;
-            }
-          }
-        }
-
-        // Schedule daily reminders for THIS step's week only (from step start to due_date)
-        // This keeps notifications spread across the actual plan timeline
-        let d = new Date(habitStart);
-        const capEnd = step.due_date
-          ? new Date(step.due_date + 'T23:59:59Z')
-          : new Date(Math.min(goalEnd.getTime(), now.getTime() + 60 * 24 * 60 * 60 * 1000));
-        while (d <= capEnd) {
-          const dateStr = d.toISOString().split('T')[0];
-          const sendAt = localTimeOnDate(dateStr, notifHour, notifMin);
-          if (sendAt > now) {
-            const notifBody = generateDailyMessage(goal, step);
-            const nid = await scheduleNotification({
-              externalId,
-              title: `Daily check-in`,
-              body: notifBody,
-              data: {
-                screen: 'GoalStepNotification',
-                action: 'habit_checkin',
-                goal_id: goal.id,
-                step_id: step.id,
-              },
-              sendAt: sendAt.toISOString(),
-            });
-            if (nid) { newNotifIds.push(nid); scheduled++; }
-          }
-          d.setUTCDate(d.getUTCDate() + 1);
-        }
+        // Daily habit notifications are handled entirely by cronDailyHabitNotifications (runs daily).
+        // Do NOT schedule bulk static notifications here — skip.
 
       } else if (step.due_date) {
         // ── REGULAR STEP ────────────────────────────────────────────────────
