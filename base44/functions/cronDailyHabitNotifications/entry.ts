@@ -202,8 +202,10 @@ async function scheduleHabitNotificationForUser(base44, step, userEmail, timezon
       } catch (_) { /* best effort */ }
     }
 
-    const currentMonth = new Date().getMonth() + 1;
-     const monthTitle = goal?.month_titles && goal.month_titles[currentMonth] 
+    // Derive plan month from step.phase (e.g. "Month 2 Week 3" -> 2)
+    const phaseMonthMatch2 = step.phase?.match(/Month\s+(\d+)/i);
+    const currentMonth = phaseMonthMatch2 ? parseInt(phaseMonthMatch2[1]) : null;
+     const monthTitle = currentMonth && goal?.month_titles && goal.month_titles[currentMonth] 
        ? goal.month_titles[currentMonth] 
        : null;
      const displayTitle = monthTitle || step.description || step.title;
@@ -251,10 +253,12 @@ async function scheduleHabitNotificationForUser(base44, step, userEmail, timezon
   // 3. Check if habit was missed 3+ days in a row and schedule check-in notification
   const consecutiveMissed = getConsecutiveMissedDays(step);
   const hasThreeDayNotificationToday = step.last_three_day_miss_notification_date === today;
-
+// Derive plan month from step.phase (e.g. "Month 2 Week 3" -> 2)
+    const phaseMonthMatch2 = step.phase?.match(/Month\s+(\d+)/i);
+    const currentMonth = phaseMonthMatch2 ? parseInt(phaseMonthMatch2[1]) : null;
   if (consecutiveMissed >= 3 && !hasThreeDayNotificationToday) {
     const currentMonth = new Date().getMonth() + 1;
-    const monthTitle = goal?.month_titles && goal.month_titles[currentMonth] 
+    const monthTitle = currentMonth && goal?.month_titles && goal.month_titles[currentMonth] 
       ? goal.month_titles[currentMonth] 
       : null;
     const displayTitle = monthTitle || step.description || step.title;
@@ -308,6 +312,7 @@ Deno.serve(async (req) => {
     let scheduledCount = 0;
 
     for (const goal of allGoals) {
+      try {
        const steps = await base44.asServiceRole.entities.GoalStep.filter({ goal_id: goal.id });
        const habitSteps = steps.filter(s => s.is_daily_habit && s.habit_time && s.status !== 'completed');
 
@@ -323,7 +328,10 @@ Deno.serve(async (req) => {
            }
          }
        }
-     }
+      } catch (goalErr) {
+        console.error(`Skipping goal ${goal.id}:`, goalErr.message);
+      }
+    }
 
     return Response.json({ ok: true, scheduled: scheduledCount });
   } catch (err) {
