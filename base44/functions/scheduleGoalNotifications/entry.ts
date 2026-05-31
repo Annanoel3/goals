@@ -15,8 +15,8 @@ async function cancelNotification(notifId) {
 async function scheduleNotification({ externalId, title, body, data, sendAt }) {
   const payload = {
     app_id: ONESIGNAL_APP_ID,
-    include_aliases: { external_id: [String(externalId)] },
-    target_channel: 'push',
+    include_external_user_ids: [String(externalId)],
+    channel_for_external_user_ids: 'push',
     headings: { en: title },
     contents: { en: body },
     data,
@@ -107,10 +107,18 @@ Deno.serve(async (req) => {
     }
 
     // Helper: given a local hour/min and a date string (YYYY-MM-DD), return a UTC Date at that local time
+    // getTimezoneOffset() is positive for west-of-UTC (e.g. CDT = +300)
+    // UTC = local + tzOffset  →  9am CDT = 9*60+300 = 840 mins from midnight UTC = 14:00 UTC
     function localTimeOnDate(dateStr, localHour, localMin) {
+      const totalLocalMinutes = localHour * 60 + localMin;
+      const totalUTCMinutes = totalLocalMinutes + tzOffsetMinutes;
+      const utcHour = Math.floor(totalUTCMinutes / 60) % 24;
+      const utcMin = totalUTCMinutes % 60;
+      // Handle day overflow/underflow
+      const dayDelta = Math.floor(totalUTCMinutes / (60 * 24));
       const d = new Date(dateStr + 'T00:00:00Z');
-      // Set to local time by adding tzOffset (getTimezoneOffset is positive for west)
-      d.setUTCHours(localHour + Math.floor(tzOffsetMinutes / 60), localMin + (tzOffsetMinutes % 60), 0, 0);
+      d.setUTCDate(d.getUTCDate() + dayDelta);
+      d.setUTCHours(((utcHour % 24) + 24) % 24, ((utcMin % 60) + 60) % 60, 0, 0);
       return d;
     }
 
@@ -162,30 +170,7 @@ Deno.serve(async (req) => {
           const dateStr = d.toISOString().split('T')[0];
           const sendAt = localTimeOnDate(dateStr, notifHour, notifMin);
           if (sendAt > now) {
-            // Make message phase-specific for steps with phases
-            let notifBody = generateDailyMessage(goal, step);
-            if (step.phase) {
-              const phaseMatch = step.phase.match(/Week\s+(\d+)/i);
-              if (phaseMatch) {
-                const weekNum = parseInt(phaseMatch[1]);
-                switch (weekNum) {
-                  case 1:
-                    notifBody = `${goal.title} - Week ${weekNum} begins! Let's dive in. 📖`;
-                    break;
-                  case 2:
-                    notifBody = `${goal.title} - Halfway through Week ${weekNum}. You're making progress! 💪`;
-                    break;
-                  case 3:
-                    notifBody = `${goal.title} - Week ${weekNum}: the home stretch. Keep going! 🎯`;
-                    break;
-                  case 4:
-                    notifBody = `${goal.title} - Final week! Finish strong and reflect. ✨`;
-                    break;
-                  default:
-                    notifBody = `${goal.title} - Week ${weekNum}: ${generateDailyMessage(goal, step)}`;
-                }
-              }
-            }
+            const notifBody = generateDailyMessage(goal, step);
             const nid = await scheduleNotification({
               externalId,
               title: `Daily check-in`,
