@@ -184,10 +184,12 @@ export default function GoalDetail() {
    const weekTitles = {};
 
    steps.forEach(s => {
-     const phase = s.phase || 'Uncategorized';
+     const phase = s.phase || '';
      const monthMatch = phase.match(/Month\s*(\d+)/i);
      const weekMatch = phase.match(/Week\s*(\d+)/i);
-     const monthKey = monthMatch ? `Month ${parseInt(monthMatch[1], 10)}` : 'Uncategorized';
+     // Skip steps with no recognizable month — don't show as "Uncategorized"
+     if (!monthMatch) return;
+     const monthKey = `Month ${parseInt(monthMatch[1], 10)}`;
      const weekKey = weekMatch ? `Week ${parseInt(weekMatch[1], 10)}` : null;
 
      if (!monthsMap[monthKey]) monthsMap[monthKey] = {};
