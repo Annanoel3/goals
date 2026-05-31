@@ -162,9 +162,12 @@ Deno.serve(async (req) => {
           }
         }
 
-        // Schedule daily reminders — cap at 60 days to avoid too many notifications
+        // Schedule daily reminders for THIS step's week only (from step start to due_date)
+        // This keeps notifications spread across the actual plan timeline
         let d = new Date(habitStart);
-        const capEnd = new Date(Math.min(goalEnd.getTime(), now.getTime() + 60 * 24 * 60 * 60 * 1000));
+        const capEnd = step.due_date
+          ? new Date(step.due_date + 'T23:59:59Z')
+          : new Date(Math.min(goalEnd.getTime(), now.getTime() + 60 * 24 * 60 * 60 * 1000));
         while (d <= capEnd) {
           const dateStr = d.toISOString().split('T')[0];
           const sendAt = localTimeOnDate(dateStr, notifHour, notifMin);
