@@ -64,10 +64,11 @@ Return JSON (no markdown) in EXACTLY this structure. CRITICAL STRUCTURAL RULE FO
 - NEVER combine weeks or months: "Week 1-2", "Weeks 3-4", "Months 4-6" are STRICTLY FORBIDDEN. Each STEP = exactly ONE week. phase='Month X' (month only). title='Week N: brief focus'. Exactly 4 steps per month.
 
 MONTH TITLES (CRITICAL FOR ALL GOALS):
-EVERY month MUST have a descriptive title that reflects its milestones or theme. For a reading goal: book title. For fitness: training phase. For learning: skill phase. For business: growth stage.
+EVERY month MUST have a descriptive title that reflects its milestones or theme. For a reading goal: a REAL, SPECIFIC book title (e.g. 'Atomic Habits', 'The Power of Now') — NEVER a placeholder like 'Book Title', 'TBD', or 'Month X Book'. For fitness: training phase. For learning: skill phase. For business: growth stage.
 Format in output: "Month 1 – Book Title" or "Month 1 – Introduction Phase" (with em dash or hyphen).
 This applies to ALL goal types. Users should see meaningful milestone titles, not just "Month 1".
 - For goals under 1 month, just use "Week 1", "Week 2" phases directly.
+READING GOALS — CRITICAL: You MUST select a specific, real book title for EVERY single month in month_titles, based on the user's stated genre and preferences. Draw on your knowledge of books in that genre. Placeholder titles (e.g. "Book Title", "Month 2 Book", "TBD") are a CRITICAL FAILURE — never output them.
 
 NOTIFICATION FREQUENCY DETECTION:
 Analyze the conversation for clues about how often the user wants to be reminded:
@@ -746,7 +747,7 @@ ${monthsRule}
    - MILESTONE/PROJECT GOALS (finance, career, business, travel, concrete measurable outcomes): 2-4 specific action steps per week — no daily breakdown needed.
    - SOFT/PERSONAL GROWTH GOALS (self-confidence, anxiety, boundaries, saying no, mindset, emotional wellbeing, relationships, happiness): 3-7 reflection prompts or practice goals per week — NO daily breakdown, NO rigid scheduling. Keep it gentle and flexible.
    - Rule of thumb: Does this skill require daily repetition to build? → daily. Is it about outcomes through periodic effort? → weekly milestones.
-   - READING/BOOK GOALS: CRITICAL — NEVER guess or invent chapter/page counts for any specific book. You MUST use the web_search tool to look up the exact chapter count for every book before dividing it into weekly reading chunks. Divide evenly: total chapters ÷ 4 = chapters per week (round to balance all 4 weeks). If a book has no chapters, use total pages ÷ 4.
+   - READING/BOOK GOALS: CRITICAL — NEVER guess or invent chapter/page counts for any specific book. You MUST use the web_search tool to look up the exact chapter count for every book before dividing it into weekly reading chunks. Divide evenly: total chapters ÷ 4 = chapters per week (round to balance all 4 weeks). If a book has no chapters, use total pages ÷ 4. You MUST also assign a specific, real book title to EVERY month in month_titles based on the user's genre/preferences — NEVER leave any month with a placeholder like "Book Title", "TBD", or a generic description.
 5. Create a detailed phased plan with milestones (Month 1, Month 2, Week 1, etc.) that EXACTLY fits the user's stated timeline AND start date. CRITICAL LOGIC:
     - If user said "start immediately" or "start now" → calculate months from TODAY (${today}) to their target end date.
     - If user gave a future start date (e.g., "June 1st", "next month") → calculate months FROM THAT START DATE to their target end date, then name the phases accordingly ("Month 1" = first month after their start date, not today).
