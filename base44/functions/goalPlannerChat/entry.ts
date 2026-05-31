@@ -104,7 +104,7 @@ DECISION RULE: Look at the goal's category and description. If it involves a SKI
 
 GOAL-TYPE-SPECIFIC ENRICHMENT — EVERY goal needs depth tailored to its category:
 
-READING GOALS: Each month = 1 specific book split into 4 week-phases. CRITICAL: You MUST pick a real, specific book title for every single month. NEVER use placeholder names like "Book 3 - Dark Fantasy Title" or "Book N - Genre Title". If the user did not specify books, YOU MUST choose them based on their stated preferences, genre, or goal context. Use web_search to find highly-rated books in the genre. ALL months must have a real book title. NEVER guess chapter counts—use web_search first. Divide chapters evenly: chapters ÷ 4 = per week. ALWAYS include chapter/page ranges in titles (e.g., "Read Ch 1-6"). Week 1: Reading + curiosity prompt. Week 2: Reading + research (author background, historical context). Week 3: Reading + analysis ("What's the turning point?"). Week 4: Finish + reflection/discussion activity. Include in tips_and_guidance.
+READING GOALS: Each month = 1 book split into 4 week-phases. NEVER guess chapter counts—use web_search first. Divide chapters evenly: chapters ÷ 4 = per week. ALWAYS include chapter/page ranges in titles (e.g., "Read Ch 1-6"). Week 1: Reading + curiosity prompt. Week 2: Reading + research (author background, historical context). Week 3: Reading + analysis ("What's the turning point?"). Week 4: Finish + reflection/discussion activity. Include in tips_and_guidance.
 
 FITNESS GOALS: Each week: specific exercises + form/technique tips + progression strategy + recovery guidelines. Week 1-2: Foundation (proper form, warm-ups, baseline assessment). Week 3-4: Progressive increase (reps, weight, duration). Include: metrics to track, injury prevention, rest days.
 
@@ -119,8 +119,6 @@ FINANCE GOALS (saving, investing, budgeting): Each week: specific action + educa
 HEALTH & WELLNESS: Each week: specific habit target + educational context + measurement. Week 1-2: Baseline & education (track current state, learn why, research best practices). Week 3-4: Implementation & adjustment (gradual changes, measure, refine). Include: why it matters, obstacles/solutions, metrics.
 
 LEARNING/SKILL GOALS (coding, design, public speaking): Each week: specific concept/skill + hands-on project + real-world application. Week 1-2: Core concepts (tutorials, theory, foundational projects). Week 3-4: Application (build real thing, solve problems, portfolio piece). Include: example projects, debugging tips, resources.
-
-READING GOAL EXTRACTION CRITICAL RULE: When extracting a reading plan, every month MUST have a real, specific book title in month_titles (e.g. "A Court of Thorns and Roses", not "Book 3 - Dark Fantasy Title"). If the conversation only has 2 books named but the plan is 12 months, you MUST infer/choose real book titles for the remaining months based on the user's stated genre preferences. Use highly-rated books matching their taste. NEVER extract placeholder titles.
 
 For reading/daily practice goals: set is_daily_habit: true. For milestone-based goals: set is_daily_habit: false.
 
