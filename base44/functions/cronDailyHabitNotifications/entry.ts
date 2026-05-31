@@ -134,8 +134,10 @@ async function scheduleHabitNotificationForUser(base44, step, userEmail, timezon
      const dayOfWeek = sendAtDate.getDay();
 
      // Get current month number (1-indexed) for month_titles lookup
-     const currentMonth = sendAtDate.getMonth() + 1;
-     const monthTitle = goal?.month_titles && goal.month_titles[currentMonth] 
+     // Derive plan month from step.phase (e.g. "Month 2 Week 3" -> 2)
+    const phaseMonthMatch = step.phase?.match(/Month\s+(\d+)/i);
+    const currentMonth = phaseMonthMatch ? parseInt(phaseMonthMatch[1]) : null;
+     const monthTitle = currentMonth && goal?.month_titles && goal.month_titles[currentMonth] 
        ? goal.month_titles[currentMonth] 
        : null;
 
