@@ -108,10 +108,17 @@ Deno.serve(async (req) => {
 
     // Helper: given a local hour/min and a date string (YYYY-MM-DD), return a UTC Date at that local time
     // tzOffsetMinutes from JS getTimezoneOffset() is positive for west-of-UTC (e.g. CDT = +300)
-    // UTC = local + tzOffset
+    // UTC = local + tzOffset  →  9am CDT = 9*60+300 = 840 mins from midnight UTC = 14:00 UTC
     function localTimeOnDate(dateStr, localHour, localMin) {
+      const totalLocalMinutes = localHour * 60 + localMin;
+      const totalUTCMinutes = totalLocalMinutes + tzOffsetMinutes;
+      const dayDelta = Math.floor(totalUTCMinutes / (60 * 24));
+      const utcMinOfDay = ((totalUTCMinutes % (60 * 24)) + (60 * 24)) % (60 * 24);
+      const utcHour = Math.floor(utcMinOfDay / 60);
+      const utcMin = utcMinOfDay % 60;
       const d = new Date(dateStr + 'T00:00:00Z');
-      d.setUTCHours(localHour + Math.floor(tzOffsetMinutes / 60), localMin + (tzOffsetMinutes % 60), 0, 0);
+      d.setUTCDate(d.getUTCDate() + dayDelta);
+      d.setUTCHours(utcHour, utcMin, 0, 0);
       return d;
     }
 
@@ -129,18 +136,14 @@ Deno.serve(async (req) => {
 
       if (step.is_daily_habit) {
         // ── DAILY HABIT STEPS ───────────────────────────────────────────────
-        // For weekly reading/habit steps: send ONE notification at the START of the step's week.
-        // The step's due_date is the END of the week. Derive week start = due_date minus 6 days.
-        // This ensures Week 1 notif fires on Week 1's first day, Week 2 on Week 2's first day, etc.
+        const startDate = step.due_date ? new Date(step.due_date + 'T00:00:00Z') : now;
+        const habitStart = startDate < now
+          ? new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1))
+          : startDate;
 
-        let weekStartDate;
-        if (step.due_date) {
-          const dueDate = new Date(step.due_date + 'T00:00:00Z');
-          weekStartDate = new Date(dueDate);
-          weekStartDate.setUTCDate(weekStartDate.getUTCDate() - 6); // 7-day week, start = due - 6
-        } else {
-          weekStartDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
-        }
+        const goalEnd = goal.target_date
+          ? new Date(goal.target_date + 'T23:59:59Z')
+          : new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
 
         // Use step habit_time, goal preferred_time, or user's global preferred time
         let notifHour = prefHour;
@@ -159,24 +162,29 @@ Deno.serve(async (req) => {
           }
         }
 
-        // Send one notification at the start of this step's week (if it's in the future)
-        const weekStartStr = weekStartDate.toISOString().split('T')[0];
-        const sendAt = localTimeOnDate(weekStartStr, notifHour, notifMin);
-        if (sendAt > now) {
-          const notifBody = generateDailyMessage(goal, step);
-          const nid = await scheduleNotification({
-            externalId,
-            title: `📖 Time to start: ${step.title}`,
-            body: notifBody,
-            data: {
-              screen: 'GoalStepNotification',
-              action: 'habit_checkin',
-              goal_id: goal.id,
-              step_id: step.id,
-            },
-            sendAt: sendAt.toISOString(),
-          });
-          if (nid) { newNotifIds.push(nid); scheduled++; }
+        // Schedule daily reminders — cap at 60 days to avoid too many notifications
+        let d = new Date(habitStart);
+        const capEnd = new Date(Math.min(goalEnd.getTime(), now.getTime() + 60 * 24 * 60 * 60 * 1000));
+        while (d <= capEnd) {
+          const dateStr = d.toISOString().split('T')[0];
+          const sendAt = localTimeOnDate(dateStr, notifHour, notifMin);
+          if (sendAt > now) {
+            const notifBody = generateDailyMessage(goal, step);
+            const nid = await scheduleNotification({
+              externalId,
+              title: `Daily check-in`,
+              body: notifBody,
+              data: {
+                screen: 'GoalStepNotification',
+                action: 'habit_checkin',
+                goal_id: goal.id,
+                step_id: step.id,
+              },
+              sendAt: sendAt.toISOString(),
+            });
+            if (nid) { newNotifIds.push(nid); scheduled++; }
+          }
+          d.setUTCDate(d.getUTCDate() + 1);
         }
 
       } else if (step.due_date) {
