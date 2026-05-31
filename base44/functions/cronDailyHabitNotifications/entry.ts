@@ -148,8 +148,8 @@ async function scheduleHabitNotificationForUser(base44, step, userEmail, timezon
 
     const notificationPayload = {
       app_id: ONESIGNAL_APP_ID,
-      include_aliases: { external_id: [userEmail] },
-      target_channel: 'push',
+      include_external_user_ids: [userEmail],
+      channel_for_external_user_ids: 'push',
       headings: { en: msg.title },
       contents: { en: msg.body },
       send_after: sendAt,
@@ -215,8 +215,8 @@ async function scheduleHabitNotificationForUser(base44, step, userEmail, timezon
 
     const missedNotificationPayload = {
       app_id: ONESIGNAL_APP_ID,
-      include_aliases: { external_id: [userEmail] },
-      target_channel: 'push',
+      include_external_user_ids: [userEmail],
+      channel_for_external_user_ids: 'push',
       headings: { en: missedMsg.title },
       contents: { en: missedMsg.body },
       send_after: sendAtMissed,
@@ -268,8 +268,8 @@ async function scheduleHabitNotificationForUser(base44, step, userEmail, timezon
 
     const threeNotificationPayload = {
       app_id: ONESIGNAL_APP_ID,
-      include_aliases: { external_id: [userEmail] },
-      target_channel: 'push',
+      include_external_user_ids: [userEmail],
+      channel_for_external_user_ids: 'push',
       headings: { en: threeMsg.title },
       contents: { en: threeMsg.body },
       send_after: sendAtThree,
