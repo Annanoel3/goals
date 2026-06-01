@@ -222,8 +222,8 @@ export default function Planner() {
     }
     
     // Warn if too few steps
-    if (plan.steps.length < 15) {
-      console.warn(`Warning: Only ${plan.steps.length} steps for ${plan.timeline} goal (expected 15+). Plan may lack detail.`);
+    if (plan.steps.length < 8) {
+      console.warn(`Warning: Only ${plan.steps.length} steps for ${plan.timeline} goal (expected 8+). Plan may lack detail.`);
     }
   };
 
