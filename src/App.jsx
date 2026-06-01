@@ -17,6 +17,8 @@ import Settings from '@/pages/Settings';
 import GoalDetail from '@/pages/GoalDetail';
 import GoalStepNotification from '@/pages/GoalStepNotification';
 import GoalFollowUp from '@/pages/GoalFollowUp';
+import NotificationSettings from '@/pages/NotificationSettings';
+import ReportBug from '@/pages/ReportBug';
 
 // Sentry loaded via CDN in index.html
 const Sentry = window.Sentry;
@@ -71,6 +73,8 @@ const AuthenticatedApp = () => {
         <Route path="/goal/:id" element={<GoalDetail />} />
         <Route path="/GoalStepNotification" element={<GoalStepNotification />} />
         <Route path="/GoalFollowUp" element={<GoalFollowUp />} />
+        <Route path="/notificationsettings" element={<LayoutWrapper currentPageName="NotificationSettings"><NotificationSettings /></LayoutWrapper>} />
+        <Route path="/reportbug" element={<LayoutWrapper currentPageName="ReportBug"><ReportBug /></LayoutWrapper>} />
         <Route path="*" element={<PageNotFound />} />
       </Routes>
     </LayoutWrapper>
