@@ -241,7 +241,7 @@ export default function Planner() {
       const plan = res.data.plan;
       validatePlanSteps(plan);
 
-      const goal = await base44.entities.Goal.create({
+      await base44.entities.Goal.create({
         title: plan.title,
         description: plan.description,
         plan_summary: plan.plan_summary,
@@ -256,10 +256,10 @@ export default function Planner() {
         month_titles: plan.month_titles || {}
       });
 
-      // Verify goal was created by fetching it back
-      const createdGoal = await base44.entities.Goal.filter({ id: goal.id });
-      const actualGoal = createdGoal[0];
-      if (!actualGoal) throw new Error('Goal creation failed - could not verify in database');
+      // Fetch the actual created goal by title to get the correct ID
+      const createdGoals = await base44.entities.Goal.filter({ title: plan.title });
+      const goal = createdGoals[createdGoals.length - 1];
+      if (!goal) throw new Error('Goal creation failed');
 
       if (plan.steps?.length > 0) {
         for (let i = 0; i < plan.steps.length; i++) {
@@ -299,7 +299,7 @@ export default function Planner() {
       }
 
       setSaved(true);
-      setPendingGoalId(actualGoal.id);
+      setPendingGoalId(goal.id);
       // Clear the in-progress session
       localStorage.removeItem('plannerInProgress');
 
@@ -312,8 +312,8 @@ export default function Planner() {
         ));
       }
 
-      // Schedule all notifications — use verified actual goal ID
-      base44.functions.invoke('scheduleGoalNotifications', { goal_id: actualGoal.id, preferred_time: plan.preferred_time, timezoneOffsetMinutes: -new Date().getTimezoneOffset() }).catch(err => console.error('scheduleGoalNotifications failed:', err));
+      // Schedule all notifications — use verified goal ID
+      base44.functions.invoke('scheduleGoalNotifications', { goal_id: goal.id, preferred_time: plan.preferred_time, timezoneOffsetMinutes: -new Date().getTimezoneOffset() }).catch(err => console.error('scheduleGoalNotifications failed:', err));
     } catch (err) {
       setSaveError(true);
     } finally {
