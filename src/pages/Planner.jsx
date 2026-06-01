@@ -466,7 +466,7 @@ export default function Planner() {
             {isLoading && (
         <div className="flex justify-center py-4">
           {editingGoal ? (
-            <SavingProgressBar isEdit done={false} />
+            <SavingProgressBar isEdit done={false} isSavingToDb={false} />
           ) : (
             <div className="flex gap-1.5 items-center">
               <div className="w-2.5 h-2.5 bg-violet-400 rounded-full animate-bounce" style={{animationDelay:'0ms'}} />
@@ -533,7 +533,7 @@ export default function Planner() {
             </div>
           ) : isSaving && (
             <div className="flex justify-center">
-              <SavingProgressBar isEdit={!!editingGoal} done={!isSaving} />
+              <SavingProgressBar isEdit={!!editingGoal} done={!isSaving} isSavingToDb={true} />
             </div>
           )}
         </>
@@ -1111,7 +1111,7 @@ function MessageBubble({ msg, onExampleClick }) {
   );
 }
 
-function SavingProgressBar({ isEdit = false, done = false }) {
+function SavingProgressBar({ isEdit = false, done = false, isSavingToDb = false }) {
   const newGoalSteps = [
     "Laying out the timeline…",
     "Structuring your milestones…",
@@ -1128,7 +1128,13 @@ function SavingProgressBar({ isEdit = false, done = false }) {
     "Applying your edits…",
     "Almost done…",
   ];
-  const steps = isEdit ? editSteps : newGoalSteps;
+  const dbSaveSteps = [
+    "Saving your goal…",
+    "Creating your steps…",
+    "Setting up notifications…",
+    "Almost done…",
+  ];
+  const steps = isSavingToDb ? dbSaveSteps : (isEdit ? editSteps : newGoalSteps);
   const [stepIndex, setStepIndex] = React.useState(0);
   const [progress, setProgress] = React.useState(5);
 
@@ -1163,7 +1169,7 @@ function SavingProgressBar({ isEdit = false, done = false }) {
           style={{ width: `${progress}%` }}
         />
       </div>
-      <p className={`text-xs mt-2 text-center ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>This usually takes 1–2 minutes. Feel free to navigate away.</p>
+      {isSavingToDb && <p className={`text-xs mt-2 text-center ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>This usually takes 1–2 minutes. Feel free to navigate away.</p>}
     </div>
   );
 }
