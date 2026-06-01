@@ -47,7 +47,11 @@ export default function Planner() {
             const sessionData = JSON.parse(savedSession);
             if (sessionData.messages?.length > 0) {
               setMessages(sessionData.messages);
-              if (sessionData.pendingAction) setPendingAction(sessionData.pendingAction);
+              // Only restore pendingAction for plan_proposed (chat stage) — never for
+              // plan_approved/edit_approved which would try to save with a stale/deleted goal ID
+              if (sessionData.pendingAction === 'plan_proposed') {
+                setPendingAction('plan_proposed');
+              }
             }
           } catch (e) {}
         }
