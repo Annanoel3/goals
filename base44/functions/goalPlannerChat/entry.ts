@@ -43,7 +43,7 @@ Deno.serve(async (req) => {
 
     if (mode === 'extract_plan') {
       const extractionResponse = await openai.chat.completions.create({
-        model: "gpt-4o",
+        model: "gpt-4o-mini",
         messages: [
           {
             role: "system",
@@ -305,7 +305,7 @@ CRITICAL:
       if (!validation.valid) {
         // Regenerate with stricter instructions
         const retryResponse = await openai.chat.completions.create({
-           model: "gpt-4o",
+           model: "gpt-4o-mini",
            messages: [
              {
                role: "system",
@@ -377,7 +377,7 @@ CRITICAL:
 
       // Extract the new plan from the conversation using AI
       const extractionResponse = await openai.chat.completions.create({
-        model: "gpt-4o",
+        model: "gpt-4o-mini",
         messages: [
           {
             role: "system",
