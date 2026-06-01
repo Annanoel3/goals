@@ -8,7 +8,20 @@ import { useToast } from "@/components/ui/use-toast";
 import { setUserActive } from "@/lib/admob";
 
 export default function Planner() {
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState(() => {
+    // Eagerly restore in-progress session so the chat view shows immediately on mount
+    // Don't restore if URL has ?edit or ?nudge params (those start fresh sessions)
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('edit') || params.get('nudge')) return [];
+    try {
+      const s = localStorage.getItem('plannerInProgress');
+      if (s) {
+        const d = JSON.parse(s);
+        if (d.messages?.length > 0) return d.messages;
+      }
+    } catch {}
+    return [];
+  });
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
@@ -41,20 +54,17 @@ export default function Planner() {
       const editId = searchParams.get('edit');
       const nudgeGoalId = searchParams.get('nudge');
       if (!editId && !nudgeGoalId) {
-        const savedSession = localStorage.getItem('plannerInProgress');
-        if (savedSession) {
-          try {
-            const sessionData = JSON.parse(savedSession);
-            if (sessionData.messages?.length > 0) {
-              setMessages(sessionData.messages);
-              // Only restore pendingAction for plan_proposed (chat stage) — never for
-              // plan_approved/edit_approved which would try to save with a stale/deleted goal ID
-              if (sessionData.pendingAction === 'plan_proposed') {
-                setPendingAction('plan_proposed');
-              }
-            }
-          } catch (e) {}
-        }
+        // Messages already eagerly restored in useState initializer.
+        // Only restore pendingAction if the last message looks like a full plan.
+        try {
+          const sessionData = JSON.parse(localStorage.getItem('plannerInProgress') || '{}');
+          const lastMsg = sessionData.messages?.[sessionData.messages.length - 1];
+          const lastContent = lastMsg?.content || '';
+          const looksLikePlan = lastContent.includes('Month 1') && (lastContent.includes('Month 2') || lastContent.includes('Week 1'));
+          if (looksLikePlan && lastMsg?.role === 'assistant') {
+            setPendingAction('plan_proposed');
+          }
+        } catch {}
       }
     }).catch(() => {});
     base44.auth.me().then(u => { if (u?.city) setUserCity(u.city); }).catch(() => {});
@@ -172,11 +182,11 @@ export default function Planner() {
       localStorage.setItem('plannerInProgress', JSON.stringify(sessionData));
 
       // Detect if AI proposed a full plan (new or edit) — show approval buttons
+      // ONLY show save buttons when the message actually contains a full plan with multiple months/weeks
       const looksLikeFullPlan = message?.includes('Month 1') && (message?.includes('Month 2') || message?.includes('Week 1') || message?.includes('Week 2'));
-      if (action === 'plan_proposed' || (action === 'chat' && looksLikeFullPlan && !message?.includes('EDIT_APPROVED'))) {
+      if (looksLikeFullPlan && !message?.includes('EDIT_APPROVED')) {
+        // Full plan is visible in this message — show approval buttons
         setPendingAction('plan_proposed');
-      } else if (action === 'plan_approved' || message?.includes('PLAN_APPROVED')) {
-        setPendingAction('plan_approved');
       } else if (action === 'edit_approved' || message?.includes('EDIT_APPROVED')) {
         setPendingAction('edit_approved');
         const resolvedGoalId = goal_id || editingGoal?.id;
@@ -401,8 +411,16 @@ export default function Planner() {
   const isColorful = theme === 'colorful';
   const isDark = theme === 'dark';
 
-  // Show saved chats list if we have goals and aren't currently editing
-  const showGoalsList = hasGoals && !editingGoal && isEmpty;
+  // Show saved chats list if we have goals and aren't currently editing and no in-progress session
+  const hasSavedSession = (() => {
+    try {
+      const s = localStorage.getItem('plannerInProgress');
+      if (!s) return false;
+      const d = JSON.parse(s);
+      return d.messages?.length > 0;
+    } catch { return false; }
+  })();
+  const showGoalsList = hasGoals && !editingGoal && isEmpty && !hasSavedSession;
 
   return (
     <div className={`min-h-screen flex flex-col ${isDark ? 'bg-gray-950' : isColorful ? 'bg-gradient-to-br from-purple-200 via-pink-200 to-blue-200' : 'bg-gray-50'}`} style={{ paddingBottom: 'max(7rem, calc(7rem + env(safe-area-inset-bottom)))' }}>
@@ -528,18 +546,6 @@ export default function Planner() {
           )}
         </>
       )}
-
-      {/* New goal approval (AI said PLAN_APPROVED explicitly) */}
-           {pendingAction === 'plan_approved' && !saved && !isSaving && !showCelebration && (
-             <div className="flex justify-center py-4">
-               <Button
-                 onClick={() => { setShowCelebration(true); handleSaveNewGoal(); }}
-                 className={`rounded-2xl px-6 py-2.5 font-semibold ${isDark ? 'bg-violet-600 hover:bg-violet-700 text-white shadow-lg shadow-violet-900/30' : 'bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white shadow-lg shadow-violet-100'}`}
-               >
-                 <Check className="w-4 h-4 mr-2" />Looks good! Save goal
-               </Button>
-             </div>
-           )}
 
             {/* Edit approval */}
             {pendingAction === 'edit_approved' && !saved && !showCelebration && (
