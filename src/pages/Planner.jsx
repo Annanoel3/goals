@@ -311,7 +311,7 @@ export default function Planner() {
       }
 
       // Schedule all notifications — use verified goal ID
-      base44.functions.invoke('scheduleGoalNotifications', { goal_id: goal.id, preferred_time: plan.preferred_time, timezoneOffsetMinutes: -new Date().getTimezoneOffset() }).catch(err => console.error('scheduleGoalNotifications failed:', err));
+      base44.functions.invoke('scheduleHabitNotification', { goal_id: goal.id, preferred_time: plan.preferred_time, timezoneOffsetMinutes: -new Date().getTimezoneOffset() }).catch(err => console.error('scheduleHabitNotification failed:', err));
     } catch (err) {
       console.error('Goal save error:', err);
       setSaveError(true);
