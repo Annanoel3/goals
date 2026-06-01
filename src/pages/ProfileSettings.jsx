@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { User as UserIcon, Upload, Loader2, Save, Camera } from "lucide-react";
@@ -15,7 +14,6 @@ export default function ProfileSettings() {
   const [theme, setTheme] = useState(() => localStorage.getItem('adhd_theme') || 'minimalist');
   const [user, setUser] = useState(null);
   const [displayName, setDisplayName] = useState("");
-  const [bio, setBio] = useState("");
   const [profilePicture, setProfilePicture] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -34,7 +32,6 @@ export default function ProfileSettings() {
       const currentUser = await User.me();
       setUser(currentUser);
       setDisplayName(currentUser.display_name || "");
-      setBio(currentUser.bio || "");
       setProfilePicture(currentUser.profile_picture_url || "");
     } catch (error) {
       console.error("Error loading user:", error);
@@ -61,7 +58,6 @@ export default function ProfileSettings() {
     try {
       await User.updateMyUserData({
         display_name: displayName.trim() || null,
-        bio: bio.trim() || null,
         profile_picture_url: profilePicture || null
       });
       alert("Profile updated successfully!");
@@ -106,7 +102,7 @@ export default function ProfileSettings() {
         <CardHeader>
           <CardTitle className={`flex items-center gap-2 ${theme === 'dark' ? 'text-white' : ''}`}>
             <UserIcon className="w-5 h-5" />
-            Public Profile
+            Profile
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -167,24 +163,7 @@ export default function ProfileSettings() {
               maxLength={50}
             />
             <p className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-              This is how you'll appear to accountability partners
-            </p>
-          </div>
-
-          {/* Bio */}
-          <div className="space-y-2">
-            <Label className={theme === 'dark' ? 'text-gray-200' : ''}>
-              Bio
-            </Label>
-            <Textarea
-              value={bio}
-              onChange={(e) => setBio(e.target.value)}
-              placeholder="Tell others a bit about yourself..."
-              className="h-24"
-              maxLength={200}
-            />
-            <p className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-              {bio.length}/200 characters
+              This is how you'll appear in the app
             </p>
           </div>
 
