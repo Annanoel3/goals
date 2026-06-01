@@ -145,11 +145,6 @@ export default function Settings() {
       onClick: () => navigate('/profile')
     },
     {
-      icon: UserIcon,
-      label: 'My Account',
-      onClick: () => navigate('/myaccount')
-    },
-    {
       icon: Bell,
       label: 'Notifications',
       onClick: () => navigate('/notificationsettings')
