@@ -98,8 +98,8 @@ Deno.serve(async (req) => {
 
     const notificationPayload = {
       app_id: appId,
-      include_aliases: [{ alias_label: 'external_id', alias_value: user.email }],
-      target_channel: 'push',
+      include_external_user_ids: [user.email],
+      channel_for_external_user_ids: 'push',
       headings: { en: msg.title },
       contents: { en: msg.body },
       send_after: sendAt,
