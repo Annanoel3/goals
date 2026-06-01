@@ -442,14 +442,14 @@ export default function Planner() {
           </div>
           <div className="flex items-center gap-2">
             {(editingGoal || messages.length > 0) && (
-              <Button variant="ghost" size="sm" onClick={handleNewPlan} className={`text-xs h-7 px-3 rounded-full ${isDark ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-500 hover:bg-gray-100'}`}>
+              <Button variant="ghost" size="sm" onClick={handleNewPlan} disabled={isLoading} className={`text-xs h-7 px-3 rounded-full ${isDark ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-500 hover:bg-gray-100'}`}>
                 {editingGoal ? 'Back' : 'New'}
               </Button>
             )}
             <Button
               variant="ghost"
               size="sm"
-              disabled={false}
+              disabled={isLoading}
               className={`text-xs h-7 px-3 rounded-full ${isDark ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-500 hover:bg-gray-100'}`}
               onClick={() => navigate("/Goals")}
             >
