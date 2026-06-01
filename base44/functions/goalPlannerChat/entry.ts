@@ -874,7 +874,7 @@ Always be specific, warm, encouraging, and treat the plan as a living document t
     }
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4o-mini",
       messages: [
         { role: "system", content: systemPrompt },
         ...messages
@@ -918,7 +918,7 @@ Always be specific, warm, encouraging, and treat the plan as a living document t
         }
         toolMessages.push({ role: "tool", tool_call_id: call.id, content: searchResult });
       }
-      const followUp = await openai.chat.completions.create({ model: "gpt-4o", messages: toolMessages, max_tokens: 16000 });
+      const followUp = await openai.chat.completions.create({ model: "gpt-4o-mini", messages: toolMessages, max_tokens: 16000 });
       finalReply = followUp.choices[0].message.content;
     } else {
       finalReply = firstChoice.message.content;
