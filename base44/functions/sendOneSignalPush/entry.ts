@@ -10,7 +10,7 @@ Deno.serve(async (req) => {
         }
 
         const body = await req.json();
-        const { userEmail, title, message, data, subscriptionId } = body;
+        const { userEmail, title, message, data, subscriptionId, sendAtISO } = body;
 
         const appId = Deno.env.get("ONESIGNAL_APP_ID");
         const rest = Deno.env.get("ONESIGNAL_REST_API_KEY");
@@ -41,7 +41,8 @@ Deno.serve(async (req) => {
                 target_channel: "push",
                 headings: { en: title },
                 contents: { en: message },
-                data: data || {}
+                data: data || {},
+                ...(sendAtISO && { send_after: sendAtISO })
             };
             console.log('Sending push to external ID:', userEmail);
         } else {

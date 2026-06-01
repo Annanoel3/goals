@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
-import { schedulePush } from '@/functions/schedulePush';
-import { cancelScheduled } from '@/functions/cancelScheduled';
+import { base44 } from '@/api/base44Client';
 
 const PomodoroContext = createContext(null);
 
@@ -48,23 +47,23 @@ export function PomodoroProvider({ children }) {
 
     // Cancel any existing scheduled notification first
     if (scheduledNotifIdRef.current) {
-      cancelScheduled({ notificationId: scheduledNotifIdRef.current }).catch(() => {});
+      base44.functions.invoke('cancelScheduled', { notificationId: scheduledNotifIdRef.current }).catch(() => {});
       scheduledNotifIdRef.current = null;
     }
     try {
-      const user = await import('@/api/base44Client').then(m => m.base44.auth.me());
+      const user = await base44.auth.me();
       if (!user?.email) return;
       const sendAt = new Date(Date.now() + secondsRemaining * 1000).toISOString();
       const title = currentMode === 'work' ? '🍅 Focus session complete!' : '☕ Break time over!';
-      const body = currentMode === 'work' ? 'Great work! Time for a break.' : 'Ready to focus again?';
-      const result = await schedulePush({
-        toUserExternalId: user.email,
+      const message = currentMode === 'work' ? 'Great work! Time for a break.' : 'Ready to focus again?';
+      const result = await base44.functions.invoke('sendOneSignalPush', {
+        userEmail: user.email,
         title,
-        body,
+        message,
         sendAtISO: sendAt,
       });
-      if (result?.data?.notificationId) {
-        scheduledNotifIdRef.current = result.data.notificationId;
+      if (result?.data?.data?.id) {
+        scheduledNotifIdRef.current = result.data.data.id;
       }
     } catch (e) {
       // Silently fail — in-app sound still works
@@ -73,7 +72,7 @@ export function PomodoroProvider({ children }) {
 
   const cancelTimerNotification = useCallback(() => {
     if (scheduledNotifIdRef.current) {
-      cancelScheduled({ notificationId: scheduledNotifIdRef.current }).catch(() => {});
+      base44.functions.invoke('cancelScheduled', { notificationId: scheduledNotifIdRef.current }).catch(() => {});
       scheduledNotifIdRef.current = null;
     }
   }, []);
