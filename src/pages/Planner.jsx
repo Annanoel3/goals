@@ -299,8 +299,10 @@ export default function Planner() {
         ));
       }
 
-      // Schedule all notifications for this goal in the background
-      base44.functions.invoke('scheduleGoalNotifications', { goal_id: goal.id, preferred_time: plan.preferred_time, timezoneOffsetMinutes: -new Date().getTimezoneOffset() }).catch(err => console.error('scheduleGoalNotifications failed:', err));
+      // Schedule all notifications — short delay to ensure the goal record is fully persisted
+      setTimeout(() => {
+        base44.functions.invoke('scheduleGoalNotifications', { goal_id: goal.id, preferred_time: plan.preferred_time, timezoneOffsetMinutes: -new Date().getTimezoneOffset() }).catch(err => console.error('scheduleGoalNotifications failed:', err));
+      }, 2000);
     } catch (err) {
       setSaveError(true);
     } finally {
