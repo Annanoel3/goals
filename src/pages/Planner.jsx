@@ -37,15 +37,20 @@ export default function Planner() {
   useEffect(() => {
     base44.entities.Goal.list().then(allGoals => {
       setGoals(allGoals);
-      // If there's a saved in-progress session and it's still building, restore it
-      const saved = localStorage.getItem('plannerInProgress');
-      if (saved) {
-        try {
-          const sessionData = JSON.parse(saved);
-          if (sessionData.messages?.length > 0 || !sessionData.completed) {
-            // Session is still active
-          }
-        } catch (e) {}
+      // If there's a saved in-progress session, restore it (unless navigated with ?edit or ?nudge)
+      const editId = searchParams.get('edit');
+      const nudgeGoalId = searchParams.get('nudge');
+      if (!editId && !nudgeGoalId) {
+        const savedSession = localStorage.getItem('plannerInProgress');
+        if (savedSession) {
+          try {
+            const sessionData = JSON.parse(savedSession);
+            if (sessionData.messages?.length > 0) {
+              setMessages(sessionData.messages);
+              if (sessionData.pendingAction) setPendingAction(sessionData.pendingAction);
+            }
+          } catch (e) {}
+        }
       }
     }).catch(() => {});
     base44.auth.me().then(u => { if (u?.city) setUserCity(u.city); }).catch(() => {});
