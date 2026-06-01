@@ -184,14 +184,8 @@ Deno.serve(async (req) => {
       // First 2 step titles for this week give the user something concrete to read
       const weekFocus = wData.titles.slice(0, 2).join(' & ') || monthTheme || goal.title;
 
-      // Week begin — morning of week start (if already past, send in 5 min for current week)
-      let weekBeginSendAt = localTimeOnDate(weekStartDate, prefHour, prefMin, tzOffset);
-      if (weekBeginSendAt <= now) {
-        // Only send the "right now" notification for the current/most recent week (week 1 of month 1)
-        if (wData.month === 1 && wData.week === 1) {
-          weekBeginSendAt = new Date(now.getTime() + 5 * 60 * 1000);
-        }
-      }
+      // Week begin — morning of week start
+      const weekBeginSendAt = localTimeOnDate(weekStartDate, prefHour, prefMin, tzOffset);
       if (weekBeginSendAt > now) {
         const nid = await scheduleNotification({
           externalId,
@@ -228,11 +222,8 @@ Deno.serve(async (req) => {
       const monthEndDate = sortedDates[sortedDates.length - 1];
       const monthTheme = goal.month_titles?.[mData.month];
 
-      // Month begin — if already past, send in 10 min for month 1 (goal just created)
-      let mBeginSendAt = localTimeOnDate(monthStartDate, prefHour, prefMin, tzOffset);
-      if (mBeginSendAt <= now && mData.month === 1) {
-        mBeginSendAt = new Date(now.getTime() + 10 * 60 * 1000);
-      }
+      // Month begin — morning of first step date in that month
+      const mBeginSendAt = localTimeOnDate(monthStartDate, prefHour, prefMin, tzOffset);
       if (mBeginSendAt > now) {
         const nid = await scheduleNotification({
           externalId,
