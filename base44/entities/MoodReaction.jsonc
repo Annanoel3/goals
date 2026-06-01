@@ -25,17 +25,8 @@
     "emoji"
   ],
   "rls": {
-    "create": {
-      "data.reactor_email": "{{user.email}}"
-    },
-    "read": {
-      "data.reactor_email": "{{user.email}}"
-    },
-    "update": {
-      "data.reactor_email": "{{user.email}}"
-    },
-    "delete": {
-      "data.reactor_email": "{{user.email}}"
+    "write": {
+      "reactor_email": "{{user.email}}"
     }
   }
 }

@@ -127,7 +127,7 @@ export default function OneSignalInit({ user }) {
           window.OneSignal = window.OneSignal || [];
           window.OneSignal.push(function() {
             window.OneSignal.init({
-              appId: "dc1933bc-e49e-4d8a-aa4a-2c9ca749ff37",
+              appId: "969fa1ea-0e85-4ac0-b122-015f5957dd30",
               allowLocalhostAsSecureOrigin: true
             });
 
