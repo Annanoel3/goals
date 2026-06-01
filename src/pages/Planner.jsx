@@ -53,19 +53,8 @@ export default function Planner() {
       // If there's a saved in-progress session, restore it (unless navigated with ?edit or ?nudge)
       const editId = searchParams.get('edit');
       const nudgeGoalId = searchParams.get('nudge');
-      if (!editId && !nudgeGoalId) {
-        // Messages already eagerly restored in useState initializer.
-        // Only restore pendingAction if the last message looks like a full plan.
-        try {
-          const sessionData = JSON.parse(localStorage.getItem('plannerInProgress') || '{}');
-          const lastMsg = sessionData.messages?.[sessionData.messages.length - 1];
-          const lastContent = lastMsg?.content || '';
-          const looksLikePlan = lastContent.includes('Month 1') && (lastContent.includes('Month 2') || lastContent.includes('Week 1'));
-          if (looksLikePlan && lastMsg?.role === 'assistant') {
-            setPendingAction('plan_proposed');
-          }
-        } catch {}
-      }
+      // pendingAction is intentionally NOT restored from localStorage.
+      // It is only set live when the AI response contains a full plan in the current session.
     }).catch(() => {});
     base44.auth.me().then(u => { if (u?.city) setUserCity(u.city); }).catch(() => {});
 
@@ -177,8 +166,8 @@ export default function Planner() {
         : (editingGoal?.month_titles || {});
       const updatedMessages = [...newMessages, { role: "assistant", content: message, goalMonthTitles: newMonthTitles }];
       setMessages(updatedMessages);
-      // Update localStorage
-      const sessionData = { startedAt: new Date().toISOString(), messages: updatedMessages, pendingAction: action || pendingAction, completed: false };
+      // Update localStorage (don't persist pendingAction — it's derived live from message content)
+      const sessionData = { startedAt: new Date().toISOString(), messages: updatedMessages, completed: false };
       localStorage.setItem('plannerInProgress', JSON.stringify(sessionData));
 
       // Detect if AI proposed a full plan (new or edit) — show approval buttons
