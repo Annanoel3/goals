@@ -76,8 +76,9 @@ Deno.serve(async (req) => {
     const tzOffset = typeof timezoneOffsetMinutes === 'number' ? timezoneOffsetMinutes : 0;
     const now = new Date();
 
-    const goal = await base44.asServiceRole.entities.Goal.get(goal_id);
-    if (!goal) return Response.json({ error: 'Goal not found' }, { status: 404 });
+    let goal;
+    try { goal = await base44.asServiceRole.entities.Goal.get(goal_id); } catch (_) {}
+    if (!goal) return Response.json({ error: 'Goal not found', goal_id }, { status: 404 });
 
     const steps = await base44.asServiceRole.entities.GoalStep.filter({ goal_id });
     const user = await base44.asServiceRole.entities.User.get(goal.created_by_id);
