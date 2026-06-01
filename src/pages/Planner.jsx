@@ -276,6 +276,14 @@ export default function Planner() {
             tips_and_guidance: step.tips_and_guidance || "",
             is_daily_habit: step.is_daily_habit === true
           });
+          // Schedule daily habit notification for this step
+          if (step.is_daily_habit === true && plan.preferred_time) {
+            base44.functions.invoke('scheduleHabitNotification', {
+              stepId: createdStep.id,
+              habitTime: plan.preferred_time,
+              timezoneOffsetMinutes: -new Date().getTimezoneOffset()
+            }).catch(err => console.error('scheduleHabitNotification failed:', err));
+          }
 
           // Create sub-steps if provided
           if (step.sub_steps?.length > 0) {
@@ -310,8 +318,6 @@ export default function Planner() {
         ));
       }
 
-      // Schedule all notifications — use verified goal ID
-      base44.functions.invoke('scheduleGoalNotifications', { goal_id: goal.id, preferred_time: plan.preferred_time, timezoneOffsetMinutes: -new Date().getTimezoneOffset() }).catch(err => console.error('scheduleGoalNotifications failed:', err));
     } catch (err) {
       console.error('Goal save error:', err);
       setSaveError(true);
