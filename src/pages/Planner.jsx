@@ -256,6 +256,11 @@ export default function Planner() {
         month_titles: plan.month_titles || {}
       });
 
+      // Verify goal was created by fetching it back
+      const createdGoal = await base44.entities.Goal.filter({ id: goal.id });
+      const actualGoal = createdGoal[0];
+      if (!actualGoal) throw new Error('Goal creation failed - could not verify in database');
+
       if (plan.steps?.length > 0) {
         for (let i = 0; i < plan.steps.length; i++) {
           const step = plan.steps[i];
@@ -294,7 +299,7 @@ export default function Planner() {
       }
 
       setSaved(true);
-      setPendingGoalId(goal.id);
+      setPendingGoalId(actualGoal.id);
       // Clear the in-progress session
       localStorage.removeItem('plannerInProgress');
 
@@ -307,10 +312,8 @@ export default function Planner() {
         ));
       }
 
-      // Schedule all notifications — wait longer (5 sec) to ensure ALL steps are fully persisted
-      setTimeout(() => {
-        base44.functions.invoke('scheduleGoalNotifications', { goal_id: goal.id, preferred_time: plan.preferred_time, timezoneOffsetMinutes: -new Date().getTimezoneOffset() }).catch(err => console.error('scheduleGoalNotifications failed:', err));
-      }, 5000);
+      // Schedule all notifications — use verified actual goal ID
+      base44.functions.invoke('scheduleGoalNotifications', { goal_id: actualGoal.id, preferred_time: plan.preferred_time, timezoneOffsetMinutes: -new Date().getTimezoneOffset() }).catch(err => console.error('scheduleGoalNotifications failed:', err));
     } catch (err) {
       setSaveError(true);
     } finally {
