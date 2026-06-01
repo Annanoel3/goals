@@ -241,7 +241,7 @@ export default function Planner() {
       const plan = res.data.plan;
       validatePlanSteps(plan);
 
-      await base44.entities.Goal.create({
+      const createdGoal = await base44.entities.Goal.create({
         title: plan.title,
         description: plan.description,
         plan_summary: plan.plan_summary,
@@ -256,10 +256,8 @@ export default function Planner() {
         month_titles: plan.month_titles || {}
       });
 
-      // Fetch the actual created goal by title to get the correct ID
-      const createdGoals = await base44.entities.Goal.filter({ title: plan.title });
-      const goal = createdGoals[createdGoals.length - 1];
-      if (!goal) throw new Error('Goal creation failed');
+      const goal = createdGoal;
+      if (!goal?.id) throw new Error('Goal creation returned no ID');
 
       if (plan.steps?.length > 0) {
         for (let i = 0; i < plan.steps.length; i++) {
@@ -315,6 +313,7 @@ export default function Planner() {
       // Schedule all notifications — use verified goal ID
       base44.functions.invoke('scheduleGoalNotifications', { goal_id: goal.id, preferred_time: plan.preferred_time, timezoneOffsetMinutes: -new Date().getTimezoneOffset() }).catch(err => console.error('scheduleGoalNotifications failed:', err));
     } catch (err) {
+      console.error('Goal save error:', err);
       setSaveError(true);
     } finally {
       setIsSaving(false);
