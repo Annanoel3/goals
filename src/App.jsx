@@ -73,8 +73,8 @@ const AuthenticatedApp = () => {
         <Route path="/goal/:id" element={<GoalDetail />} />
         <Route path="/GoalStepNotification" element={<GoalStepNotification />} />
         <Route path="/GoalFollowUp" element={<GoalFollowUp />} />
-        <Route path="/notificationsettings" element={<LayoutWrapper currentPageName="NotificationSettings"><NotificationSettings /></LayoutWrapper>} />
-        <Route path="/reportbug" element={<LayoutWrapper currentPageName="ReportBug"><ReportBug /></LayoutWrapper>} />
+        <Route path="/notificationsettings" element={<NotificationSettings />} />
+        <Route path="/reportbug" element={<ReportBug />} />
         <Route path="*" element={<PageNotFound />} />
       </Routes>
     </LayoutWrapper>
