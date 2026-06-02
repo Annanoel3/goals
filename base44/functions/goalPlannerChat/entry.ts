@@ -920,7 +920,7 @@ Always be specific, warm, encouraging, and treat the plan as a living document t
      //   "Month 1\n*Book Title*", "Month 1\nBook Title"
      const chatMonthTitles = {};
      const replyLines = finalReply.split('\n');
-     const isDateOnly = (t) => /^(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}$/i.test(t);
+     const isDateOnly = (t) => /^(January|February|March|April|May|June|July|August|September|October|November|December)\s*(\d{4})?$/i.test(t.trim());
      const stripFormatting = (s) => s.replace(/\*+/g, '').replace(/^[#>\s–—:\-]+/, '').trim();
      const stripAllFormatting = (s) => s.replace(/\*+/g, '').replace(/#/g, '').replace(/^[\s–—:\-]+/, '').trim();
 
