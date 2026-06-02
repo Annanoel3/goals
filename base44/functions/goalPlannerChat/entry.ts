@@ -631,7 +631,13 @@ CRITICAL INTERPRETATION RULES:
 - "I enjoyed [book/thing]" = already read/experienced it = BANNED
 - "I already read [book]" = BANNED
 - "[Book] was great" = already read = BANNED
-- ANY positive or negative familiarity with a specific book/resource = BANNED
+- "[Book] had too much X" = already read = BANNED (AND triggers the X preference constraint — reduce X throughout the plan)
+- "[Book] was too X" = already read = BANNED (AND triggers the X preference constraint)
+- "[Book] felt too X" = already read = BANNED (AND triggers the X preference constraint)
+- ANY positive OR negative opinion about a specific book/resource = already read/experienced = BANNED
+- ANY complaint or criticism about a specific item = already read = BANNED + apply that complaint as a plan-wide constraint
+
+EXAMPLE: "Twilight had too much romance" → (1) Twilight is BANNED from the plan forever, AND (2) this is an explicit constraint: reduce romance throughout the plan (max 1 romance-heavy book total).
 
 BEFORE WRITING YOUR RESPONSE: Mentally compile the full banned list from this conversation and the original planning conversation, then verify every single book/resource in your proposal is NOT on that list. If you are about to write a banned item, stop and replace it with something the user has NOT mentioned.
 
@@ -765,8 +771,12 @@ Examples of what triggers this ban:
 - "I tried Duolingo and hated it" → Duolingo BANNED
 - "smoothies didn't work for me" → pre-workout smoothies BANNED
 - "I know basic chords" → no beginner chord steps
+- "Twilight had too much romance" → Twilight is BANNED, AND romance is a restricted genre (max 1 romance-heavy book in the whole plan)
+- "That book was too slow" → book BANNED, AND note user preference for faster-paced books
+- "[Book] was boring" → BANNED, AND note it as a disliked style
 
-If the user says they LIKED a book, that means they ALREADY READ IT. Liking = read = banned from the plan.
+If the user says they LIKED or DISLIKED a book in ANY way, that means they ALREADY READ IT. Any opinion = read = banned from the plan.
+Any criticism about a trait (too much romance, too slow, too long, too dark, etc.) = apply that as a plan-wide preference constraint.
 
 BEFORE WRITING YOUR RESPONSE: List to yourself (mentally) every banned item from this conversation, then verify your proposed plan contains NONE of them. If you catch yourself about to include one, stop and pick a different item.
 ██████████████████████████████████████████████████████████
