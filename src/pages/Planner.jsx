@@ -822,6 +822,21 @@ function parsePlanHierarchy(text, goalMonthTitles = {}) {
     }
   }
 
+  // CRITICAL: Extract month subtitles from text if not already found
+  // Scan for patterns like "Month 1: Book Title", "Month 1 – Phase Name", etc.
+  const monthSubtitleRegex = /^#+?\s*\*{0,2}Month\s+(\d+)\*{0,2}\s*[:–—-]\s*(.+?)$/gm;
+  let match;
+  while ((match = monthSubtitleRegex.exec(text)) !== null) {
+    const monthNum = match[1];
+    const subtitle = match[2].replace(/\*+/g, '').trim();
+    if (subtitle && !(/^(January|February|March|April|May|June|July|August|September|October|November|December)/.test(subtitle))) {
+      const monthObj = months.find(m => m.title === `Month ${monthNum}`);
+      if (monthObj && !monthObj.subtitle) {
+        monthObj.subtitle = subtitle;
+      }
+    }
+  }
+
   // Detect total months from preamble/text ("12-month plan", "12 months", etc.)
   // Also check goalMonthTitles keys to know how many months the AI intended
   const totalMonthsMatch = text.match(/(\d+)[\s-]month/i);
