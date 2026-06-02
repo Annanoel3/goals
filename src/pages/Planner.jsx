@@ -1049,7 +1049,9 @@ function MessageBubble({ msg, onExampleClick }) {
   const isDark = localStorage.getItem('adhd_theme') === 'dark';
 
   const isPlanMessage = (text) => {
-    return /Month\s+\d+/i.test(text) && /Week\s+\d+/i.test(text);
+    // Has multiple Month headers OR has Month + Week structure
+    const monthMatches = (text.match(/Month\s+\d+/gi) || []);
+    return monthMatches.length >= 2 || (monthMatches.length >= 1 && /Week\s+\d+/i.test(text));
   };
 
   const renderMarkdown = (text) => {
