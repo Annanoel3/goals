@@ -303,44 +303,9 @@ CRITICAL:
       
       const validation = validatePlanCompleteness(plan);
       if (!validation.valid) {
-        // Regenerate with stricter instructions
-        const retryResponse = await openai.chat.completions.create({
-           model: "gpt-4o-mini",
-           messages: [
-             {
-               role: "system",
-               content: `You are extracting a structured goal plan. CRITICAL RULES: Every month MUST be expanded into exactly 4 weeks (Week 1, Week 2, Week 3, Week 4). Never output a bare 'Month X' phase — always use 'Month X Week Y' format.
-        1. EVERY MONTH from Month 1 through the final month MUST have steps. NO GAPS.
-        2. EVERY MONTH must have EXACTLY 4 steps — one per week. phase='Month X, Week Y' format required.
-        3. For a ${plan.timeline} goal, generate steps for ALL ${detectedMonths} months.
-        4. Return ONLY valid JSON, no markdown fences.
-        5. If previous extraction failed: "${validation.error}", you MUST fix it now.`
-            },
-            {
-              role: "user",
-              content: `Extract the plan from this conversation. CRITICAL — the previous extraction was incomplete or had gaps. Fix it now by including EVERY month and week with full detail:\n\n${conversationText}\n\n${monthsHint}\n\nReturn the SAME JSON structure, but with complete phases and steps for ALL ${detectedMonths || 'stated'} months.`
-            }
-          ],
-          max_tokens: 16000,
-        response_format: { type: "json_object" }
-        });
-        
-        const retryPlan = JSON.parse(retryResponse.choices[0].message.content);
-        retryPlan.steps = (retryPlan.steps || []).map(step => ({
-          ...step,
-          step_resources: step.step_resources || [],
-          success_criteria: step.success_criteria || [],
-          tips_and_guidance: step.tips_and_guidance || ""
-        }));
-        
-        const retryValidation = validatePlanCompleteness(retryPlan);
-        if (!retryValidation.valid) {
-          return Response.json({ 
-            error: `Plan generation failed validation: ${retryValidation.error}. Please try again with a clearer timeline or fewer goals.` 
-          }, { status: 400 });
-        }
-        
-        return Response.json({ plan: retryPlan });
+        return Response.json({ 
+          error: `Plan validation failed: ${validation.error}. This might mean the AI didn't generate a complete plan. Please try again with a clearer timeline.` 
+        }, { status: 400 });
       }
 
       // Extract preferred time from conversation for health goals
