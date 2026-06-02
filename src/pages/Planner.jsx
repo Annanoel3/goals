@@ -304,6 +304,9 @@ export default function Planner() {
         }
       }
 
+      // Schedule goal-level notifications (habits are already scheduled per-step)
+      base44.functions.invoke('scheduleGoalNotifications', { goal_id: goal.id, preferred_time: plan.preferred_time, timezoneOffsetMinutes: -new Date().getTimezoneOffset() }).catch(err => console.error('scheduleGoalNotifications failed:', err));
+
       setSaved(true);
       setPendingGoalId(goal.id);
       // Clear the in-progress session
