@@ -322,6 +322,12 @@ export default function Planner() {
       // Clear the in-progress session
       localStorage.removeItem('plannerInProgress');
 
+      // Schedule first week of notifications immediately
+      base44.functions.invoke('scheduleGoalNotifications', {
+        goal_id: goal.id,
+        timezoneOffsetMinutes: -new Date().getTimezoneOffset()
+      }).catch(err => console.error('scheduleGoalNotifications failed:', err));
+
       // Back-fill month_titles into the last assistant message so PlanView shows all subtitles
       if (plan.month_titles && Object.keys(plan.month_titles).length > 0) {
         setMessages(prev => prev.map((m, i) =>

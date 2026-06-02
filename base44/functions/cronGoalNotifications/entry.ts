@@ -105,13 +105,19 @@ async function rescheduleGoalPushes(base44, goal, steps, user) {
 
   let scheduled = 0, cancelled = 0;
 
+  // Only schedule steps due within the next 7 days (rolling weekly window)
+  const windowEnd = new Date(now);
+  windowEnd.setDate(windowEnd.getDate() + 7);
+  const windowEndStr = windowEnd.toISOString().split('T')[0];
+  const todayStr = now.toISOString().split('T')[0];
+
   // Cancel + reschedule step-level notifications (milestone steps only, not daily habits)
   for (const step of steps) {
     const existingIds = step.onesignal_notification_ids || [];
     for (const nid of existingIds) { await cancelPush(nid); cancelled++; }
 
     const newNotifIds = [];
-    if (step.due_date && !step.is_daily_habit) {
+    if (step.due_date && !step.is_daily_habit && step.due_date >= todayStr && step.due_date <= windowEndStr) {
       const dayBeforeStr = addDays(step.due_date, -1);
       const dayBeforeSendAt = localTimeOnDate(dayBeforeStr, prefHour, prefMin, tzOffset);
       if (dayBeforeSendAt > now) {
@@ -170,7 +176,7 @@ async function rescheduleGoalPushes(base44, goal, steps, user) {
     }
   }
 
-  // Week begin + end notifications
+  // Week begin + end notifications — only for weeks starting within the next 7 days
   for (const wData of Object.values(weekMap)) {
     const sortedDates = [...wData.dates].sort();
     const weekEndDate = sortedDates[sortedDates.length - 1];
@@ -179,7 +185,7 @@ async function rescheduleGoalPushes(base44, goal, steps, user) {
     const weekFocus = wData.titles.slice(0, 2).join(' & ') || monthTheme || goal.title;
 
     const weekBeginSendAt = localTimeOnDate(weekStartDate, prefHour, prefMin, tzOffset);
-    if (weekBeginSendAt > now) {
+    if (weekBeginSendAt > now && weekStartDate <= windowEndStr) {
       const nid = await schedulePush({
         externalId,
         title: `📅 Month ${wData.month}, Week ${wData.week} begins`,
@@ -277,10 +283,12 @@ Deno.serve(async (req) => {
       const steps = await base44.asServiceRole.entities.GoalStep.filter({ goal_id: goal.id });
       const completedSteps = steps.filter(s => s.status === 'completed');
 
-      // ── DAILY: Re-schedule all future-dated goal pushes ──────────────────────
-      // This replaces the old entity automation on Goal update
-      const { scheduled: s } = await rescheduleGoalPushes(base44, goal, steps, user);
-      results.rescheduled += s;
+      // ── SUNDAY: Schedule next week's notifications + AI-powered periodic messages ─
+      // On Sunday we roll the window: schedule all step/week/month pushes for the upcoming week
+      if (isSunday) {
+        const { scheduled: s } = await rescheduleGoalPushes(base44, goal, steps, user);
+        results.rescheduled += s;
+      }
 
       // ── AI-POWERED PERIODIC MESSAGES (Mon/Sun/1st/last only) ─────────────────
       if (!isMonday && !isSunday && !isFirstOfMonth && !isLastOfMonth) continue;
