@@ -318,7 +318,8 @@ export default function Planner() {
       }
 
     } catch (err) {
-      console.error('Goal save error:', err);
+      console.error('Goal save error:', err?.message || err);
+      console.error('Goal save error detail:', JSON.stringify(err));
       setSaveError(true);
     } finally {
       setIsSaving(false);
