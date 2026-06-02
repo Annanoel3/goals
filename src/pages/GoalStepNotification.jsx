@@ -33,22 +33,48 @@ export default function GoalStepNotification() {
 
     const allSteps = await base44.entities.GoalStep.filter({ goal_id: goalId });
 
-    if (action === 'goal_step' || action === 'goal_step_followup' || action === 'goal_step_due' || action === 'goal_step_tomorrow' || action === 'habit_checkin' || action === 'inactivity_nudge' || action === 'week_stats' || action === 'month_stats') {
+    const inAppMessage = params.get('in_app_message');
+    const monthTitle = params.get('month_title');
+
+    if (action === 'goal_step' || action === 'goal_step_followup' || action === 'goal_step_due' || action === 'goal_step_tomorrow' || action === 'habit_checkin' || action === 'inactivity_nudge') {
       const step = stepId ? allSteps.find(s => s.id === stepId) : null;
       const isFollowUp = action === 'goal_step_followup' || action === 'goal_step_tomorrow';
       const isHabit = action === 'habit_checkin';
       setData({ type: 'step', goal, step, isFollowUp, isHabit });
-    } else if (action === 'goal_week') {
+    } else if (action === 'week_preview') {
       const weekSteps = allSteps.filter(s =>
         s.phase && weekLabel && s.phase.toLowerCase().includes(weekLabel.toLowerCase().replace(', week', ' week').replace(',', '').trim().toLowerCase())
       ).filter(s => s.status !== 'completed');
-      setData({ type: 'week', goal, weekSteps, weekLabel });
-    } else if (action === 'goal_month') {
+      setData({ type: 'week_preview', goal, weekSteps, weekLabel, monthTitle, inAppMessage });
+    } else if (action === 'week_summary') {
+      setData({ type: 'week_summary', goal, weekLabel, inAppMessage,
+        completed: parseInt(params.get('completed') || '0'),
+        total: parseInt(params.get('total') || '0'),
+        pct: parseInt(params.get('pct') || '0') });
+    } else if (action === 'month_preview') {
       const monthNum = monthLabel?.match(/\d+/)?.[0];
       const monthSteps = allSteps.filter(s =>
         s.phase && monthNum && new RegExp(`Month\\s*${monthNum}\\b`, 'i').test(s.phase)
       ).filter(s => s.status !== 'completed');
-      setData({ type: 'month', goal, monthSteps, monthLabel });
+      setData({ type: 'month_preview', goal, monthSteps, monthLabel, monthTitle, inAppMessage });
+    } else if (action === 'month_summary') {
+      setData({ type: 'month_summary', goal, monthLabel, inAppMessage,
+        completed: parseInt(params.get('completed') || '0'),
+        total: parseInt(params.get('total') || '0'),
+        pct: parseInt(params.get('pct') || '0') });
+    } else if (action === 'goal_week') {
+      // legacy
+      const weekSteps = allSteps.filter(s =>
+        s.phase && weekLabel && s.phase.toLowerCase().includes(weekLabel.toLowerCase().replace(', week', ' week').replace(',', '').trim().toLowerCase())
+      ).filter(s => s.status !== 'completed');
+      setData({ type: 'week_preview', goal, weekSteps, weekLabel, inAppMessage });
+    } else if (action === 'goal_month') {
+      // legacy
+      const monthNum = monthLabel?.match(/\d+/)?.[0];
+      const monthSteps = allSteps.filter(s =>
+        s.phase && monthNum && new RegExp(`Month\\s*${monthNum}\\b`, 'i').test(s.phase)
+      ).filter(s => s.status !== 'completed');
+      setData({ type: 'month_preview', goal, monthSteps, monthLabel, inAppMessage });
     } else {
       navigate(`/goal/${goalId}`);
       return;
@@ -90,7 +116,11 @@ export default function GoalStepNotification() {
             <Sparkles className="w-8 h-8 text-white" />
           </div>
           <p className={`text-xs font-semibold uppercase tracking-wide mb-1 ${isDark ? 'text-gray-400' : 'text-violet-500'}`}>
-            {data.type === 'month' ? 'Month Preview' : data.type === 'week' ? 'Week Preview' : data.isFollowUp ? 'Missed Step' : "Today's Step"}
+            {data.type === 'month_preview' ? 'Month Preview' :
+             data.type === 'month_summary' ? 'Month Wrap-Up' :
+             data.type === 'week_preview' ? 'Week Preview' :
+             data.type === 'week_summary' ? 'Week Wrap-Up' :
+             data.isFollowUp ? 'Missed Step' : "Today's Step"}
           </p>
           <h1 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{data.goal.title}</h1>
         </div>
@@ -137,51 +167,80 @@ export default function GoalStepNotification() {
           </div>
         )}
 
-        {/* WEEK view */}
-        {data.type === 'week' && (
+        {/* WEEK PREVIEW view */}
+        {data.type === 'week_preview' && (
           <div className={`rounded-2xl p-5 mb-4 ${isDark ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-violet-100 shadow-sm'}`}>
-            <p className={`text-xs font-semibold mb-3 ${isDark ? 'text-gray-400' : 'text-violet-500'}`}>{data.weekLabel}</p>
-            <h2 className={`text-base font-bold mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>This week's steps</h2>
+            <p className={`text-xs font-semibold mb-2 ${isDark ? 'text-gray-400' : 'text-violet-500'}`}>{data.weekLabel}</p>
+            {data.monthTitle && <p className={`text-sm font-semibold mb-3 ${isDark ? 'text-violet-300' : 'text-violet-700'}`}>"{data.monthTitle}"</p>}
+            {data.inAppMessage && (
+              <p className={`text-sm leading-relaxed mb-4 ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{data.inAppMessage}</p>
+            )}
             <div className="space-y-2">
               {(data.weekSteps || []).map(step => (
                 <div key={step.id} className={`flex items-start gap-3 p-3 rounded-xl ${isDark ? 'bg-gray-700' : 'bg-gray-50'}`}>
-                  <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${step.status === 'completed' ? 'bg-green-500' : 'bg-violet-400'}`} />
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-sm font-medium ${step.status === 'completed' ? 'line-through opacity-50' : isDark ? 'text-white' : 'text-gray-900'}`}>{step.title}</p>
-                    {step.description && <p className={`text-xs mt-0.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{step.description.slice(0, 80)}{step.description.length > 80 ? '…' : ''}</p>}
-                  </div>
-                  {step.status !== 'completed' && (
-                    <button onClick={() => completeStep(step)} className="flex-shrink-0 text-green-500 hover:text-green-600">
-                      <CheckCircle2 className="w-5 h-5" />
-                    </button>
-                  )}
+                  <div className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0 bg-violet-400" />
+                  <p className={`text-sm font-medium flex-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>{step.title}</p>
                 </div>
               ))}
-              {(!data.weekSteps || data.weekSteps.length === 0) && (
-                <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>All steps for this week are complete! 🎉</p>
-              )}
             </div>
           </div>
         )}
 
-        {/* MONTH view */}
-        {data.type === 'month' && (
+        {/* WEEK SUMMARY view */}
+        {data.type === 'week_summary' && (
           <div className={`rounded-2xl p-5 mb-4 ${isDark ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-violet-100 shadow-sm'}`}>
-            <p className={`text-xs font-semibold mb-3 ${isDark ? 'text-gray-400' : 'text-violet-500'}`}>{data.monthLabel}</p>
-            <h2 className={`text-base font-bold mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>Coming up this month</h2>
-            <p className={`text-xs mb-3 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{(data.monthSteps || []).length} steps ahead</p>
-            <div className="space-y-2">
+            <p className={`text-xs font-semibold mb-2 ${isDark ? 'text-gray-400' : 'text-violet-500'}`}>{data.weekLabel}</p>
+            <div className={`flex items-center gap-3 mb-4 p-3 rounded-xl ${isDark ? 'bg-gray-700' : 'bg-violet-50'}`}>
+              <span className="text-2xl">{data.pct >= 80 ? '🌟' : data.pct >= 50 ? '💪' : '🔄'}</span>
+              <div>
+                <p className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{data.completed}/{data.total} steps done</p>
+                <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{data.pct}% completion this week</p>
+              </div>
+            </div>
+            {data.inAppMessage && (
+              <p className={`text-sm leading-relaxed ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>{data.inAppMessage}</p>
+            )}
+          </div>
+        )}
+
+        {/* MONTH PREVIEW view */}
+        {data.type === 'month_preview' && (
+          <div className={`rounded-2xl p-5 mb-4 ${isDark ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-violet-100 shadow-sm'}`}>
+            <p className={`text-xs font-semibold mb-2 ${isDark ? 'text-gray-400' : 'text-violet-500'}`}>{data.monthLabel}</p>
+            {data.monthTitle && <p className={`text-base font-bold mb-3 ${isDark ? 'text-violet-300' : 'text-violet-700'}`}>"{data.monthTitle}"</p>}
+            {data.inAppMessage && (
+              <p className={`text-sm leading-relaxed mb-4 ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{data.inAppMessage}</p>
+            )}
+            <p className={`text-xs font-semibold mb-2 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{(data.monthSteps || []).length} steps this month</p>
+            <div className="space-y-1.5">
               {(data.monthSteps || []).slice(0, 6).map(step => (
                 <div key={step.id} className={`flex items-center gap-2 p-2.5 rounded-lg ${isDark ? 'bg-gray-700' : 'bg-gray-50'}`}>
                   <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 flex-shrink-0" />
-                  <p className={`text-sm ${isDark ? 'text-white' : 'text-gray-800'}`}>{step.title}</p>
-                  <span className={`text-xs ml-auto flex-shrink-0 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{step.phase?.replace(/Month \d+,?\s*/i, '')}</span>
+                  <p className={`text-sm flex-1 ${isDark ? 'text-white' : 'text-gray-800'}`}>{step.title}</p>
+                  <span className={`text-xs flex-shrink-0 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{step.phase?.replace(/Month \d+,?\s*/i, '')}</span>
                 </div>
               ))}
               {(data.monthSteps || []).length > 6 && (
                 <p className={`text-xs text-center pt-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>+ {data.monthSteps.length - 6} more steps</p>
               )}
             </div>
+          </div>
+        )}
+
+        {/* MONTH SUMMARY view */}
+        {data.type === 'month_summary' && (
+          <div className={`rounded-2xl p-5 mb-4 ${isDark ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-violet-100 shadow-sm'}`}>
+            <p className={`text-xs font-semibold mb-2 ${isDark ? 'text-gray-400' : 'text-violet-500'}`}>{data.monthLabel}</p>
+            <div className={`flex items-center gap-3 mb-4 p-3 rounded-xl ${isDark ? 'bg-gray-700' : 'bg-violet-50'}`}>
+              <span className="text-2xl">{data.pct >= 80 ? '🏆' : data.pct >= 50 ? '📈' : '💡'}</span>
+              <div>
+                <p className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{data.completed}/{data.total} steps done</p>
+                <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{data.pct}% completion this month</p>
+              </div>
+            </div>
+            {data.inAppMessage && (
+              <p className={`text-sm leading-relaxed ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>{data.inAppMessage}</p>
+            )}
           </div>
         )}
 

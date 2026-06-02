@@ -106,6 +106,14 @@
       "type": "object",
       "description": "Map of month numbers to their descriptive titles (e.g. {1: 'Book Title', 2: 'Next Book Title'} for reading goals)",
       "default": {}
+    },
+    "pending_notifications": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "description": "AI-generated notification messages pending in-app display (week/month previews and summaries)",
+      "default": []
     }
   },
   "required": [
