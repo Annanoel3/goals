@@ -2,6 +2,7 @@ import { createClientFromRequest } from "npm:@base44/sdk@0.8.25";
 import OpenAI from "npm:openai";
 
 Deno.serve(async (req) => {
+  const openai = new OpenAI({ apiKey: Deno.env.get('OPENAI_API_KEY') });
   try {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
@@ -10,15 +11,7 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { messages, mode, goal_id, existing_goals, openai_api_key } = body;
-    
-    // Use provided API key or fall back to environment variable
-    const apiKey = openai_api_key || Deno.env.get('OPENAI_API_KEY');
-    if (!apiKey) {
-      return Response.json({ error: 'OpenAI API key not configured' }, { status: 400 });
-    }
-    
-    const openai = new OpenAI({ apiKey });
+    const { messages, mode, goal_id, existing_goals } = body;
 
     // ── EXTRACT PLAN: parse conversation into structured JSON ──────────────────
 

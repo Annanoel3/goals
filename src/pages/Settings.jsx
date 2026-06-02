@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { 
   Sun, 
   Moon, 
@@ -13,9 +12,7 @@ import {
   Bug,
   LogOut,
   ArrowLeft,
-  User as UserIcon,
-  Eye,
-  EyeOff
+  User as UserIcon
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { base44 } from '@/api/base44Client';
@@ -213,54 +210,6 @@ export default function Settings() {
             Customize your experience
           </p>
         </div>
-
-        {/* OpenAI API Key */}
-        <Card className={`mb-6 border-none shadow-lg ${
-          theme === 'dark' ? 'bg-gray-800' : 'bg-white'
-        }`}>
-          <CardHeader>
-            <CardTitle className={`flex items-center gap-2 ${theme === 'dark' ? 'text-white' : ''}`}>
-              <SettingsIcon className="w-5 h-5" />
-              OpenAI API Key
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className={`text-sm mb-3 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
-              Enter your OpenAI API key for goal planning
-            </p>
-            <div className="flex gap-2 items-end">
-              <div className="flex-1 relative">
-                <Input
-                  type={showKey ? 'text' : 'password'}
-                  value={openaiKey}
-                  onChange={(e) => setOpenaiKey(e.target.value)}
-                  placeholder="sk-..."
-                  className={`pr-10 ${
-                    theme === 'dark'
-                      ? 'bg-gray-700 border-gray-600 text-white'
-                      : 'bg-white border-gray-300'
-                  }`}
-                />
-                <button
-                  onClick={() => setShowKey(!showKey)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2"
-                >
-                  {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-              <Button
-                onClick={saveOpenaiKey}
-                disabled={isSavingKey}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2"
-              >
-                {isSavingKey ? 'Saving...' : 'Save'}
-              </Button>
-            </div>
-            <p className={`text-xs mt-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-              Stored locally only. Get a key at platform.openai.com/api-keys
-            </p>
-          </CardContent>
-        </Card>
 
         {/* Notification Settings */}
         <Card className={`mb-6 border-none shadow-lg ${

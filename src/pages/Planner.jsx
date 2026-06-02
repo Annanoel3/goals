@@ -153,7 +153,6 @@ export default function Planner() {
         mode: "chat",
         city: userCity,
         existing_goals: goals.map(g => ({ id: g.id, title: g.title })),
-        openai_api_key: localStorage.getItem('openai_api_key') || undefined,
       };
       if (editingGoal) payload.goal_id = editingGoal.id;
 
@@ -242,7 +241,6 @@ export default function Planner() {
       const res = await base44.functions.invoke("goalPlannerChat", { 
         messages: allMessages, 
         mode: "extract_plan",
-        openai_api_key: localStorage.getItem('openai_api_key') || undefined,
       });
       
       if (res.data?.error) {
@@ -366,7 +364,6 @@ export default function Planner() {
         messages: allMessages,
         mode: "apply_edit",
         goal_id: gid,
-        openai_api_key: localStorage.getItem('openai_api_key') || undefined,
       });
 
       setSaved(true);
