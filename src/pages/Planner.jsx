@@ -235,16 +235,33 @@ export default function Planner() {
       const plan = res.data.plan;
       validatePlanSteps(plan);
 
-      // If month_titles is empty, extract from the plan's steps (which have phase like "Month 1 - Book Title")
+      // If month_titles is empty, extract from plan_summary
       if (!plan.month_titles || Object.keys(plan.month_titles).length === 0) {
         plan.month_titles = {};
-        const monthTitlePattern = /Month\s+(\d+)\s*[-–—:]\s*(.+?)(?=\n|Month\s+\d+|$)/gi;
-        let match;
-        while ((match = monthTitlePattern.exec(plan.plan_summary || '')) !== null) {
-          const monthNum = match[1];
-          const title = match[2].trim();
-          if (title && !title.toLowerCase().startsWith('week')) {
-            plan.month_titles[monthNum] = title;
+        const text = plan.plan_summary || '';
+        const stripMd = (s) => s.replace(/\*+/g, '').replace(/^[#>\s\-–—:]+/, '').trim();
+        const isDateStr = (s) => /^(January|February|March|April|May|June|July|August|September|October|November|December)(\s+\d{4})?$/i.test(s.trim());
+        
+        // Scan for inline "Month N - Title" patterns
+        const lines = text.split('\n');
+        for (let i = 0; i < lines.length; i++) {
+          const clean = stripMd(lines[i]);
+          const inlineM = clean.match(/^Month\s+(\d+)\s*[–—:\-]+\s*(.+)/i);
+          if (inlineM) {
+            const t = stripMd(inlineM[2]);
+            if (t && !isDateStr(t) && t.length >= 2 && t.length <= 120) plan.month_titles[inlineM[1]] = t;
+          }
+          // Standalone "Month N" — look at next few lines for subtitle
+          const monthM = clean.match(/^Month\s+(\d+)$/i);
+          if (monthM && !plan.month_titles[monthM[1]]) {
+            for (let j = i + 1; j < lines.length && j < i + 5; j++) {
+              const candidate = stripMd(lines[j]);
+              if (!candidate || /^(Week|Month)\s+\d+/i.test(candidate) || /^[-•*]\s/.test(lines[j].trim())) break;
+              if (!isDateStr(candidate) && candidate.length >= 2 && candidate.length <= 120) {
+                plan.month_titles[monthM[1]] = candidate;
+                break;
+              }
+            }
           }
         }
       }
