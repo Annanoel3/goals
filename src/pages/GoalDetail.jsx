@@ -206,12 +206,15 @@ export default function GoalDetail() {
      }
    });
 
-   // Build month titles from goal.month_titles
+   // Build month titles from goal.month_titles — skip date-only strings like "June 2026"
+   const isDateOnlyTitle = (t) => /^(January|February|March|April|May|June|July|August|September|October|November|December)(\s+\d{4})?$/i.test((t || '').trim());
    const monthTitles = {};
    if (goal.month_titles) {
      Object.entries(goal.month_titles).forEach(([monthNum, title]) => {
-       const monthKey = `Month ${monthNum}`;
-       monthTitles[monthKey] = title;
+       if (!isDateOnlyTitle(title)) {
+         const monthKey = `Month ${monthNum}`;
+         monthTitles[monthKey] = title;
+       }
      });
    }
 

@@ -759,7 +759,7 @@ function parsePlanHierarchy(text, goalMonthTitles = {}) {
         // Extract subtitle e.g. "Month 1 - Begin Immersion" → store as month subtitle
         const subtitle = cleanHeader(line).replace(/^Month\s+\d+\s*[-–—:]\s*/i, '').trim();
         // Only set subtitle if it's different from just "Month N" and not a pure date (e.g. "June 2026")
-        const isDateOnly = /^(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}$/i.test(subtitle);
+        const isDateOnly = /^(January|February|March|April|May|June|July|August|September|October|November|December)(\s+\d{4})?$/i.test(subtitle);
         if (subtitle && !isDateOnly && !/^Month\s+\d+$/i.test(subtitle)) currentMonth.subtitle = subtitle;
         currentWeek = null;
         prevLineWasMonthHeader = true;
@@ -790,7 +790,7 @@ function parsePlanHierarchy(text, goalMonthTitles = {}) {
       // If we're right after a month header and no subtitle yet, this non-task, non-week line might be the book title
       if (prevLineWasMonthHeader && currentMonth && !currentMonth.subtitle) {
         const candidateSubtitle = line.replace(/\*+/g, '').replace(/^[-–—:#>\s]+/, '').trim();
-        const isDateOnly = /^(January|February|March|April|May|June|July|August|September|October|November|December)\s*(\d{4})?$/i.test(candidateSubtitle.trim());
+        const isDateOnly = /^(January|February|March|April|May|June|July|August|September|October|November|December)(\s+\d{4})?$/i.test(candidateSubtitle.trim());
         const isTooLong = candidateSubtitle.length > 100;
         const isWeekLine = /^Week\s+\d+/i.test(candidateSubtitle);
         const isMonthLine = /^Month\s+\d+/i.test(candidateSubtitle);
@@ -848,7 +848,7 @@ function parsePlanHierarchy(text, goalMonthTitles = {}) {
   const scannedTitles = {};
   const textLines = text.split('\n');
   const stripMd = (s) => s.replace(/\*+/g, '').replace(/^[#>\s\-–—:]+/, '').trim();
-  const isDateStr = (s) => /^(January|February|March|April|May|June|July|August|September|October|November|December)\s*(\d{4})?$/i.test(s.trim());
+  const isDateStr = (s) => /^(January|February|March|April|May|June|July|August|September|October|November|December)(\s+\d{4})?$/i.test(s.trim());
   for (let i = 0; i < textLines.length; i++) {
     const clean = stripMd(textLines[i]);
     // Inline: "Month N – Title" or "Month N: Title"
