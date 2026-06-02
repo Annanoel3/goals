@@ -42,25 +42,7 @@ export default function Planner() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
-  const adShownRef = useRef(false);
-  const adTimeoutRef = useRef(null);
-
-  // Show ad after loading for 5 seconds
-  useEffect(() => {
-    if (isLoading && !adShownRef.current) {
-      adTimeoutRef.current = setTimeout(async () => {
-        await showInterstitialAd();
-        adShownRef.current = true;
-      }, 5000);
-    } else if (!isLoading && adTimeoutRef.current) {
-      clearTimeout(adTimeoutRef.current);
-      adTimeoutRef.current = null;
-      adShownRef.current = false;
-    }
-    return () => {
-      if (adTimeoutRef.current) clearTimeout(adTimeoutRef.current);
-    };
-  }, [isLoading]);
+  const [showAdOverlay, setShowAdOverlay] = useState(false);
 
   useEffect(() => { messagesRef.current = messages; }, [messages]);
   useEffect(() => { pendingGoalIdRef.current = pendingGoalId; }, [pendingGoalId]);
@@ -235,6 +217,8 @@ export default function Planner() {
   };
 
   const handleSaveNewGoal = async () => {
+    setShowAdOverlay(true);
+    await showInterstitialAd();
     setIsSaving(true);
     setSaveError(false);
     try {
@@ -358,6 +342,7 @@ export default function Planner() {
       setSaveError(true);
     } finally {
       setIsSaving(false);
+      setShowAdOverlay(false);
     }
   };
 
@@ -503,7 +488,7 @@ export default function Planner() {
             {messages.map((msg, i) => (
               <MessageBubble key={i} msg={msg} onExampleClick={i === 0 ? sendMessage : null} />
             ))}
-            {isLoading && (
+            {isLoading && !showAdOverlay && (
         <div className="flex justify-center py-4">
           {editingGoal ? (
             <SavingProgressBar isEdit done={false} isSavingToDb={false} />
