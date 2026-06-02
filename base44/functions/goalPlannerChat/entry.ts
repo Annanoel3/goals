@@ -292,10 +292,10 @@ CRITICAL:
         });
         
         const avgStepsPerMonth = expectedMonths ? p.steps.length / expectedMonths : 0;
-        if (avgStepsPerMonth < 8) {
+        if (avgStepsPerMonth < 4) {
           return {
             valid: false,
-            error: `Insufficient detail: generated only ${p.steps.length} total steps for ${expectedMonths} months (~${Math.round(avgStepsPerMonth)} per month). Expected at least 8 per month (2 per week × 4 weeks).`
+            error: `Insufficient detail: generated only ${p.steps.length} total steps for ${expectedMonths} months (~${Math.round(avgStepsPerMonth)} per month). Expected at least 4 per month (1 per week × 4 weeks).`
           };
         }
         
