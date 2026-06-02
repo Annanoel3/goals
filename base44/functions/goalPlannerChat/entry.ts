@@ -884,11 +884,12 @@ Always be specific, warm, encouraging, and treat the plan as a living document t
         const query = JSON.parse(call.function.arguments).query;
         let searchResult = '';
         try {
-          const searchRes = await base44.asServiceRole.integrations.Core.InvokeLLM({
-            prompt: `Search the web and return a concise factual summary about: "${query}". Include specific facts, numbers, resources, and current best practices. Be specific and accurate.`,
-            add_context_from_internet: true
+          const searchRes = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [{ role: "user", content: `Search the web and return a concise factual summary about: "${query}". Include specific facts, numbers, resources, and current best practices. Be specific and accurate.` }],
+            max_tokens: 1000
           });
-          searchResult = typeof searchRes === 'string' ? searchRes : (searchRes?.text || searchRes?.content || JSON.stringify(searchRes));
+          searchResult = searchRes.choices[0].message.content || 'No results found.';
         } catch (_) {
           searchResult = 'Search unavailable — use best available knowledge.';
         }
