@@ -283,11 +283,16 @@ Deno.serve(async (req) => {
       const steps = await base44.asServiceRole.entities.GoalStep.filter({ goal_id: goal.id });
       const completedSteps = steps.filter(s => s.status === 'completed');
 
-      // ── SUNDAY: Schedule next week's notifications + AI-powered periodic messages ─
-      // On Sunday we roll the window: schedule all step/week/month pushes for the upcoming week
+      // ── SUNDAY: Roll the weekly notification window ──────────────────────────
+      // Invoke scheduleGoalNotifications which uses AI to write personalized copy
+      // for all steps due in the next 7 days.
       if (isSunday) {
-        const { scheduled: s } = await rescheduleGoalPushes(base44, goal, steps, user);
-        results.rescheduled += s;
+        const tzOffset = user.timezone_offset || 0;
+        await base44.asServiceRole.functions.invoke('scheduleGoalNotifications', {
+          goal_id: goal.id,
+          timezoneOffsetMinutes: tzOffset,
+        });
+        results.rescheduled++;
       }
 
       // ── AI-POWERED PERIODIC MESSAGES (Mon/Sun/1st/last only) ─────────────────
