@@ -37,11 +37,15 @@ export default function Planner() {
   const [saveError, setSaveError] = useState(false);
   const messagesEndRef = useRef(null);
   const messagesRef = useRef(messages);
+  const pendingGoalIdRef = useRef(null);
+  const editingGoalRef = useRef(null);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
 
   useEffect(() => { messagesRef.current = messages; }, [messages]);
+  useEffect(() => { pendingGoalIdRef.current = pendingGoalId; }, [pendingGoalId]);
+  useEffect(() => { editingGoalRef.current = editingGoal; }, [editingGoal]);
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -94,6 +98,7 @@ export default function Planner() {
 
   const startEditSession = (goal) => {
     setEditingGoal(goal);
+    editingGoalRef.current = goal;
     // Load conversation history if available, otherwise show edit prompt
     if (goal.conversation_history && goal.conversation_history.length > 0) {
       // Attach the goal's saved month_titles to assistant messages so PlanView can show subtitles
@@ -184,12 +189,13 @@ export default function Planner() {
         setPendingAction('plan_proposed');
       } else if (action === 'edit_approved' || message?.includes('EDIT_APPROVED')) {
         setPendingAction('edit_approved');
-        const resolvedGoalId = goal_id || editingGoal?.id;
+        const resolvedGoalId = goal_id || editingGoalRef.current?.id;
         setPendingGoalId(resolvedGoalId);
+        pendingGoalIdRef.current = resolvedGoalId;
         // If we weren't already in an edit session, set it now
-        if (!editingGoal && resolvedGoalId) {
+        if (!editingGoalRef.current && resolvedGoalId) {
           const found = goals.find(g => g.id === resolvedGoalId);
-          if (found) setEditingGoal(found);
+          if (found) { setEditingGoal(found); editingGoalRef.current = found; }
         }
       }
     } catch (err) {
@@ -257,6 +263,8 @@ export default function Planner() {
 
       const goal = createdGoal;
       if (!goal?.id) throw new Error('Goal creation returned no ID');
+      // Immediately sync ref so any concurrent code uses the new ID
+      pendingGoalIdRef.current = goal.id;
 
       if (plan.steps?.length > 0) {
         for (let i = 0; i < plan.steps.length; i++) {
@@ -336,7 +344,7 @@ export default function Planner() {
     setIsSaving(true);
     try {
       const allMessages = messagesRef.current.filter(m => m.role !== "system");
-      const gid = pendingGoalId || editingGoal?.id;
+      const gid = pendingGoalIdRef.current || editingGoalRef.current?.id;
       
       // Save conversation history only — let apply_edit handle month_titles from the new plan
       if (gid) {
@@ -355,7 +363,7 @@ export default function Planner() {
 
       // Reschedule all notifications for this goal (cancels old ones first)
       if (gid) {
-        const currentGoal = goals.find(g => g.id === gid);
+        const currentGoal = editingGoalRef.current || goals.find(g => g.id === gid);
         base44.functions.invoke('scheduleGoalNotifications', { goal_id: gid, preferred_time: currentGoal?.preferred_time, timezoneOffsetMinutes: -new Date().getTimezoneOffset() }).catch(err => console.error('scheduleGoalNotifications failed:', err));
       }
     } catch (err) {
