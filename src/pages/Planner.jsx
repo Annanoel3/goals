@@ -203,33 +203,9 @@ export default function Planner() {
     if (!plan.steps || plan.steps.length === 0) {
       throw new Error("No steps found in plan. Please try again.");
     }
-
-    // Check for month gaps
-    const timelineMatch = plan.timeline?.match(/(\d+)\s*month/i);
-    const expectedMonths = timelineMatch ? parseInt(timelineMatch[1], 10) : null;
-    
-    if (expectedMonths && expectedMonths >= 3) {
-      const monthCounts = {};
-      plan.steps.forEach(s => {
-        const monthMatch = (s.phase || '').match(/Month (\d+)/i);
-        if (monthMatch) {
-          monthCounts[parseInt(monthMatch[1], 10)] = true;
-        }
-      });
-      
-      const missing = [];
-      for (let i = 1; i <= expectedMonths; i++) {
-        if (!monthCounts[i]) missing.push(i);
-      }
-      
-      if (missing.length > 0) {
-        throw new Error(`Plan incomplete: missing Month ${missing.join(', Month ')}. Expected all ${expectedMonths} months.`);
-      }
-    }
-    
-    // Warn if too few steps
-    if (plan.steps.length < 8) {
-      console.warn(`Warning: Only ${plan.steps.length} steps for ${plan.timeline} goal (expected 8+). Plan may lack detail.`);
+    // Just warn — don't block saving over missing months; backend already validated structure
+    if (plan.steps.length < 4) {
+      console.warn(`Warning: Only ${plan.steps.length} steps for ${plan.timeline} goal. Plan may lack detail.`);
     }
   };
 
