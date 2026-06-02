@@ -261,20 +261,26 @@ export default function Planner() {
       if (plan.steps?.length > 0) {
         for (let i = 0; i < plan.steps.length; i++) {
           const step = plan.steps[i];
-          const createdStep = await base44.entities.GoalStep.create({
-            goal_id: goal.id,
-            title: step.title,
-            description: step.description || "",
-            phase: step.phase || "",
-            priority: step.priority || "medium",
-            due_date: step.due_date || "",
-            order_index: step.order_index ?? i,
-            status: "pending",
-            step_resources: step.step_resources || [],
-            success_criteria: step.success_criteria || [],
-            tips_and_guidance: step.tips_and_guidance || "",
-            is_daily_habit: step.is_daily_habit === true
-          });
+          let createdStep;
+          try {
+            createdStep = await base44.entities.GoalStep.create({
+              goal_id: goal.id,
+              title: step.title,
+              description: step.description || "",
+              phase: step.phase || "",
+              priority: step.priority || "medium",
+              due_date: step.due_date || "",
+              order_index: step.order_index ?? i,
+              status: "pending",
+              step_resources: step.step_resources || [],
+              success_criteria: step.success_criteria || [],
+              tips_and_guidance: step.tips_and_guidance || "",
+              is_daily_habit: step.is_daily_habit === true
+            });
+          } catch (stepErr) {
+            console.error(`GoalStep.create failed at step ${i} ("${step.title}"):`, stepErr?.message || stepErr, JSON.stringify(stepErr));
+            throw stepErr;
+          }
           // Schedule daily habit notification for this step
           if (step.is_daily_habit === true && plan.preferred_time) {
             base44.functions.invoke('scheduleHabitNotification', {
