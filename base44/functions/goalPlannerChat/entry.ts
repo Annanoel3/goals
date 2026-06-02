@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
 
     if (mode === 'extract_plan') {
       const extractionResponse = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
+        model: "gpt-4o",
         messages: [
           {
             role: "system",
