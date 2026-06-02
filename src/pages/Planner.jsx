@@ -267,49 +267,53 @@ export default function Planner() {
       pendingGoalIdRef.current = goal.id;
 
       if (plan.steps?.length > 0) {
-        for (let i = 0; i < plan.steps.length; i++) {
-          const step = plan.steps[i];
-          let createdStep;
-          try {
-            // Validate step_resources: ensure each has a type field
-            const validResources = (step.step_resources || []).filter(r => r && r.type);
-            
-            createdStep = await base44.entities.GoalStep.create({
-              goal_id: goal.id,
-              title: step.title,
-              description: step.description || "",
-              phase: step.phase || "",
-              priority: step.priority || "medium",
-              due_date: step.due_date || "",
-              order_index: step.order_index ?? i,
-              status: "pending",
-              step_resources: validResources,
-              success_criteria: step.success_criteria || [],
-              tips_and_guidance: step.tips_and_guidance || "",
-              is_daily_habit: step.is_daily_habit === true
-            });
-          } catch (stepErr) {
-            console.error(`GoalStep.create failed at step ${i} ("${step.title}"):`, stepErr?.message || stepErr, JSON.stringify(stepErr));
-            throw stepErr;
-          }
-
-          // Create sub-steps if provided
+        // Create all steps in parallel, then their sub-steps
+        const createdStepsMap = {};
+        const stepsPromises = plan.steps.map(async (step, i) => {
+          const validResources = (step.step_resources || []).filter(r => r && r.type);
+          const createdStep = await base44.entities.GoalStep.create({
+            goal_id: goal.id,
+            title: step.title,
+            description: step.description || "",
+            phase: step.phase || "",
+            priority: step.priority || "medium",
+            due_date: step.due_date || "",
+            order_index: step.order_index ?? i,
+            status: "pending",
+            step_resources: validResources,
+            success_criteria: step.success_criteria || [],
+            tips_and_guidance: step.tips_and_guidance || "",
+            is_daily_habit: step.is_daily_habit === true
+          });
+          createdStepsMap[i] = { step, createdStep };
+          return createdStep;
+        });
+        
+        await Promise.all(stepsPromises);
+        
+        // Create sub-steps in parallel too
+        const subStepsPromises = [];
+        Object.entries(createdStepsMap).forEach(([idx, { step, createdStep }]) => {
           if (step.sub_steps?.length > 0) {
-            for (const subStep of step.sub_steps) {
-              await base44.entities.GoalStep.create({
-                goal_id: goal.id,
-                parent_step_id: createdStep.id,
-                title: subStep.title,
-                description: subStep.description || "",
-                phase: step.phase || "",
-                priority: subStep.priority || "low",
-                due_date: subStep.due_date || "",
-                order_index: 0,
-                status: "pending"
-              });
-            }
+            step.sub_steps.forEach(subStep => {
+              subStepsPromises.push(
+                base44.entities.GoalStep.create({
+                  goal_id: goal.id,
+                  parent_step_id: createdStep.id,
+                  title: subStep.title,
+                  description: subStep.description || "",
+                  phase: step.phase || "",
+                  priority: subStep.priority || "low",
+                  due_date: subStep.due_date || "",
+                  order_index: 0,
+                  status: "pending"
+                })
+              );
+            });
           }
-        }
+        });
+        
+        if (subStepsPromises.length > 0) await Promise.all(subStepsPromises);
       }
 
       setSaved(true);
