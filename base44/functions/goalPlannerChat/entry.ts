@@ -42,15 +42,6 @@ Deno.serve(async (req) => {
   : `- Identify the exact duration from the conversation (a deadline, date, or duration phrase). Use that many months — do NOT shorten it.`;
 
     if (mode === 'extract_plan') {
-      // Trim verbose conversation to speed up extraction (remove long assistant messages from early turns)
-      const trimmedMessages = messages.map((m, idx) => {
-        if (m.role === 'assistant' && m.content.length > 2000 && idx < messages.length - 2) {
-          return { ...m, content: m.content.substring(0, 1500) + '...[trimmed]' };
-        }
-        return m;
-      });
-      const trimmedConvText = trimmedMessages.map(m => `${m.role === 'user' ? 'User' : 'Planner'}: ${m.content}`).join('\n\n');
-
       const extractionResponse = await openai.chat.completions.create({
         model: "gpt-4o-mini",
         messages: [
@@ -62,7 +53,7 @@ Deno.serve(async (req) => {
             role: "user",
             content: `Extract the FINAL agreed plan from this conversation:
 
-${trimmedConvText}
+${conversationText}
 
 ${monthsHint}
 
