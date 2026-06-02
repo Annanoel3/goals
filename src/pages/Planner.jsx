@@ -941,7 +941,7 @@ function GifCarousel({ gifs, onComplete }) {
     const timer = setTimeout(() => {
       setDone(true);
       onComplete();
-    }, 65000);
+    }, 28000);
     return () => clearTimeout(timer);
   }, [idx, done, gifs, onComplete]);
   return (
