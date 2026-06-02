@@ -314,6 +314,9 @@ export default function Planner() {
       // Clear the in-progress session
       localStorage.removeItem('plannerInProgress');
 
+      // Schedule notifications for the new goal immediately (next 7 days)
+      base44.functions.invoke('scheduleGoalNotificationsOnCreate', { goal_id: goal.id }).catch(err => console.error('Failed to schedule notifications:', err));
+
       // Back-fill month_titles into the last assistant message so PlanView shows all subtitles
       if (plan.month_titles && Object.keys(plan.month_titles).length > 0) {
         setMessages(prev => prev.map((m, i) =>
