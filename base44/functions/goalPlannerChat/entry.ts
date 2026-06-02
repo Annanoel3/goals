@@ -1,4 +1,5 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.25";
+import { createClient } from "npm:@supabase/supabase-js@2.38.4";
 import OpenAI from "npm:openai";
 
 Deno.serve(async (req) => {
@@ -8,6 +9,12 @@ Deno.serve(async (req) => {
     if (!user) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    // Use Supabase directly for all DB ops — bypasses Base44 entity backend
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL'),
+      Deno.env.get('SUPABASE_ANON_KEY')
+    );
 
     const body = await req.json();
     const { messages, mode, goal_id, existing_goals } = body;
@@ -333,16 +340,17 @@ CRITICAL:
     // ── APPLY EDIT: commit approved edits to an existing goal ─────────────────
     if (mode === 'apply_edit') {
 
-      // Fetch existing goal & steps in parallel
-      const [allGoals, existingSteps] = await Promise.all([
-        base44.entities.Goal.list(),
-        base44.entities.GoalStep.filter({ goal_id })
+      // Fetch existing goal & steps in parallel via Supabase
+      const [{ data: allGoals }, { data: existingSteps }] = await Promise.all([
+        supabase.from('Goal').select('*').eq('created_by_id', user.id),
+        supabase.from('GoalStep').select('*').eq('goal_id', goal_id)
       ]);
-      const existingGoal = allGoals.find(g => g.id === goal_id);
+      const existingGoal = (allGoals || []).find(g => g.id === goal_id);
 
       // Separate completed steps (keep) from pending/in_progress (will be replaced)
-      const completedSteps = existingSteps.filter(s => s.status === 'completed');
-      const replaceableSteps = existingSteps.filter(s => s.status !== 'completed');
+      const allExistingSteps = existingSteps || [];
+      const completedSteps = allExistingSteps.filter(s => s.status === 'completed');
+      const replaceableSteps = allExistingSteps.filter(s => s.status !== 'completed');
 
       // Extract the new plan from the conversation using AI
       const extractionResponse = await openai.chat.completions.create({
@@ -390,24 +398,26 @@ Extract every single step. If the planner listed 48 steps, return all 48.`
 
       const extracted = JSON.parse(extractionResponse.choices[0].message.content);
 
-      // Apply goal-level updates
+      // Apply goal-level updates via Supabase
       const goalUpdates = extracted.goal_updates || {};
       if (Object.keys(goalUpdates).length > 0) {
         const { month_titles, ...otherUpdates } = goalUpdates;
-        if (Object.keys(otherUpdates).length > 0) {
-          await base44.entities.Goal.update(goal_id, otherUpdates);
-        }
-        // Fully replace month_titles with the new ones from the revised plan
+        const updatePayload = { ...otherUpdates };
         if (month_titles && Object.keys(month_titles).length > 0) {
-          await base44.entities.Goal.update(goal_id, { month_titles });
+          updatePayload.month_titles = month_titles;
+        }
+        if (Object.keys(updatePayload).length > 0) {
+          await supabase.from('Goal').update(updatePayload).eq('id', goal_id);
         }
       }
 
-      // Delete ALL replaceable (non-completed) steps in parallel
-      await Promise.all(replaceableSteps.map(step => base44.entities.GoalStep.delete(step.id)));
+      // Delete ALL replaceable (non-completed) steps in parallel via Supabase
+      const replaceableIds = replaceableSteps.map(s => s.id);
+      if (replaceableIds.length > 0) {
+        await supabase.from('GoalStep').delete().in('id', replaceableIds);
+      }
 
-      // Create all new steps from the proposed plan
-      // ENFORCE WEEK ORDERING: Sort steps so weeks appear in correct sequence within each month
+      // Create all new steps — sort by month/week order first
       const newSteps = extracted.new_steps || [];
       newSteps.sort((a, b) => {
         const aMonth = parseInt(a.phase?.match(/Month (\d+)/i)?.[1] || 0);
@@ -418,40 +428,53 @@ Extract every single step. If the planner listed 48 steps, return all 48.`
         return aWeek - bWeek;
       });
 
-      await Promise.all(newSteps.map((step, i) => base44.entities.GoalStep.create({
+      const stepRows = newSteps.map((step, i) => ({
         goal_id,
+        created_by_id: user.id,
         title: step.title,
         description: step.description || "",
         phase: step.phase || "",
         priority: step.priority || "medium",
-        due_date: step.due_date || "",
+        due_date: step.due_date || null,
         order_index: step.order_index ?? i,
         status: "pending",
         step_resources: step.step_resources || [],
         success_criteria: step.success_criteria || [],
         tips_and_guidance: step.tips_and_guidance || "",
         is_daily_habit: step.is_daily_habit === true
-      })));
+      }));
+      await supabase.from('GoalStep').insert(stepRows);
 
       return Response.json({ success: true, steps_replaced: replaceableSteps.length, steps_created: newSteps.length, completed_kept: completedSteps.length });
     }
 
     // ── CHAT: main conversational mode ────────────────────────────────────────
-    // Load user's existing goals — use user-scoped client so RLS returns their own goals
+    // Load user's existing goals + all their steps via Supabase in parallel
     let existingGoalsList = [];
-    try {
-      existingGoalsList = await base44.entities.Goal.list('-created_date', 50);
-    } catch (_) { /* ignore */ }
-
-    // Load steps for all goals in parallel
     let allStepsMap = {};
     try {
-      const stepsArrays = await Promise.all(
-        existingGoalsList.map(g => base44.entities.GoalStep.filter({ goal_id: g.id }))
-      );
-      existingGoalsList.forEach((g, i) => {
-        allStepsMap[g.id] = stepsArrays[i].sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
-      });
+      const { data: goalsData } = await supabase
+        .from('Goal')
+        .select('*')
+        .eq('created_by_id', user.id)
+        .order('created_date', { ascending: false })
+        .limit(50);
+      existingGoalsList = goalsData || [];
+
+      if (existingGoalsList.length > 0) {
+        const goalIds = existingGoalsList.map(g => g.id);
+        const { data: stepsData } = await supabase
+          .from('GoalStep')
+          .select('*')
+          .in('goal_id', goalIds);
+        (stepsData || []).forEach(s => {
+          if (!allStepsMap[s.goal_id]) allStepsMap[s.goal_id] = [];
+          allStepsMap[s.goal_id].push(s);
+        });
+        Object.keys(allStepsMap).forEach(gid => {
+          allStepsMap[gid].sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
+        });
+      }
     } catch (_) { /* ignore */ }
 
     const goalsSummary = existingGoalsList.length > 0
@@ -477,7 +500,8 @@ Extract every single step. If the planner listed 48 steps, return all 48.`
     if (isEditSession) {
       // Fetch current goal + steps for context
       const currentGoal = existingGoalsList.find(g => g.id === goal_id);
-      const currentSteps = await base44.asServiceRole.entities.GoalStep.filter({ goal_id });
+      const { data: currentStepsData } = await supabase.from('GoalStep').select('*').eq('goal_id', goal_id);
+      const currentSteps = currentStepsData || [];
       const stepsText = currentSteps
         .sort((a, b) => (a.order_index || 0) - (b.order_index || 0))
         .map(s => `  [${s.phase || 'No phase'}] ${s.title} (${s.priority}, due: ${s.due_date || 'TBD'}, status: ${s.status})`)
