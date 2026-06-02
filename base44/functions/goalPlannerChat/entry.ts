@@ -333,9 +333,12 @@ CRITICAL:
     // ── APPLY EDIT: commit approved edits to an existing goal ─────────────────
     if (mode === 'apply_edit') {
 
-      // Fetch existing goal & steps
-      const existingGoal = await base44.entities.Goal.list().then(all => all.find(g => g.id === goal_id));
-      const existingSteps = await base44.entities.GoalStep.filter({ goal_id });
+      // Fetch existing goal & steps in parallel
+      const [allGoals, existingSteps] = await Promise.all([
+        base44.entities.Goal.list(),
+        base44.entities.GoalStep.filter({ goal_id })
+      ]);
+      const existingGoal = allGoals.find(g => g.id === goal_id);
 
       // Separate completed steps (keep) from pending/in_progress (will be replaced)
       const completedSteps = existingSteps.filter(s => s.status === 'completed');
@@ -400,10 +403,8 @@ Extract every single step. If the planner listed 48 steps, return all 48.`
         }
       }
 
-      // Delete ALL replaceable (non-completed) steps
-      for (const step of replaceableSteps) {
-        await base44.entities.GoalStep.delete(step.id);
-      }
+      // Delete ALL replaceable (non-completed) steps in parallel
+      await Promise.all(replaceableSteps.map(step => base44.entities.GoalStep.delete(step.id)));
 
       // Create all new steps from the proposed plan
       // ENFORCE WEEK ORDERING: Sort steps so weeks appear in correct sequence within each month
@@ -417,23 +418,20 @@ Extract every single step. If the planner listed 48 steps, return all 48.`
         return aWeek - bWeek;
       });
 
-      for (let i = 0; i < newSteps.length; i++) {
-        const step = newSteps[i];
-        await base44.entities.GoalStep.create({
-          goal_id,
-          title: step.title,
-          description: step.description || "",
-          phase: step.phase || "",
-          priority: step.priority || "medium",
-          due_date: step.due_date || "",
-          order_index: step.order_index ?? i,
-          status: "pending",
-          step_resources: step.step_resources || [],
-          success_criteria: step.success_criteria || [],
-          tips_and_guidance: step.tips_and_guidance || "",
-          is_daily_habit: step.is_daily_habit === true
-        });
-      }
+      await Promise.all(newSteps.map((step, i) => base44.entities.GoalStep.create({
+        goal_id,
+        title: step.title,
+        description: step.description || "",
+        phase: step.phase || "",
+        priority: step.priority || "medium",
+        due_date: step.due_date || "",
+        order_index: step.order_index ?? i,
+        status: "pending",
+        step_resources: step.step_resources || [],
+        success_criteria: step.success_criteria || [],
+        tips_and_guidance: step.tips_and_guidance || "",
+        is_daily_habit: step.is_daily_habit === true
+      })));
 
       return Response.json({ success: true, steps_replaced: replaceableSteps.length, steps_created: newSteps.length, completed_kept: completedSteps.length });
     }
@@ -445,13 +443,15 @@ Extract every single step. If the planner listed 48 steps, return all 48.`
       existingGoalsList = await base44.entities.Goal.list('-created_date', 50);
     } catch (_) { /* ignore */ }
 
-    // Load steps for all goals so AI has full context even in new-plan mode
+    // Load steps for all goals in parallel
     let allStepsMap = {};
     try {
-      for (const g of existingGoalsList) {
-        const steps = await base44.entities.GoalStep.filter({ goal_id: g.id });
-        allStepsMap[g.id] = steps.sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
-      }
+      const stepsArrays = await Promise.all(
+        existingGoalsList.map(g => base44.entities.GoalStep.filter({ goal_id: g.id }))
+      );
+      existingGoalsList.forEach((g, i) => {
+        allStepsMap[g.id] = stepsArrays[i].sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
+      });
     } catch (_) { /* ignore */ }
 
     const goalsSummary = existingGoalsList.length > 0
