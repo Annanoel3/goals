@@ -271,6 +271,9 @@ export default function Planner() {
           const step = plan.steps[i];
           let createdStep;
           try {
+            // Validate step_resources: ensure each has a type field
+            const validResources = (step.step_resources || []).filter(r => r && r.type);
+            
             createdStep = await base44.entities.GoalStep.create({
               goal_id: goal.id,
               title: step.title,
@@ -280,7 +283,7 @@ export default function Planner() {
               due_date: step.due_date || "",
               order_index: step.order_index ?? i,
               status: "pending",
-              step_resources: step.step_resources || [],
+              step_resources: validResources,
               success_criteria: step.success_criteria || [],
               tips_and_guidance: step.tips_and_guidance || "",
               is_daily_habit: step.is_daily_habit === true
