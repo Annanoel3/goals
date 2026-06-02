@@ -289,14 +289,6 @@ export default function Planner() {
             console.error(`GoalStep.create failed at step ${i} ("${step.title}"):`, stepErr?.message || stepErr, JSON.stringify(stepErr));
             throw stepErr;
           }
-          // Schedule daily habit notification for this step
-          if (step.is_daily_habit === true && plan.preferred_time) {
-            base44.functions.invoke('scheduleHabitNotification', {
-              stepId: createdStep.id,
-              habitTime: plan.preferred_time,
-              timezoneOffsetMinutes: -new Date().getTimezoneOffset()
-            }).catch(err => console.error('scheduleHabitNotification failed:', err));
-          }
 
           // Create sub-steps if provided
           if (step.sub_steps?.length > 0) {
