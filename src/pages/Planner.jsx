@@ -720,8 +720,8 @@ function parsePlanHierarchy(text, goalMonthTitles = {}) {
 
   // "Month 1, Week 2" or "Month 1 Week 2" — combined header
   const isCombinedHeader = (l) => /Month\s+\d+[,\s]+Week\s+\d+/i.test(l.replace(/\*\*/g, ''));
-  // Pure "Month 1" header (no week) — also matches "#### Month 1 - Title"
-  const isPureMonthHeader = (l) => /^(#{1,4}\s+)?(\*\*)?Month\s+\d+(\*\*)?(?:[:\s-].*)?$/i.test(l.replace(/\*\*/g, '').trim());
+  // Pure "Month 1" header (no week) — also matches "#### Month 1 - Title" and "**Month 1**"
+  const isPureMonthHeader = (l) => /^(#{1,4}\s*)?(\*{1,2})?Month\s+\d+(\*{1,2})?(?:[:\s\-–—].*)?$/i.test(l.trim());
   // Pure "Week 1" or "Week 1:" standalone — also matches "#### Week 1 - Title"
   const isPureWeekHeader = (l) => /^(#{1,4}\s+)?(\*\*)?Week\s+\d+(\*\*)?[:\s-]*/i.test(l.replace(/\*\*/g, '').trim()) && !/Month/i.test(l);
   const isTaskLine = (l) => /^[-•*]\s+/.test(l) || /^\d+\.\s+/.test(l) || /^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|Day\s*\d+)/i.test(l);
@@ -789,12 +789,19 @@ function parsePlanHierarchy(text, goalMonthTitles = {}) {
     } else {
       // If we're right after a month header and no subtitle yet, this non-task, non-week line might be the book title
       if (prevLineWasMonthHeader && currentMonth && !currentMonth.subtitle) {
-        const candidateSubtitle = line.replace(/\*+/g, '').replace(/^[-–—:]\s*/, '').trim();
+        const candidateSubtitle = line.replace(/\*+/g, '').replace(/^[-–—:#>\s]+/, '').trim();
         const isDateOnly = /^(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}$/i.test(candidateSubtitle);
-        const isTooLong = candidateSubtitle.length > 80;
-        if (candidateSubtitle && !isDateOnly && !isTooLong) currentMonth.subtitle = candidateSubtitle;
+        const isTooLong = candidateSubtitle.length > 100;
+        const isWeekLine = /^Week\s+\d+/i.test(candidateSubtitle);
+        const isMonthLine = /^Month\s+\d+/i.test(candidateSubtitle);
+        if (candidateSubtitle && !isDateOnly && !isTooLong && !isWeekLine && !isMonthLine && candidateSubtitle.length >= 2) {
+          currentMonth.subtitle = candidateSubtitle;
+          prevLineWasMonthHeader = false;
+        } else if (!isDateOnly) {
+          prevLineWasMonthHeader = false;
+        }
+        // (if isDateOnly, keep prevLineWasMonthHeader=true to keep scanning)
       }
-      prevLineWasMonthHeader = false;
       if (months.length === 0) {
         preamble.push(line);
       }

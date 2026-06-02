@@ -920,38 +920,41 @@ Always be specific, warm, encouraging, and treat the plan as a living document t
      const chatMonthTitles = {};
      const replyLines = finalReply.split('\n');
      const isDateOnly = (t) => /^(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}$/i.test(t);
-     const stripFormatting = (s) => s.replace(/\*+/g, '').replace(/^[#>\s-]+/, '').trim();
+     const stripFormatting = (s) => s.replace(/\*+/g, '').replace(/^[#>\s–—:\-]+/, '').trim();
+     const stripAllFormatting = (s) => s.replace(/\*+/g, '').replace(/#/g, '').replace(/^[\s–—:\-]+/, '').trim();
 
      for (let li = 0; li < replyLines.length; li++) {
-       const cleanLine = stripFormatting(replyLines[li]);
+       const rawLine = replyLines[li];
+       const cleanLine = stripAllFormatting(rawLine);
 
-       // Format 1: "Month 1 – Title" or "Month 1 - *Title*" on same line
+       // Format 1: "Month 1 – Title" or "Month 1 - *Title*" or "**Month 1** – Title" on same line
        const inlineMatch = cleanLine.match(/^Month\s+(\d+)\s*[–—:\-]+\s*(.+)/i);
        if (inlineMatch) {
          const num = inlineMatch[1];
-         const title = stripFormatting(inlineMatch[2]);
+         const title = stripAllFormatting(inlineMatch[2]);
          if (title && !isDateOnly(title) && title.length <= 120 && !chatMonthTitles[num]) {
            chatMonthTitles[num] = title;
          }
          continue;
        }
 
-       // Format 2: "Month 1" alone (or "**Month 1**"), next non-empty line is the title
+       // Format 2: "Month 1" alone (or "**Month 1**"), look for title on subsequent lines
        const monthNumMatch = cleanLine.match(/^Month\s+(\d+)$/i);
        if (monthNumMatch) {
          const num = monthNumMatch[1];
          // Scan up to 5 lines ahead for the title (skip blank lines)
          for (let nli = li + 1; nli < replyLines.length && nli < li + 6; nli++) {
-           const candidate = stripFormatting(replyLines[nli]);
-           if (!candidate) continue;
+           const candidate = stripAllFormatting(replyLines[nli]);
+           if (!candidate) continue; // skip blank lines, keep scanning
            const isWeekLine = /^Week\s+\d+/i.test(candidate);
            const isMonthLine = /^Month\s+\d+/i.test(candidate);
-           // Skip lines that are just task bullets (very short or start with numbers like "1.")
-           const isTaskBullet = /^\d+\.\s/.test(candidate) && candidate.length < 60;
-           if (!isWeekLine && !isMonthLine && !isDateOnly(candidate) && candidate.length <= 150 && !isTaskBullet) {
+           // Skip lines that are just task bullets
+           const isTaskBullet = (/^\d+\.\s/.test(candidate) || /^[-•*]\s/.test(candidate)) && candidate.length < 80;
+           if (isWeekLine || isMonthLine || isTaskBullet) break; // hit next section, stop
+           if (!isDateOnly(candidate) && candidate.length >= 2 && candidate.length <= 150) {
              if (!chatMonthTitles[num]) chatMonthTitles[num] = candidate;
+             break;
            }
-           break;
          }
        }
      }
