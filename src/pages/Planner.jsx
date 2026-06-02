@@ -369,8 +369,7 @@ export default function Planner() {
 
       // Reschedule all notifications for this goal (cancels old ones first)
       if (gid) {
-        const currentGoal = editingGoalRef.current || goals.find(g => g.id === gid);
-        base44.functions.invoke('scheduleGoalNotifications', { goal_id: gid, preferred_time: currentGoal?.preferred_time, timezoneOffsetMinutes: -new Date().getTimezoneOffset() }).catch(err => console.error('scheduleGoalNotifications failed:', err));
+        base44.functions.invoke('rescheduleAllGoalNotifications', { goal_id: gid }).catch(err => console.error('rescheduleAllGoalNotifications failed:', err));
       }
     } catch (err) {
       toast({ title: "Error applying changes", description: "Please try again.", variant: "destructive" });
