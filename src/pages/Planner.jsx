@@ -843,13 +843,47 @@ function parsePlanHierarchy(text, goalMonthTitles = {}) {
     }
   }
 
-  // Apply goalMonthTitles to all months (including stubs) that don't already have a subtitle
+  // Build a direct regex scan of the full text as a robust fallback for month titles
+  // This catches "Month 1 – Title", "**Month 1** – Title", "Month 1\n*Title*", etc.
+  const scannedTitles = {};
+  const textLines = text.split('\n');
+  const stripMd = (s) => s.replace(/\*+/g, '').replace(/^[#>\s\-–—:]+/, '').trim();
+  const isDateStr = (s) => /^(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}$/i.test(s);
+  for (let i = 0; i < textLines.length; i++) {
+    const clean = stripMd(textLines[i]);
+    // Inline: "Month N – Title" or "Month N: Title"
+    const inlineM = clean.match(/^Month\s+(\d+)\s*[–—:\-]+\s*(.+)/i);
+    if (inlineM) {
+      const t = stripMd(inlineM[2]);
+      if (t && !isDateStr(t) && t.length >= 2 && t.length <= 120) scannedTitles[inlineM[1]] = t;
+      continue;
+    }
+    // Standalone "Month N" — look at next few non-empty lines
+    const monthM = clean.match(/^Month\s+(\d+)$/i);
+    if (monthM) {
+      const num = monthM[1];
+      for (let j = i + 1; j < textLines.length && j < i + 8; j++) {
+        const candidate = stripMd(textLines[j]);
+        if (!candidate) continue;
+        if (/^(Week|Month)\s+\d+/i.test(candidate)) break;
+        if (/^[-•*]\s/.test(textLines[j].trim()) || /^\d+\.\s/.test(textLines[j].trim())) break;
+        if (!isDateStr(candidate) && candidate.length >= 2 && candidate.length <= 120) {
+          scannedTitles[num] = candidate;
+          break;
+        }
+      }
+    }
+  }
+
+  // Apply titles: priority order = inline parse → goalMonthTitles prop → scanned from text
   for (const month of months) {
     const mNum = month.title.match(/\d+/)?.[0];
     if (mNum && !month.subtitle) {
-      const rawTitle = goalMonthTitles[mNum] || goalMonthTitles[parseInt(mNum)];
-      if (rawTitle) {
-        month.subtitle = rawTitle.replace(/^\d+:\s*/, '').replace(/\*+/g, '').trim();
+      const fromProp = goalMonthTitles[mNum] || goalMonthTitles[parseInt(mNum)];
+      const fromScan = scannedTitles[mNum];
+      const raw = fromProp || fromScan;
+      if (raw) {
+        month.subtitle = raw.replace(/^\d+:\s*/, '').replace(/\*+/g, '').trim();
       }
     }
   }
