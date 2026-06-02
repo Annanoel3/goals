@@ -8,8 +8,8 @@ const ONESIGNAL_REST_API_KEY = Deno.env.get("ONESIGNAL_REST_API_KEY");
 async function sendPush({ externalId, title, body, data }) {
   const payload = {
     app_id: ONESIGNAL_APP_ID,
-    include_aliases: { external_id: [String(externalId)] },
-    target_channel: 'push',
+    include_external_user_ids: [String(externalId)],
+    channel_for_external_user_ids: 'push',
     headings: { en: title },
     contents: { en: body },
     data: data || {},
@@ -19,6 +19,10 @@ async function sendPush({ externalId, title, body, data }) {
     headers: { 'Content-Type': 'application/json', 'Authorization': `Basic ${ONESIGNAL_REST_API_KEY}` },
     body: JSON.stringify(payload)
   });
+  if (!res.ok) {
+    const errText = await res.text();
+    console.error(`[OneSignal Error] ${res.status}: ${errText}`);
+  }
   const json = await res.json();
   return json?.id || null;
 }
