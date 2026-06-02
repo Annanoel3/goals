@@ -153,11 +153,18 @@ export default function Planner() {
         mode: "chat",
         city: userCity,
         existing_goals: goals.map(g => ({ id: g.id, title: g.title })),
+        openai_api_key: localStorage.getItem('openai_api_key') || undefined,
       };
       if (editingGoal) payload.goal_id = editingGoal.id;
 
       const res = await base44.functions.invoke("goalPlannerChat", payload);
-      const { message, action, goal_id, month_titles } = res.data;
+      if (!res.data) {
+        throw new Error('No response from planner');
+      }
+      const { message, action, goal_id, month_titles, error } = res.data;
+      if (error) {
+        throw new Error(error);
+      }
 
       // If the AI returned new month_titles, use them exclusively (they reflect the new plan).
       // Only fall back to the existing goal's titles if the AI returned nothing at all.
@@ -232,7 +239,11 @@ export default function Planner() {
     setSaveError(false);
     try {
       const allMessages = messagesRef.current.filter(m => m.role !== "system");
-      const res = await base44.functions.invoke("goalPlannerChat", { messages: allMessages, mode: "extract_plan" });
+      const res = await base44.functions.invoke("goalPlannerChat", { 
+        messages: allMessages, 
+        mode: "extract_plan",
+        openai_api_key: localStorage.getItem('openai_api_key') || undefined,
+      });
       
       if (res.data?.error) {
         throw new Error(res.data.error);
@@ -354,7 +365,8 @@ export default function Planner() {
       await base44.functions.invoke("goalPlannerChat", {
         messages: allMessages,
         mode: "apply_edit",
-        goal_id: gid
+        goal_id: gid,
+        openai_api_key: localStorage.getItem('openai_api_key') || undefined,
       });
 
       setSaved(true);
