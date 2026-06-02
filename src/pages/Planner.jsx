@@ -241,6 +241,20 @@ export default function Planner() {
       const plan = res.data.plan;
       validatePlanSteps(plan);
 
+      // If month_titles is empty, extract from the plan's steps (which have phase like "Month 1 - Book Title")
+      if (!plan.month_titles || Object.keys(plan.month_titles).length === 0) {
+        plan.month_titles = {};
+        const monthTitlePattern = /Month\s+(\d+)\s*[-–—:]\s*(.+?)(?=\n|Month\s+\d+|$)/gi;
+        let match;
+        while ((match = monthTitlePattern.exec(plan.plan_summary || '')) !== null) {
+          const monthNum = match[1];
+          const title = match[2].trim();
+          if (title && !title.toLowerCase().startsWith('week')) {
+            plan.month_titles[monthNum] = title;
+          }
+        }
+      }
+
       const createdGoal = await base44.entities.Goal.create({
         title: plan.title,
         description: plan.description,
