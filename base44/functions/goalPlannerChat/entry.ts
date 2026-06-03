@@ -31,16 +31,40 @@ Deno.serve(async (req) => {
   const _mNames = ['january','february','march','april','may','june','july','august','september','october','november','december'];
   const _wNum = {one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10,eleven:11,twelve:12};
   const _now = new Date();
+  // Only scan user messages to avoid AI responses polluting the first-match search
+  const _userText = messages.filter(m => m.role === 'user').map(m => m.content).join('\n\n');
   let detectedMonths = null;
-  const _em = conversationText.match(/(\d+)[- ]month/i);
-  if (_em) detectedMonths = parseInt(_em[1], 10);
-  if (!detectedMonths) { const m = conversationText.match(/in\s+(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|\d+)\s+years?/i); if (m) detectedMonths = (parseInt(m[1])||_wNum[m[1].toLowerCase()]||1)*12; }
-  if (!detectedMonths) { const m = conversationText.match(/in\s+(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|\d+)\s+months?/i); if (m) detectedMonths = parseInt(m[1])||_wNum[m[1].toLowerCase()]||1; }
-  if (!detectedMonths) { const m = conversationText.match(/in\s+(\d+)\s+weeks?/i); if (m) detectedMonths = Math.max(1, Math.round(parseInt(m[1])/4)); }
-  if (!detectedMonths) { const m = conversationText.match(/by\s+(?:next\s+|this\s+|end\s+of\s+)?(january|february|march|april|may|june|july|august|september|october|november|december)/i); if (m) { const ti=_mNames.indexOf(m[1].toLowerCase()); const isNext=/next/i.test(m[0]); let ty=_now.getFullYear(); if(ti<=_now.getMonth()||isNext)ty++; detectedMonths=Math.max(1,(ty-_now.getFullYear())*12+(ti-_now.getMonth())); } }
-  if (!detectedMonths) { const m = conversationText.match(/(?:by|before)\s+(?:(?:the\s+)?end\s+of\s+)?(\d{4})/i); if (m) { const ty=parseInt(m[1]); if(ty>=_now.getFullYear()) detectedMonths=Math.max(1,(ty-_now.getFullYear())*12+(11-_now.getMonth())); } }
-  if (!detectedMonths && /(?:by|before)\s+(?:the\s+)?end\s+of\s+(?:(?:this|the)\s+)?year/i.test(conversationText)) detectedMonths = Math.max(1, 11-_now.getMonth());
-  if (!detectedMonths && /next\s+year/i.test(conversationText)) detectedMonths = Math.max(6, 12-_now.getMonth()+6);
+
+  // Range pattern: "months 3-12" or "months 1-6" → take upper bound
+  const _rangeM = _userText.match(/months?\s+(\d+)\s*[-\u2013]\s*(\d+)/i);
+  if (_rangeM) detectedMonths = Math.max(parseInt(_rangeM[1], 10), parseInt(_rangeM[2], 10));
+
+  // "a year" or "one year" → 12
+  if (!detectedMonths && /(a|one)\s+year\b/i.test(_userText)) detectedMonths = 12;
+
+  // "X years" → X * 12
+  if (!detectedMonths) { const m = _userText.match(/(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s+years?/i); if (m) { const n = parseInt(m[1]) || _wNum[(m[1]||'').toLowerCase()] || 1; detectedMonths = n * 12; } }
+
+  // "12 months", "six months", etc.
+  if (!detectedMonths) { const m = _userText.match(/(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s+months?/i); if (m) { detectedMonths = parseInt(m[1]) || _wNum[(m[1]||'').toLowerCase()] || 1; } }
+
+  // Bare "X-month" pattern
+  if (!detectedMonths) { const m = _userText.match(/(\d+)[- ]month/i); if (m) detectedMonths = parseInt(m[1], 10); }
+
+  // Weeks → months
+  if (!detectedMonths) { const m = _userText.match(/in\s+(\d+)\s+weeks?/i); if (m) detectedMonths = Math.max(1, Math.round(parseInt(m[1])/4)); }
+
+  // "by [month name]"
+  if (!detectedMonths) { const m = _userText.match(/by\s+(?:next\s+|this\s+|end\s+of\s+)?(january|february|march|april|may|june|july|august|september|october|november|december)/i); if (m) { const ti=_mNames.indexOf(m[1].toLowerCase()); const isNext=/next/i.test(m[0]); let ty=_now.getFullYear(); if(ti<=_now.getMonth()||isNext)ty++; detectedMonths=Math.max(1,(ty-_now.getFullYear())*12+(ti-_now.getMonth())); } }
+
+  // "by [year]"
+  if (!detectedMonths) { const m = _userText.match(/(?:by|before)\s+(?:(?:the\s+)?end\s+of\s+)?(\d{4})/i); if (m) { const ty=parseInt(m[1]); if(ty>=_now.getFullYear()) detectedMonths=Math.max(1,(ty-_now.getFullYear())*12+(11-_now.getMonth())); } }
+
+  // "by end of year"
+  if (!detectedMonths && /(?:by|before)\s+(?:the\s+)?end\s+of\s+(?:(?:this|the)\s+)?year/i.test(_userText)) detectedMonths = Math.max(1, 11-_now.getMonth());
+
+  // "next year"
+  if (!detectedMonths && /next\s+year/i.test(_userText)) detectedMonths = Math.max(6, 12-_now.getMonth()+6);
     const monthsHint = detectedMonths
       ? `CRITICAL: The plan discussed in this conversation spans ${detectedMonths} months. You MUST generate steps for ALL ${detectedMonths} months (Month 1 through Month ${detectedMonths}). Do NOT stop at Month 2 or any earlier month. Each month MUST contain exactly 4 weeks. Total phases required: ${detectedMonths * 4}.`
       : `CRITICAL: Identify the full timeline from the conversation and generate steps for every single month/week discussed.`;
@@ -774,7 +798,7 @@ ${monthsRule}
 8. Cover the full timeline with clear phases.
 9. NEVER ask follow-up questions mid-plan like "do these resonate?" or "what type of resources do you prefer?" — commit to the full plan using everything the user already told you.
 9b. CRITICAL — END YOUR PLAN DRAFT WITH AN APPROVAL QUESTION: After presenting the complete plan, you MUST end with a direct question asking if it looks good, e.g. "Does this plan look good to you?" or "How does this look — ready to save it?" This is REQUIRED. Never end the plan presentation with a statement like "let me know what you think" or "I'll now draft" without a direct question.
-9c. TRANSITION TO PLAN — ALWAYS ASK FOR CONFIRMATION FIRST: Once you have gathered all the information you need, your next message must be a short confirmation question asking if the user is ready for you to build the plan. For example: "Great, I have everything I need! Ready for me to build your full plan?" or "Perfect — shall I put together your complete plan now?" ONLY after the user confirms (says "yes", "go ahead", "ready", etc.) should you write out the full plan. This ensures the user is engaged and the plan appears in a fresh, focused response.
+9c. TRANSITION TO PLAN — SUMMARIZE FIRST, THEN CONFIRM: Once you have gathered all the information you need, your next message must do THREE things in order: (1) Provide a detailed summary of everything you have learned about the user's goal — their timeline, preferences, specific details they mentioned, concerns, constraints, things they want to avoid, and any personal context they shared. Show the user you heard and retained everything they said. (2) Ask if this summary is accurate and whether they would like to adjust or add anything before the plan is built. (3) Only after they confirm the summary looks right, then ask if they are ready for you to build the full plan. Do NOT skip the summary step and jump straight to "ready to build?" — the summary step is mandatory and non-negotiable.
 10. When user approves (says "looks great", "perfect", "save it", "let's do it", "that works", "yes", "looks good"), FIRST verify your plan covers ALL months from Month 1 to the final month with no gaps. If the plan is incomplete (e.g. only 2 of 7 months covered), DO NOT say PLAN_APPROVED — instead present the missing months immediately. Only say PLAN_APPROVED when the COMPLETE plan has been presented in the conversation. Then start your response with EXACTLY "PLAN_APPROVED" and give a warm 2-3 sentence summary, then add: "Remember, this plan is a living document. Come back anytime to adjust the difficulty, add new resources, extend the timeline, skip ahead if you're crushing it, or completely restructure a phase. Just tell me what's working and what isn't — I'll update your plan instantly."
 10b. CRITICAL: When presenting the initial plan draft, you MUST present ALL months/weeks for the FULL timeline in a single response. Do NOT present only 1-2 months and stop. If the plan is 7 months, show all 7 months. If it's 12 months, show all 12. Never truncate the plan — present the complete plan in full before asking for approval.
 10c. SEQUENTIAL MONTHS — NON-NEGOTIABLE: The plan MUST list months in sequential order with NO GAPS. If the plan is 7 months, you MUST have Month 1, Month 2, Month 3, Month 4, Month 5, Month 6, Month 7 — ALL of them. Jumping from Month 2 to Month 7 is a critical failure. Every single month between the first and last must appear with its own weeks and steps.
