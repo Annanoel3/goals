@@ -70,9 +70,9 @@ Deno.serve(async (req) => {
         const dayBeforeSendAt = localTimeOnDate(dayBeforeStr, prefHour, prefMin, tzOffset);
         if (dayBeforeSendAt > now) {
           const nid = await base44.asServiceRole.functions.invoke('sendOneSignalPush', {
-            toUserExternalId: externalId,
+            userEmail: externalId,
             title: `📌 "${step.title}" is due tomorrow`,
-            body: `Get a head start on this step for ${goal.title}`,
+            message: `Get a head start on this step for ${goal.title}`,
             sendAtISO: dayBeforeSendAt.toISOString(),
             data: { screen: 'GoalStepNotification', action: 'goal_step_tomorrow', goal_id: goal.id, step_id: step.id },
           });
@@ -82,9 +82,9 @@ Deno.serve(async (req) => {
         const dueSendAt = localTimeOnDate(step.due_date, prefHour, prefMin, tzOffset);
         if (dueSendAt > now) {
           const nid = await base44.asServiceRole.functions.invoke('sendOneSignalPush', {
-            toUserExternalId: externalId,
+            userEmail: externalId,
             title: `🎯 "${step.title}" is due today`,
-            body: `Time to work on this step for ${goal.title}`,
+            message: `Time to work on this step for ${goal.title}`,
             sendAtISO: dueSendAt.toISOString(),
             data: { screen: 'GoalStepNotification', action: 'goal_step_due', goal_id: goal.id, step_id: step.id },
           });
@@ -122,9 +122,9 @@ Deno.serve(async (req) => {
       const weekBeginSendAt = localTimeOnDate(weekStartDate, prefHour, prefMin, tzOffset);
       if (weekBeginSendAt > now && weekStartDate <= windowEndStr) {
         const nid = await base44.asServiceRole.functions.invoke('sendOneSignalPush', {
-          toUserExternalId: externalId,
+          userEmail: externalId,
           title: `📅 Month ${wData.month}, Week ${wData.week} begins`,
-          body: monthTheme ? `This week is part of "${monthTheme}". Focus: ${weekFocus} 🚀` : `Week ${wData.week} of "${goal.title}" starts now. This week: ${weekFocus} 🚀`,
+          message: monthTheme ? `This week is part of "${monthTheme}". Focus: ${weekFocus} 🚀` : `Week ${wData.week} of "${goal.title}" starts now. This week: ${weekFocus} 🚀`,
           sendAtISO: weekBeginSendAt.toISOString(),
           data: { screen: 'GoalDetail', action: 'week_begin', goal_id: goal.id, month: wData.month, week: wData.week },
         });
@@ -134,9 +134,9 @@ Deno.serve(async (req) => {
       const weekEndSendAt = localTimeOnDate(weekEndDate, 19, 0, tzOffset);
       if (weekEndSendAt > now) {
         const nid = await base44.asServiceRole.functions.invoke('sendOneSignalPush', {
-          toUserExternalId: externalId,
+          userEmail: externalId,
           title: `🏁 Week ${wData.week} wrap-up`,
-          body: monthTheme ? `Week ${wData.week} of "${monthTheme}" is done. How'd it go? Check your progress. 💪` : `Week ${wData.week} of "${goal.title}" is wrapping up. Reflect on what you accomplished. 💪`,
+          message: monthTheme ? `Week ${wData.week} of "${monthTheme}" is done. How'd it go? Check your progress. 💪` : `Week ${wData.week} of "${goal.title}" is wrapping up. Reflect on what you accomplished. 💪`,
           sendAtISO: weekEndSendAt.toISOString(),
           data: { screen: 'GoalDetail', action: 'week_end', goal_id: goal.id, month: wData.month, week: wData.week },
         });
@@ -154,9 +154,9 @@ Deno.serve(async (req) => {
       const mBeginSendAt = localTimeOnDate(monthStartDate, prefHour, prefMin, tzOffset);
       if (mBeginSendAt > now) {
         const nid = await base44.asServiceRole.functions.invoke('sendOneSignalPush', {
-          toUserExternalId: externalId,
+          userEmail: externalId,
           title: `📅 Month ${mData.month} begins`,
-          body: monthTheme ? `Month ${mData.month} is all about "${monthTheme}" for "${goal.title}". Let's go! 🎯` : `Month ${mData.month} of "${goal.title}" starts now. Make it count! 🎯`,
+          message: monthTheme ? `Month ${mData.month} is all about "${monthTheme}" for "${goal.title}". Let's go! 🎯` : `Month ${mData.month} of "${goal.title}" starts now. Make it count! 🎯`,
           sendAtISO: mBeginSendAt.toISOString(),
           data: { screen: 'GoalDetail', action: 'month_begin', goal_id: goal.id, month: mData.month },
         });
@@ -166,9 +166,9 @@ Deno.serve(async (req) => {
       const mEndSendAt = localTimeOnDate(monthEndDate, 19, 0, tzOffset);
       if (mEndSendAt > now) {
         const nid = await base44.asServiceRole.functions.invoke('sendOneSignalPush', {
-          toUserExternalId: externalId,
+          userEmail: externalId,
           title: monthTheme ? `🌟 Month ${mData.month}: "${monthTheme}" — complete!` : `🌟 Month ${mData.month} complete!`,
-          body: `How did Month ${mData.month} go for "${goal.title}"? Zoom out — see the full picture. 📊`,
+          message: `How did Month ${mData.month} go for "${goal.title}"? Zoom out — see the full picture. 📊`,
           sendAtISO: mEndSendAt.toISOString(),
           data: { screen: 'GoalDetail', action: 'month_end', goal_id: goal.id, month: mData.month },
         });
