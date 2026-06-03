@@ -190,7 +190,8 @@ export default function Planner() {
 
       // Detect if AI proposed a full plan (new or edit) — show approval buttons
       // ONLY show save buttons when the message actually contains a full plan with multiple months/weeks
-      const looksLikeFullPlan = message?.includes('Month 1') && (message?.includes('Month 2') || message?.includes('Week 1') || message?.includes('Week 2'));
+      const looksLikeFullPlan = message?.includes('Month 1') && (message?.includes('Month 2') &&
+        message?.includes('Month 3'));
       if (looksLikeFullPlan && !message?.includes('EDIT_APPROVED')) {
         // Full plan is visible in this message — show approval buttons
         setPendingAction('plan_proposed');
@@ -348,7 +349,7 @@ export default function Planner() {
       localStorage.removeItem('plannerInProgress');
 
       // Schedule notifications in background (don't await)
-      base44.functions.invoke('scheduleGoalNotificationsOnCreate', { goal_id: createdGoal.id, user_email: base44.auth?.me?.email, goal_start_date: createdGoal.target_date }).catch(err => console.error('Failed to schedule notifications:', err));
+      base44.functions.invoke('scheduleGoalNotificationsOnCreate', { goal_id: createdGoal.id, user_email: currentUser?.email, goal_start_date: createdGoal.target_date }).catch(err => console.error('Failed to schedule notifications:', err));
 
       // Back-fill month_titles into the last assistant message so PlanView shows all subtitles
       if (plan.month_titles && Object.keys(plan.month_titles).length > 0) {
@@ -907,16 +908,16 @@ function parsePlanHierarchy(text, goalMonthTitles = {}) {
   for (const month of months) {
     const mNum = month.title.match(/\d+/)?.[0];
     if (mNum) {
-        const fromProp = goalMonthTitles[mNum] || goalMonthTitles[parseInt(mNum)];
-        if (fromProp) {
-          month.subtitle = fromProp.replace(/^\d+:\s*/, '').replace(/\*+/g, '').trim();
-        } else if (!month.subtitle) {
-          const fromScan = scannedTitles[mNum];
-          if (fromScan) {
-            month.subtitle = fromScan.replace(/^\d+:\s*/, '').replace(/\*+/g, '').trim();
-          }
+      const fromProp = goalMonthTitles[mNum] || goalMonthTitles[parseInt(mNum)];
+      if (fromProp) {
+        month.subtitle = fromProp.replace(/^\d+:\s*/, '').replace(/\*+/g, '').trim();
+      } else if (!month.subtitle) {
+        const fromScan = scannedTitles[mNum];
+        if (fromScan) {
+          month.subtitle = fromScan.replace(/^\d+:\s*/, '').replace(/\*+/g, '').trim();
         }
       }
+    }
   }
 
   // Sort months by number to ensure clean sequential order (fixes jumbled months on timeline extension)
@@ -1169,8 +1170,8 @@ function MessageBubble({ msg, onExampleClick }) {
           </div>
         )}
         <div className={`max-w-[88%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${isUser
-            ? isDark ? 'bg-violet-700 text-white rounded-br-sm shadow-md shadow-violet-900/30' : 'bg-gradient-to-br from-violet-600 to-indigo-600 text-white rounded-br-sm shadow-md shadow-violet-100'
-            : isDark ? 'bg-gray-800 border border-gray-700 text-gray-100 rounded-bl-sm shadow-sm' : 'bg-white border border-gray-100 text-gray-800 rounded-bl-sm shadow-sm'
+          ? isDark ? 'bg-violet-700 text-white rounded-br-sm shadow-md shadow-violet-900/30' : 'bg-gradient-to-br from-violet-600 to-indigo-600 text-white rounded-br-sm shadow-md shadow-violet-100'
+          : isDark ? 'bg-gray-800 border border-gray-700 text-gray-100 rounded-bl-sm shadow-sm' : 'bg-white border border-gray-100 text-gray-800 rounded-bl-sm shadow-sm'
           }`}>
           {isUser ? renderInlineText(msg.content) : (
             isPlanMessage(msg.content) ? (
@@ -1189,8 +1190,8 @@ function MessageBubble({ msg, onExampleClick }) {
               key={ex}
               onClick={() => onExampleClick(ex)}
               className={`text-xs px-3 py-1.5 rounded-full border transition-all ${isDark
-                  ? 'bg-gray-800 border-gray-600 text-gray-300 hover:border-violet-500 hover:text-violet-300 hover:bg-gray-700'
-                  : 'bg-white border-gray-200 text-gray-600 hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700'
+                ? 'bg-gray-800 border-gray-600 text-gray-300 hover:border-violet-500 hover:text-violet-300 hover:bg-gray-700'
+                : 'bg-white border-gray-200 text-gray-600 hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700'
                 }`}
             >
               {ex}
