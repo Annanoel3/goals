@@ -28,23 +28,22 @@ function addDays(dateStr, n) {
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
+    const user = await base44.auth.me();
+    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
     const { goal_id } = await req.json();
 
     if (!goal_id) {
       return Response.json({ error: 'goal_id required' }, { status: 400 });
     }
 
-    const goal = await base44.asServiceRole.entities.Goal.get(goal_id);
+    const goal = await base44.entities.Goal.get(goal_id);
     if (!goal) {
       return Response.json({ error: 'goal not found' }, { status: 404 });
     }
 
-    const user = await base44.asServiceRole.entities.User.get(goal.created_by_id);
-    if (!user) {
-      return Response.json({ error: 'user not found' }, { status: 404 });
-    }
 
-    const steps = await base44.asServiceRole.entities.GoalStep.filter({ goal_id: goal.id });
+
+    const steps = await base44.entities.GoalStep.filter({ goal_id: goal.id });
     const externalId = user.email;
     const now = new Date();
     const todayStr = now.toISOString().split('T')[0];
