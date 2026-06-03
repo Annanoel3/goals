@@ -47,6 +47,12 @@ export default function Planner() {
   useEffect(() => { messagesRef.current = messages; }, [messages]);
   useEffect(() => { pendingGoalIdRef.current = pendingGoalId; }, [pendingGoalId]);
   useEffect(() => { editingGoalRef.current = editingGoal; }, [editingGoal]);
+
+  // Suppress ads while the Planner is open
+  useEffect(() => {
+    setUserActive(true);
+    return () => setUserActive(false);
+  }, []);
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -646,8 +652,6 @@ export default function Planner() {
           <Textarea
             value={input}
             onChange={e => setInput(e.target.value)}
-            onFocus={() => setUserActive(true)}
-            onBlur={() => setUserActive(false)}
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(input); } }}
             placeholder={
               editingGoal
