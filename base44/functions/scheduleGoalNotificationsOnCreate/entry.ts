@@ -35,14 +35,18 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'goal_id required' }, { status: 400 });
     }
 
-    const goal = await base44.entities.Goal.get(goal_id);
+    const goal = await base44.adminServiceRole.entities.Goal.get(goal_id);
     if (!goal) {
       return Response.json({ error: 'goal not found' }, { status: 404 });
     }
 
+    const user = await base44.adminServiceRole.entities.User.get(goal.created_by_id);
+    if (!user) {
+      console.log('[scheduleGoalNotificationsOnCreate] user not found for goal', goal_id);
+      return Response.json({ error: 'user not found' }, { status: 404 });
+    }
 
-
-    const steps = await base44.entities.GoalStep.filter({ goal_id: goal.id });
+    const steps = await base44.adminServiceRole.entities.GoalStep.filter({ goal_id: goal.id });
     const externalId = user.email;
     const now = new Date();
     const todayStr = now.toISOString().split('T')[0];
