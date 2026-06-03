@@ -348,7 +348,7 @@ export default function Planner() {
       localStorage.removeItem('plannerInProgress');
 
       // Schedule notifications in background (don't await)
-      base44.functions.invoke('scheduleGoalNotificationsOnCreate', { goal_id: createdGoal.id }).catch(err => console.error('Failed to schedule notifications:', err));
+      base44.functions.invoke('scheduleGoalNotificationsOnCreate', { goal_id: createdGoal.id, user_email: base44.auth?.me?.email, goal_start_date: createdGoal.target_date }).catch(err => console.error('Failed to schedule notifications:', err));
 
       // Back-fill month_titles into the last assistant message so PlanView shows all subtitles
       if (plan.month_titles && Object.keys(plan.month_titles).length > 0) {
