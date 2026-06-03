@@ -292,7 +292,7 @@ Deno.serve(async (req) => {
       // for all steps due in the next 7 days.
       if (isSunday) {
         const tzOffset = user.timezone_offset || 0;
-        await base44.asServiceRole.functions.invoke('scheduleGoalNotifications', {
+        await base44.asServiceRole.functions.invoke('scheduleGoalNotificationsOnCreate', {
           goal_id: goal.id,
           timezoneOffsetMinutes: tzOffset,
         });
