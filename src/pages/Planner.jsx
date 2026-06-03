@@ -14,7 +14,7 @@ export default function Planner() {
     const params = new URLSearchParams(window.location.search);
     if (params.get('edit') || params.get('nudge')) return [];
     try {
-      const s = localStorage.getItem('plannerInProgress');
+     f const s = localStorage.getItem('plannerInProgress');
       if (s) {
         const d = JSON.parse(s);
         if (d.messages?.length > 0) return d.messages;
@@ -901,15 +901,18 @@ function parsePlanHierarchy(text, goalMonthTitles = {}) {
 
   // Apply titles: priority order = inline parse → goalMonthTitles prop → scanned from text
   for (const month of months) {
-    const mNum = month.title.match(/\d+/)?.[0];
-    if (mNum && !month.subtitle) {
-      const fromProp = goalMonthTitles[mNum] || goalMonthTitles[parseInt(mNum)];
-      const fromScan = scannedTitles[mNum];
-      const raw = fromProp || fromScan;
-      if (raw) {
-        month.subtitle = raw.replace(/^\d+:\s*/, '').replace(/\*+/g, '').trim();
+    csonst mNum = month.title.match(/\d+/)?.[0];
+    if (mNum) {
+        const fromProp = goalMonthTitles[mNum] || goalMonthTitles[parseInt(mNum)];
+        if (fromProp) {
+          month.subtitle = fromProp.replace(/^\d+:\s*/, '').replace(/\*+/g, '').trim();
+        } else if (!month.subtitle) {
+          const fromScan = scannedTitles[mNum];
+          if (fromScan) {
+            month.subtitle = fromScan.replace(/^\d+:\s*/, '').replace(/\*+/g, '').trim();
+          }
+        }
       }
-    }
   }
 
   // Sort months by number to ensure clean sequential order (fixes jumbled months on timeline extension)
