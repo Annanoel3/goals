@@ -28,9 +28,7 @@ function addDays(dateStr, n) {
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
-    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
-    const { goal_id } = await req.json();
+    const { goal_id, user_email } = await req.json();
 
     if (!goal_id) {
       return Response.json({ error: 'goal_id required' }, { status: 400 });

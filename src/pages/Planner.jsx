@@ -14,7 +14,7 @@ export default function Planner() {
     const params = new URLSearchParams(window.location.search);
     if (params.get('edit') || params.get('nudge')) return [];
     try {
-     f const s = localStorage.getItem('plannerInProgress');
+      const s = localStorage.getItem('plannerInProgress');
       if (s) {
         const d = JSON.parse(s);
         if (d.messages?.length > 0) return d.messages;
@@ -901,7 +901,7 @@ function parsePlanHierarchy(text, goalMonthTitles = {}) {
 
   // Apply titles: priority order = inline parse → goalMonthTitles prop → scanned from text
   for (const month of months) {
-    csonst mNum = month.title.match(/\d+/)?.[0];
+    const mNum = month.title.match(/\d+/)?.[0];
     if (mNum) {
         const fromProp = goalMonthTitles[mNum] || goalMonthTitles[parseInt(mNum)];
         if (fromProp) {
