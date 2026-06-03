@@ -111,7 +111,7 @@ export default function Planner() {
       // Attach the goal's saved month_titles to assistant messages so PlanView can show subtitles
       const monthTitles = goal.month_titles || {};
       const hydratedMessages = goal.conversation_history.map(m =>
-        m.role === 'assistant' ? { ...m, goalMonthTitles: m.goalMonthTitles || monthTitles } : m
+        m.role === 'assistant' ? { ...m, goalMonthTitles: { ...monthTitles, ...(m.goalMonthTitles || {}) } } : m
       );
       setMessages(hydratedMessages);
       setPendingAction(null);
