@@ -34,29 +34,22 @@ Deno.serve(async (req) => {
     if (!goal_id) {
       return Response.json({ error: 'goal_id required' }, { status: 400 });
     }
+    if (!user_email) {
+      return Response.json({ error: 'user_email required' }, { status: 400 });
+    }
 
-    const goal = await base44.adminServiceRole.entities.Goal.get(goal_id);
+    const goal = await base44.asServiceRole.entities.Goal.get(goal_id);
     if (!goal) {
       return Response.json({ error: 'goal not found' }, { status: 404 });
-    }
+    }s
 
-    const user = await base44.adminServiceRole.entities.User.get(goal.created_by_id);
-    if (!user) {
-      console.log('[scheduleGoalNotificationsOnCreate] user not found for goal', goal_id);
-      return Response.json({ error: 'user not found' }, { status: 404 });
-    }
-
-    const steps = await base44.adminServiceRole.entities.GoalStep.filter({ goal_id: goal.id });
-    const externalId = user.email;
+    const steps = await base44.asServiceRole.entities.GoalStep.filter({ goal_id: goal.id });
+    const externalId = user_email;
     const now = new Date();
     const todayStr = now.toISOString().split('T')[0];
 
     let prefHour = 9, prefMin = 0;
-    if (user?.preferred_notification_time) {
-      const tp = user.preferred_notification_time.match(/(\d{1,2}):(\d{2})/);
-      if (tp) { prefHour = parseInt(tp[1]); prefMin = parseInt(tp[2]); }
-    }
-    const tzOffset = user.timezone_offset || 0;
+    const tzOffset = 0;
 
     let scheduled = 0;
 
