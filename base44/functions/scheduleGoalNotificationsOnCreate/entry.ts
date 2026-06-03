@@ -29,6 +29,7 @@ Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
     const { goal_id, user_email } = await req.json();
+    console.log('[scheduleGoalNotificationsOnCreate] started, goal_id:', goal_id);
 
     if (!goal_id) {
       return Response.json({ error: 'goal_id required' }, { status: 400 });
