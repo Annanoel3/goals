@@ -1,76 +1,86 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
 Deno.serve(async (req) => {
+    console.log('[sendOneSignalPush] ========== FUNCTION START ==========');
+    
     try {
-        const base44 = createClientFromRequest(req);
-        const body = await req.json();
-        const { userEmail, title, message, data, subscriptionId, sendAtISO } = body;
-
-        const appId = Deno.env.get("ONESIGNAL_APP_ID");
-        const rest = Deno.env.get("ONESIGNAL_REST_API_KEY");
-
-        if (!appId || !rest) {
-            return Response.json({ success: false, error: "Missing OneSignal credentials" }, { status: 500 });
-        }
-
-        // Build the notification payload
-        // Priority: subscriptionId > externalId (email) > player IDs from DB
+        const bodyText = await req.text();
         let payload;
-
-        if (subscriptionId) {
-            // Target a specific subscription/player ID directly
-            payload = {
-                app_id: appId.trim(),
-                include_subscription_uuids: [subscriptionId],
-                headings: { en: title },
-                contents: { en: message },
-                data: data || {}
-            };
-            console.log('Sending push to subscription ID:', subscriptionId);
-        } else if (userEmail) {
-            // Target by external user ID (email) — this is the primary flow
-            payload = {
-                app_id: appId.trim(),
-                include_aliases: { external_id: [userEmail] },
-                target_channel: "push",
-                headings: { en: title },
-                contents: { en: message },
-                data: data || {},
-                ...(sendAtISO && { send_after: sendAtISO })
-            };
-            console.log('Sending push to external ID:', userEmail);
-        } else {
-            return Response.json({ success: false, error: 'No target provided (userEmail or subscriptionId required)' });
+        try {
+            payload = JSON.parse(bodyText);
+        } catch (parseError) {
+            return Response.json({ success: false, error: 'Invalid JSON in request body', details: parseError.message }, { status: 400 });
         }
 
-        const response = await fetch("https://onesignal.com/api/v1/notifications", {
-            method: "POST",
+        const appId = Deno.env.get("ONESIGNAL_APP_ID")?.trim();
+        const restApiKey = Deno.env.get("ONESIGNAL_REST_API_KEY")?.trim();
+
+        if (!appId || !restApiKey) {
+            return Response.json({ success: false, error: 'Missing OneSignal environment variables.' }, { status: 500 });
+        }
+
+        const { userEmail, title, message, sendAtISO, minutesFromNow, data, android_channel_id, buttons } = payload;
+        
+        if (!userEmail) {
+            return Response.json({ success: false, error: 'userEmail is required' }, { status: 400 });
+        }
+
+        if (!title || !message) {
+            return Response.json({ success: false, error: 'Missing title or message body' }, { status: 400 });
+        }
+
+        const notificationPayload: any = {
+            app_id: appId,
+            include_external_user_ids: [String(userEmail)],
+            headings: { en: title },
+            contents: { en: message },
+            data: data || {},
+            channel_for_external_user_ids: "push",
+            ...(sendAtISO && { send_after: sendAtISO }),
+            ...((minutesFromNow !== undefined && !sendAtISO) && {
+                send_after: new Date(Date.now() + minutesFromNow * 60 * 1000).toISOString()
+            }),
+            ...(buttons && buttons.length > 0 && { buttons: buttons }),
+        };
+        
+        if (android_channel_id) {
+            notificationPayload.android_channel_id = android_channel_id;
+        }
+
+        console.log('[sendOneSignalPush] Sending payload:', JSON.stringify(notificationPayload, null, 2));
+
+        const oneSignalResponse = await fetch("https://onesignal.com/api/v1/notifications", {
+            method: 'POST',
             headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Basic ${rest.trim()}`
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${restApiKey}`
             },
-            body: JSON.stringify(payload)
+            body: JSON.stringify(notificationPayload)
         });
 
-        const result = await response.json();
-        console.log('OneSignal response:', JSON.stringify(result));
+        const responseText = await oneSignalResponse.text();
+        let oneSignalResult;
+        try {
+            oneSignalResult = JSON.parse(responseText);
+        } catch {
+            return Response.json({ success: false, error: 'Invalid response from OneSignal API', response_text: responseText }, { status: 500 });
+        }
 
-        if (!response.ok || result.errors) {
+        if (!oneSignalResponse.ok || oneSignalResult.errors) {
+            console.error('[sendOneSignalPush] OneSignal error:', oneSignalResult);
             return Response.json({
                 success: false,
-                error: result.errors?.[0] || "Failed to send notification",
-                details: result
-            });
+                error: oneSignalResult.errors?.[0] || 'OneSignal API failed',
+                onesignal_status: oneSignalResponse.status,
+                onesignal_response: oneSignalResult
+            }, { status: 200 });
         }
 
-        return Response.json({ 
-            success: true,
-            recipients: result.recipients || 0,
-            data: result
-        });
+        console.log('[sendOneSignalPush] ========== SUCCESS ==========', oneSignalResult.id);
+        return Response.json({ success: true, notificationId: oneSignalResult.id, onesignal_response: oneSignalResult });
 
     } catch (error) {
-        console.error('[OneSignal] Send error:', error);
-        return Response.json({ success: false, error: error.message }, { status: 500 });
+        console.error('[sendOneSignalPush] Unhandled error:', error.message);
+        return Response.json({ success: false, error: 'Internal server error', error_message: error.message }, { status: 500 });
     }
 });
