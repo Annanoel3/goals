@@ -19,7 +19,7 @@ export default function Planner() {
         const d = JSON.parse(s);
         if (d.messages?.length > 0) return d.messages;
       }
-    } catch {}
+    } catch { }
     return [];
   });
   const [input, setInput] = useState("");
@@ -60,13 +60,13 @@ export default function Planner() {
       const nudgeGoalId = searchParams.get('nudge');
       // pendingAction is intentionally NOT restored from localStorage.
       // It is only set live when the AI response contains a full plan in the current session.
-    }).catch(() => {});
-    base44.auth.me().then(u => { if (u?.city) setUserCity(u.city); }).catch(() => {});
+    }).catch(() => { });
+    base44.auth.me().then(u => { if (u?.city) setUserCity(u.city); }).catch(() => { });
 
     // Subscribe to goal changes to catch pending goals being created
     const unsubscribe = base44.entities.Goal.subscribe((event) => {
       if (event.type === 'create' || event.type === 'update') {
-        base44.entities.Goal.list().then(setGoals).catch(() => {});
+        base44.entities.Goal.list().then(setGoals).catch(() => { });
       }
     });
 
@@ -223,15 +223,15 @@ export default function Planner() {
     setSaveError(false);
     try {
       const allMessages = messagesRef.current.filter(m => m.role !== "system");
-      const res = await base44.functions.invoke("goalPlannerChat", { 
-        messages: allMessages, 
+      const res = await base44.functions.invoke("goalPlannerChat", {
+        messages: allMessages,
         mode: "extract_plan",
       });
-      
+
       if (res.data?.error) {
         throw new Error(res.data.error);
       }
-      
+
       const plan = res.data.plan;
       validatePlanSteps(plan);
 
@@ -241,7 +241,7 @@ export default function Planner() {
         const text = plan.plan_summary || '';
         const stripMd = (s) => s.replace(/\*+/g, '').replace(/^[#>\s\-–—:]+/, '').trim();
         const isDateStr = (s) => /^(January|February|March|April|May|June|July|August|September|October|November|December)(\s+\d{4})?$/i.test(s.trim());
-        
+
         // Scan for inline "Month N - Title" patterns
         const lines = text.split('\n');
         for (let i = 0; i < lines.length; i++) {
@@ -308,9 +308,9 @@ export default function Planner() {
           createdStepsMap[i] = { step, createdStep };
           return createdStep;
         });
-        
+
         await Promise.all(stepsPromises);
-        
+
         // Create sub-steps in parallel too
         const subStepsPromises = [];
         Object.entries(createdStepsMap).forEach(([idx, { step, createdStep }]) => {
@@ -332,7 +332,7 @@ export default function Planner() {
             });
           }
         });
-        
+
         if (subStepsPromises.length > 0) await Promise.all(subStepsPromises);
       }
 
@@ -342,7 +342,7 @@ export default function Planner() {
       localStorage.removeItem('plannerInProgress');
 
       // Schedule notifications in background (don't await)
-      base44.functions.invoke('scheduleGoalNotificationsOnCreate', { goal_id: goal.id }).catch(err => console.error('Failed to schedule notifications:', err));
+      base44.functions.invoke('scheduleGoalNotificationsOnCreate', { goal_id: createdGoal.id }).catch(err => console.error('Failed to schedule notifications:', err));
 
       // Back-fill month_titles into the last assistant message so PlanView shows all subtitles
       if (plan.month_titles && Object.keys(plan.month_titles).length > 0) {
@@ -368,7 +368,7 @@ export default function Planner() {
     try {
       const allMessages = messagesRef.current.filter(m => m.role !== "system");
       const gid = pendingGoalIdRef.current || editingGoalRef.current?.id;
-      
+
       // Save conversation history only — let apply_edit handle month_titles from the new plan
       if (gid) {
         await base44.entities.Goal.update(gid, { conversation_history: allMessages });
@@ -505,18 +505,18 @@ export default function Planner() {
               <MessageBubble key={i} msg={msg} onExampleClick={i === 0 ? sendMessage : null} />
             ))}
             {isLoading && !showAdOverlay && (
-        <div className="flex justify-center py-4">
-          {editingGoal ? (
-            <SavingProgressBar isEdit done={false} isSavingToDb={false} />
-          ) : (
-            <div className="flex gap-1.5 items-center">
-              <div className="w-2.5 h-2.5 bg-violet-400 rounded-full animate-bounce" style={{animationDelay:'0ms'}} />
-              <div className="w-2.5 h-2.5 bg-violet-400 rounded-full animate-bounce" style={{animationDelay:'150ms'}} />
-              <div className="w-2.5 h-2.5 bg-violet-400 rounded-full animate-bounce" style={{animationDelay:'300ms'}} />
-            </div>
-          )}
-        </div>
-      )}
+              <div className="flex justify-center py-4">
+                {editingGoal ? (
+                  <SavingProgressBar isEdit done={false} isSavingToDb={false} />
+                ) : (
+                  <div className="flex gap-1.5 items-center">
+                    <div className="w-2.5 h-2.5 bg-violet-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <div className="w-2.5 h-2.5 bg-violet-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <div className="w-2.5 h-2.5 bg-violet-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Plan preview before approval — new goal */}
             {pendingAction === 'plan_proposed' && !isLoading && !saved && !editingGoal && !showCelebration && (
@@ -560,25 +560,25 @@ export default function Planner() {
 
             {/* Celebration + saving animation (shared between new goal and edit) */}
             {pendingAction !== null && !isLoading && !saved && showCelebration && (
-        <>
-          <GifCarousel gifs={COMIC_GIFS} onComplete={() => {}} />
-          {saveError ? (
-            <div className="flex flex-col items-center gap-3 py-2">
-              <p className={`text-sm font-medium ${isDark ? 'text-red-400' : 'text-red-600'}`}>Something went wrong saving your goal.</p>
-              <Button
-                onClick={editingGoal ? handleApplyEdits : handleSaveNewGoal}
-                className={`rounded-2xl px-6 py-2.5 font-semibold ${isDark ? 'bg-violet-600 hover:bg-violet-700 text-white' : 'bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white'}`}
-              >
-                Retry
-              </Button>
-            </div>
-          ) : isSaving && (
-            <div className="flex justify-center">
-              <SavingProgressBar isEdit={!!editingGoal} done={!isSaving} isSavingToDb={true} />
-            </div>
-          )}
-        </>
-      )}
+              <>
+                <GifCarousel gifs={COMIC_GIFS} onComplete={() => { }} />
+                {saveError ? (
+                  <div className="flex flex-col items-center gap-3 py-2">
+                    <p className={`text-sm font-medium ${isDark ? 'text-red-400' : 'text-red-600'}`}>Something went wrong saving your goal.</p>
+                    <Button
+                      onClick={editingGoal ? handleApplyEdits : handleSaveNewGoal}
+                      className={`rounded-2xl px-6 py-2.5 font-semibold ${isDark ? 'bg-violet-600 hover:bg-violet-700 text-white' : 'bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white'}`}
+                    >
+                      Retry
+                    </Button>
+                  </div>
+                ) : isSaving && (
+                  <div className="flex justify-center">
+                    <SavingProgressBar isEdit={!!editingGoal} done={!isSaving} isSavingToDb={true} />
+                  </div>
+                )}
+              </>
+            )}
 
             {/* Edit approval */}
             {pendingAction === 'edit_approved' && !saved && !showCelebration && (
@@ -615,13 +615,13 @@ export default function Planner() {
                       <p className={`text-sm font-medium mb-1 ${isDark ? 'text-violet-300' : 'text-violet-800'}`}>Your plan is a living document 🌱</p>
                       <p className={`text-xs leading-relaxed mb-3 ${isDark ? 'text-violet-400' : 'text-violet-600'}`}>Come back anytime to adjust difficulty, add resources, skip ahead, extend the timeline, or completely restructure a phase. Just tell me what's working and what isn't.</p>
                       <div className="flex gap-2 justify-center">
-                         <Button size="sm" className={`rounded-xl text-xs font-semibold ${isDark ? 'bg-violet-600 hover:bg-violet-700 text-white' : 'bg-violet-600 hover:bg-violet-700 text-white'}`} onClick={() => navigate(`/goal/${pendingGoalId}`)}>
-                           Go to Goal →
-                         </Button>
-                         <Button size="sm" variant="outline" className={`rounded-xl text-xs font-semibold ${isDark ? 'border-violet-700 text-violet-400 hover:bg-gray-700' : 'border-violet-200 text-violet-700 hover:bg-violet-50'}`} onClick={handleNewPlan}>
-                           Plan Another
-                         </Button>
-                       </div>
+                        <Button size="sm" className={`rounded-xl text-xs font-semibold ${isDark ? 'bg-violet-600 hover:bg-violet-700 text-white' : 'bg-violet-600 hover:bg-violet-700 text-white'}`} onClick={() => navigate(`/goal/${pendingGoalId}`)}>
+                          Go to Goal →
+                        </Button>
+                        <Button size="sm" variant="outline" className={`rounded-xl text-xs font-semibold ${isDark ? 'border-violet-700 text-violet-400 hover:bg-gray-700' : 'border-violet-200 text-violet-700 hover:bg-violet-50'}`} onClick={handleNewPlan}>
+                          Plan Another
+                        </Button>
+                      </div>
                     </div>
                   </>
                 )}
@@ -862,7 +862,7 @@ function parsePlanHierarchy(text, goalMonthTitles = {}) {
     for (let m = months.length + 1; m <= totalMonths; m++) {
       months.push({
         title: 'Month ' + m,
-        weeks: [1,2,3,4].map(n => ({ title: 'Week ' + n, tasks: [], description: '' }))
+        weeks: [1, 2, 3, 4].map(n => ({ title: 'Week ' + n, tasks: [], description: '' }))
       });
     }
   }
@@ -951,7 +951,7 @@ function GifCarousel({ gifs, onComplete }) {
         src={gifs[idx]}
         alt="celebration"
         className="w-52 h-52 object-contain rounded-2xl shadow-lg animate-in zoom-in duration-300"
-        style={{imageRendering:'auto'}}
+        style={{ imageRendering: 'auto' }}
       />
     </div>
   );
@@ -963,12 +963,12 @@ function WeekDropdown({ week }) {
   const [showTimeInput, setShowTimeInput] = React.useState(false);
   const [timeValue, setTimeValue] = React.useState("13:00");
   const isDark = localStorage.getItem('adhd_theme') === 'dark';
-  
+
   const handleTimeChange = (e) => {
     setTimeValue(e.target.value);
     // You could emit an event or callback here to update the parent state
   };
-  
+
   return (
     <div className={`border rounded-xl overflow-hidden mb-1.5 ${isDark ? 'border-gray-700' : 'border-gray-100'}`}>
       <div className={`flex items-center transition-colors ${isDark ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-gray-50'}`}>
@@ -1022,24 +1022,24 @@ function WeekDropdown({ week }) {
 
 
 function MonthDropdown({ month }) {
-   const [open, setOpen] = React.useState(false);
-   const isDark = localStorage.getItem('adhd_theme') === 'dark';
-   
-   // Use the subtitle already extracted by parsePlanHierarchy from the AI's response text
-   const displayTitle = month.subtitle;
-   
-   return (
-     <div className={`border rounded-xl overflow-hidden mb-2 shadow-sm ${isDark ? 'border-gray-700' : 'border-violet-100'}`}>
-       <button
-         onClick={() => setOpen(v => !v)}
-         className={`w-full flex items-center justify-between gap-2 px-4 py-3 text-left transition-colors ${isDark ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-violet-50/50'}`}
-       >
-         <div className="flex-1 min-w-0">
-             <span className={`font-semibold text-sm ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{month.title}</span>
-             {displayTitle && (
-               <span className={`block text-sm font-medium mt-1 ${isDark ? 'text-violet-400' : 'text-violet-600'}`}>{displayTitle}</span>
-             )}
-           </div>
+  const [open, setOpen] = React.useState(false);
+  const isDark = localStorage.getItem('adhd_theme') === 'dark';
+
+  // Use the subtitle already extracted by parsePlanHierarchy from the AI's response text
+  const displayTitle = month.subtitle;
+
+  return (
+    <div className={`border rounded-xl overflow-hidden mb-2 shadow-sm ${isDark ? 'border-gray-700' : 'border-violet-100'}`}>
+      <button
+        onClick={() => setOpen(v => !v)}
+        className={`w-full flex items-center justify-between gap-2 px-4 py-3 text-left transition-colors ${isDark ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-violet-50/50'}`}
+      >
+        <div className="flex-1 min-w-0">
+          <span className={`font-semibold text-sm ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{month.title}</span>
+          {displayTitle && (
+            <span className={`block text-sm font-medium mt-1 ${isDark ? 'text-violet-400' : 'text-violet-600'}`}>{displayTitle}</span>
+          )}
+        </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           <span className={`text-[10px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{month.weeks.length} weeks</span>
           {open ? <ChevronUp className={`w-4 h-4 flex-shrink-0 ${isDark ? 'text-gray-500' : 'text-violet-400'}`} /> : <ChevronDown className={`w-4 h-4 flex-shrink-0 ${isDark ? 'text-gray-500' : 'text-violet-400'}`} />}
@@ -1059,9 +1059,9 @@ function MonthDropdown({ month }) {
 }
 
 function PlanView({ text, goalMonthTitles = {} }) {
-   const isDark = localStorage.getItem('adhd_theme') === 'dark';
-   const [showMarkdown, setShowMarkdown] = React.useState(false);
-   const { months, preamble } = parsePlanHierarchy(text, goalMonthTitles);
+  const isDark = localStorage.getItem('adhd_theme') === 'dark';
+  const [showMarkdown, setShowMarkdown] = React.useState(false);
+  const { months, preamble } = parsePlanHierarchy(text, goalMonthTitles);
   const cleanedPreamble = preamble ? renderPreamble(preamble) : '';
 
   if (showMarkdown) {
@@ -1073,7 +1073,7 @@ function PlanView({ text, goalMonthTitles = {} }) {
         >
           Show Plan View
         </button>
-        <pre className={`text-xs leading-relaxed overflow-auto p-3 rounded-lg ${isDark ? 'bg-gray-900 text-gray-300' : 'bg-gray-50 text-gray-700'}`} style={{maxHeight: '400px'}}>
+        <pre className={`text-xs leading-relaxed overflow-auto p-3 rounded-lg ${isDark ? 'bg-gray-900 text-gray-300' : 'bg-gray-50 text-gray-700'}`} style={{ maxHeight: '400px' }}>
           {text}
         </pre>
       </div>
@@ -1092,8 +1092,8 @@ function PlanView({ text, goalMonthTitles = {} }) {
         <p className={`text-sm leading-relaxed mb-3 whitespace-pre-wrap ${isDark ? 'text-gray-300' : 'text-gray-800'}`}>{renderInlineText(cleanedPreamble)}</p>
       )}
       {months.length > 0 ? (
-         months.map((month, i) => <MonthDropdown key={i} month={month} />)
-       ) : (
+        months.map((month, i) => <MonthDropdown key={i} month={month} />)
+      ) : (
         <span className={`whitespace-pre-wrap text-sm ${isDark ? 'text-gray-300' : 'text-gray-800'}`}>{renderInlineText(text)}</span>
       )}
     </div>
@@ -1114,7 +1114,7 @@ function MessageBubble({ msg, onExampleClick }) {
     // Parse markdown and return JSX
     const lines = text.split('\n');
     const elements = [];
-    
+
     lines.forEach((line, idx) => {
       // Headers
       if (line.startsWith('###')) {
@@ -1139,7 +1139,7 @@ function MessageBubble({ msg, onExampleClick }) {
           if (part === '- ') return null;
           return <span key={`text-${i}`}>{part}</span>;
         });
-        
+
         if (line.startsWith('-')) {
           elements.push(<li key={`li-${idx}`} className={`ml-4 text-sm ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{jsxParts}</li>);
         } else {
@@ -1149,7 +1149,7 @@ function MessageBubble({ msg, onExampleClick }) {
         elements.push(<div key={`br-${idx}`} className="h-2" />);
       }
     });
-    
+
     return <div className="space-y-1">{elements}</div>;
   };
 
@@ -1161,11 +1161,10 @@ function MessageBubble({ msg, onExampleClick }) {
             <Sparkles className="w-3.5 h-3.5 text-white" />
           </div>
         )}
-        <div className={`max-w-[88%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-          isUser
+        <div className={`max-w-[88%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${isUser
             ? isDark ? 'bg-violet-700 text-white rounded-br-sm shadow-md shadow-violet-900/30' : 'bg-gradient-to-br from-violet-600 to-indigo-600 text-white rounded-br-sm shadow-md shadow-violet-100'
             : isDark ? 'bg-gray-800 border border-gray-700 text-gray-100 rounded-bl-sm shadow-sm' : 'bg-white border border-gray-100 text-gray-800 rounded-bl-sm shadow-sm'
-        }`}>
+          }`}>
           {isUser ? renderInlineText(msg.content) : (
             isPlanMessage(msg.content) ? (
               <PlanView text={msg.content} goalMonthTitles={msg.goalMonthTitles || {}} />
@@ -1182,11 +1181,10 @@ function MessageBubble({ msg, onExampleClick }) {
             <button
               key={ex}
               onClick={() => onExampleClick(ex)}
-              className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
-                isDark
+              className={`text-xs px-3 py-1.5 rounded-full border transition-all ${isDark
                   ? 'bg-gray-800 border-gray-600 text-gray-300 hover:border-violet-500 hover:text-violet-300 hover:bg-gray-700'
                   : 'bg-white border-gray-200 text-gray-600 hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700'
-              }`}
+                }`}
             >
               {ex}
             </button>
@@ -1279,11 +1277,11 @@ function TypingIndicator() {
 
 function GoalsList({ goals, onSelectGoal, onNewChat }) {
   const isDark = localStorage.getItem('adhd_theme') === 'dark';
-  
+
   // Separate active and pending goals
   const activeGoals = goals.filter(g => g.status === 'active');
   const pendingGoals = goals.filter(g => g.status !== 'active' && g.id); // Show any non-active goals as "building"
-  
+
   return (
     <div className="flex flex-col items-center py-12 px-6">
       <div className={`w-20 h-20 rounded-3xl flex items-center justify-center mb-6 shadow-sm ${isDark ? 'bg-violet-900/40' : 'bg-gradient-to-br from-violet-100 to-indigo-100'}`}>
