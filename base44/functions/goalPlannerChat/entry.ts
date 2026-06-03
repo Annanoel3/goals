@@ -685,7 +685,9 @@ CRITICAL INTERPRETATION RULES:
 - ANY positive OR negative opinion about a specific book/resource = already read/experienced = BANNED
 - ANY complaint or criticism about a specific item = already read = BANNED + apply that complaint as a plan-wide constraint
 
-EXAMPLE: "Twilight had too much romance" → (1) Twilight is BANNED from the plan forever, AND (2) this is an explicit constraint: reduce romance throughout the plan (max 1 romance-heavy book total).
+EXAMPLE: "Twilight had too much romance" → (1) Twilight is BANNED from the plan forever, AND (2) this is an explicit constraint: reduce romance throughout the plan
+
+APPROXIMATE/WRONG TITLE RULE: If the user references a book or item with an approximate, misspelled, or close-but-wrong title (e.g. "that book called 1954 or something" or "the Inferno book by that Italian guy"), you MUST resolve it to the actual title (e.g. 1984 by George Orwell, Dante's Inferno) and PERMANENTLY BAN that resolved title. "I liked that dystopian book called 1954 or something" = 1984 is BANNED. Do not put 1984 in the plan under any name or edition. (max 1 romance-heavy book total).
 
 BEFORE WRITING YOUR RESPONSE: Mentally compile the full banned list from this conversation and the original planning conversation, then verify every single book/resource in your proposal is NOT on that list. If you are about to write a banned item, stop and replace it with something the user has NOT mentioned.
 
