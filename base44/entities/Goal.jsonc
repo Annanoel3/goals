@@ -41,6 +41,7 @@
       "type": "string",
       "enum": [
         "learning",
+        "habit",
         "health",
         "career",
         "finance",
@@ -50,7 +51,7 @@
         "other"
       ],
       "default": "personal",
-      "description": "Goal category"
+      "description": "Goal category. 'learning' = skill-building requiring regular practice (language, coding, instrument). 'habit' = daily consistency goals (reading X books, daily journaling, meditation streak). 'personal' = mindset/growth goals (confidence, happiness). Others are self-explanatory."
     },
     "preferred_time": {
       "type": "string",

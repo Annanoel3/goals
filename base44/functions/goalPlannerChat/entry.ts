@@ -102,13 +102,15 @@ This applies to ALL goal types. Users should see meaningful milestone titles, no
 - For goals under 1 month, just use "Week 1", "Week 2" phases directly.
 READING GOALS — CRITICAL: You MUST select a specific, real book title for EVERY single month in month_titles, based on the user's stated genre and preferences. Draw on your knowledge of books in that genre. Placeholder titles (e.g. "Book Title", "Month 2 Book", "TBD") are a CRITICAL FAILURE — never output them.
 
-NOTIFICATION FREQUENCY DETECTION:
-Analyze the conversation for clues about how often the user wants to be reminded:
-- Daily tasks / morning routine / meditation / exercise / practice → "daily"
-- Weekday focus only (Mon-Fri) / work-related → "weekdays"
-- Once per week check-in / milestone goals → "weekly"
-- Multiple times per week → "3x_per_week" or "2x_per_week"
-- If unclear or they're doing daily actions → default to "daily"
+NOTIFICATION FREQUENCY DETECTION — infer from category + conversation context, never ask directly:
+- category='habit' → ALWAYS "daily" (reading streaks, daily meditation, daily journaling, etc.)
+- category='learning' → infer from how often user said they'd practice: daily practice = "daily", 3x/week = "3x_per_week", weekdays only = "weekdays". If unclear, default to "3x_per_week".
+- category='personal' → "3x_per_week" (mindset/growth goals don't need daily nagging)
+- category='health' → match their workout schedule ("daily", "3x_per_week", "weekdays", etc.)
+- category='career' → "weekdays"
+- category='finance' → "weekly"
+- category='creative' → based on their stated practice commitment, default "3x_per_week"
+- category='other' → "weekly"
 Set "notification_frequency" in the returned JSON to one of: "daily", "weekdays", "weekly", "3x_per_week", "2x_per_week", "once_per_week"
 
 GRANULARITY RULES — choose the right level of detail per goal type:
@@ -163,7 +165,7 @@ IMPORTANT: Generate 2-4 specific, actionable tasks per week-phase. Keep descript
   "description": "what the user wants to achieve",
   "timeline": "e.g. 5 months",
   "target_date": "YYYY-MM-DD calculated from today ${today}",
-  "category": "one of: learning, health, career, finance, relationships, personal, creative, other — CRITICAL: reading goals (books, novels, literature) = 'learning'. Daily habit/routine goals = 'personal'. Never use 'personal' for reading or skill-building goals.",
+  "category": "one of: learning, habit, health, career, finance, relationships, personal, creative, other — CRITICAL CATEGORY RULES (infer from conversation context, do NOT ask the user directly):\n  - 'learning': skill-building that requires regular practice to improve (learning a language, instrument, coding, public speaking, drawing). Frequency is driven by how much practice the user committed to — could be daily OR 3x/week depending on what they said.\n  - 'habit': goals that require DAILY CONSISTENCY to hit a cumulative or streak-based target (read 12 books in 12 months, read every day, meditate daily, journal every day, build a workout streak). The defining signal: success depends on showing up EVERY day, not just improving a skill. Notification frequency = 'daily'.\n  - 'personal': mindset, emotional growth, confidence, happiness, relationships, wellbeing. These are NOT daily-action goals — they are reflective and periodic. Notification frequency = '3x_per_week' or 'weekly'.\n  - 'health': fitness, exercise, nutrition, sleep, medical. Notification frequency = based on workout schedule.\n  - 'career': job searching, promotions, professional skills. Notification frequency = 'weekdays'.\n  - 'finance': saving, investing, budgeting. Notification frequency = 'weekly'.\n  - 'creative': writing a novel, art projects, music composition. Frequency = based on practice commitment.\n  - NEVER use 'personal' for reading, skill-building, or habit goals.",
   "notification_frequency": "daily|weekdays|weekly|3x_per_week|2x_per_week|once_per_week — inferred from conversation",
   "plan_summary": "2-3 sentence summary of the overall plan",
   "month_titles": {
