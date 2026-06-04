@@ -94,9 +94,14 @@ Deno.serve(async (req) => {
       }));
 
       try {
-        await base44.asServiceRole.entities.GoalStep.bulkCreate(stepRows);
-        console.log(`[goalPlannerChat] bulk_insert_steps: created ${stepRows.length} steps for goal ${goal_id}`);
-        return Response.json({ success: true, steps_created: stepRows.length });
+        // Create steps one at a time for reliability
+        let createdCount = 0;
+        for (const row of stepRows) {
+          await base44.asServiceRole.entities.GoalStep.create(row);
+          createdCount++;
+        }
+        console.log(`[goalPlannerChat] bulk_insert_steps: created ${createdCount} steps for goal ${goal_id}`);
+        return Response.json({ success: true, steps_created: createdCount });
       } catch (err) {
         console.error(`[goalPlannerChat] bulk_insert_steps error:`, err.message);
         return Response.json({ error: err.message }, { status: 500 });
@@ -508,7 +513,6 @@ Extract every single step. If the planner listed 48 steps, return all 48.`
 
       const stepRows = newSteps.map((step, i) => ({
         goal_id,
-        created_by_id: user.id,
         title: step.title,
         description: step.description || "",
         phase: step.phase || "",
@@ -521,7 +525,10 @@ Extract every single step. If the planner listed 48 steps, return all 48.`
         tips_and_guidance: step.tips_and_guidance || "",
         is_daily_habit: step.is_daily_habit === true
       }));
-      await supabase.from('GoalStep').insert(stepRows);
+      // Create steps one at a time for reliability
+      for (const row of stepRows) {
+        await base44.asServiceRole.entities.GoalStep.create(row);
+      }
 
       return Response.json({ success: true, steps_replaced: replaceableSteps.length, steps_created: newSteps.length, completed_kept: completedSteps.length });
     }
