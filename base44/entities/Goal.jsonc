@@ -119,6 +119,14 @@
       },
       "description": "AI-generated notification messages pending in-app display (week/month previews and summaries)",
       "default": []
+    },
+    "building_months": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      },
+      "description": "Month numbers still being created in the background. Null/empty when fully built.",
+      "default": null
     }
   },
   "required": [

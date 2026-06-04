@@ -250,7 +250,6 @@ export default function Planner() {
         const stripMd = (s) => s.replace(/\*+/g, '').replace(/^[#>\s\-–—:]+/, '').trim();
         const isDateStr = (s) => /^(January|February|March|April|May|June|July|August|September|October|November|December)(\s+\d{4})?$/i.test(s.trim());
 
-        // Scan for inline "Month N - Title" patterns
         const lines = text.split('\n');
         for (let i = 0; i < lines.length; i++) {
           const clean = stripMd(lines[i]);
@@ -259,7 +258,6 @@ export default function Planner() {
             const t = stripMd(inlineM[2]);
             if (t && !isDateStr(t) && t.length >= 2 && t.length <= 120) plan.month_titles[inlineM[1]] = t;
           }
-          // Standalone "Month N" — look at next few lines for subtitle
           const monthM = clean.match(/^Month\s+(\d+)$/i);
           if (monthM && !plan.month_titles[monthM[1]]) {
             for (let j = i + 1; j < lines.length && j < i + 5; j++) {
@@ -274,6 +272,22 @@ export default function Planner() {
         }
       }
 
+      // Group steps by month number
+      const stepsByMonth = {};
+      (plan.steps || []).forEach((step, i) => {
+        const mMatch = (step.phase || '').match(/Month\s*(\d+)/i);
+        const mNum = mMatch ? parseInt(mMatch[1], 10) : 999;
+        if (!stepsByMonth[mNum]) stepsByMonth[mNum] = [];
+        stepsByMonth[mNum].push({ step, originalIndex: i });
+      });
+      const sortedMonthNums = Object.keys(stepsByMonth).map(Number).sort((a, b) => a - b);
+      const totalMonths = sortedMonthNums.length;
+
+      // Determine how many months to show in "building" state (months 3+)
+      const immediateMonths = Math.min(2, totalMonths);
+      const deferredMonthNums = sortedMonthNums.slice(immediateMonths);
+
+      // Create the goal with building_months flag so GoalDetail knows more are coming
       const createdGoal = await base44.entities.Goal.create({
         title: plan.title,
         description: plan.description,
@@ -286,20 +300,20 @@ export default function Planner() {
         notification_frequency: plan.notification_frequency || "daily",
         reminder_interval: plan.reminder_interval || "2hours",
         conversation_history: allMessages,
-        month_titles: plan.month_titles || {}
+        month_titles: plan.month_titles || {},
+        building_months: deferredMonthNums.length > 0 ? deferredMonthNums : null,
       });
 
       const goal = createdGoal;
       if (!goal?.id) throw new Error('Goal creation returned no ID');
-      // Write goal_id back onto the record so it's visible in the dashboard
       await base44.entities.Goal.update(goal.id, { goal_id: goal.id });
-      // Immediately sync ref so any concurrent code uses the new ID
       pendingGoalIdRef.current = goal.id;
 
-      if (plan.steps?.length > 0) {
-        // Create all steps in parallel, then their sub-steps
+      // Helper to save steps for a given month
+      const saveMonthSteps = async (monthNum) => {
+        const monthEntries = stepsByMonth[monthNum] || [];
         const createdStepsMap = {};
-        const stepsPromises = plan.steps.map(async (step, i) => {
+        await Promise.all(monthEntries.map(async ({ step, originalIndex }) => {
           const validResources = (step.step_resources || []).filter(r => r && r.type);
           const createdStep = await base44.entities.GoalStep.create({
             goal_id: goal.id,
@@ -308,59 +322,68 @@ export default function Planner() {
             phase: step.phase || "",
             priority: step.priority || "medium",
             due_date: step.due_date || "",
-            order_index: step.order_index ?? i,
+            order_index: step.order_index ?? originalIndex,
             status: "pending",
             step_resources: validResources,
             success_criteria: step.success_criteria || [],
             tips_and_guidance: step.tips_and_guidance || "",
             is_daily_habit: step.is_daily_habit === true
           });
-          createdStepsMap[i] = { step, createdStep };
-          return createdStep;
-        });
+          createdStepsMap[originalIndex] = { step, createdStep };
+        }));
+        // Sub-steps
+        await Promise.all(Object.values(createdStepsMap).flatMap(({ step, createdStep }) =>
+          (step.sub_steps || []).map(subStep =>
+            base44.entities.GoalStep.create({
+              goal_id: goal.id,
+              parent_step_id: createdStep.id,
+              title: subStep.title,
+              description: subStep.description || "",
+              phase: step.phase || "",
+              priority: subStep.priority || "low",
+              due_date: subStep.due_date || "",
+              order_index: 0,
+              status: "pending"
+            })
+          )
+        ));
+      };
 
-        await Promise.all(stepsPromises);
-
-        // Create sub-steps in parallel too
-        const subStepsPromises = [];
-        Object.entries(createdStepsMap).forEach(([idx, { step, createdStep }]) => {
-          if (step.sub_steps?.length > 0) {
-            step.sub_steps.forEach(subStep => {
-              subStepsPromises.push(
-                base44.entities.GoalStep.create({
-                  goal_id: goal.id,
-                  parent_step_id: createdStep.id,
-                  title: subStep.title,
-                  description: subStep.description || "",
-                  phase: step.phase || "",
-                  priority: subStep.priority || "low",
-                  due_date: subStep.due_date || "",
-                  order_index: 0,
-                  status: "pending"
-                })
-              );
-            });
-          }
-        });
-
-        if (subStepsPromises.length > 0) await Promise.all(subStepsPromises);
+      // Save first 2 months immediately
+      for (const mNum of sortedMonthNums.slice(0, immediateMonths)) {
+        await saveMonthSteps(mNum);
       }
 
       setSaved(true);
       setPendingGoalId(goal.id);
-      // Clear the in-progress session
       localStorage.removeItem('plannerInProgress');
 
-      // Schedule notifications in background (don't await)
-      base44.functions.invoke('scheduleGoalNotificationsOnCreate', { goal_id: createdGoal.id, user_email: currentUser?.email, goal_start_date: createdGoal.target_date }).catch(err => console.error('Failed to schedule notifications:', err));
-
-      // Back-fill month_titles into the last assistant message so PlanView shows all subtitles
+      // Back-fill month_titles into the last assistant message
       if (plan.month_titles && Object.keys(plan.month_titles).length > 0) {
         setMessages(prev => prev.map((m, i) =>
           i === prev.length - 1 && m.role === 'assistant'
             ? { ...m, goalMonthTitles: { ...plan.month_titles } }
             : m
         ));
+      }
+
+      // Save remaining months in background one by one, then clear building_months
+      if (deferredMonthNums.length > 0) {
+        (async () => {
+          const remaining = [...deferredMonthNums];
+          for (const mNum of deferredMonthNums) {
+            await saveMonthSteps(mNum);
+            remaining.shift();
+            // Update building_months so GoalDetail can update spinners in real time
+            await base44.entities.Goal.update(goal.id, {
+              building_months: remaining.length > 0 ? remaining : null
+            });
+          }
+          // All done — schedule notifications
+          base44.functions.invoke('scheduleGoalNotificationsOnCreate', { goal_id: goal.id, user_email: currentUser?.email, goal_start_date: createdGoal.target_date }).catch(err => console.error('Failed to schedule notifications:', err));
+        })();
+      } else {
+        base44.functions.invoke('scheduleGoalNotificationsOnCreate', { goal_id: goal.id, user_email: currentUser?.email, goal_start_date: createdGoal.target_date }).catch(err => console.error('Failed to schedule notifications:', err));
       }
 
     } catch (err) {
@@ -625,7 +648,7 @@ export default function Planner() {
                       <p className={`text-sm font-medium mb-1 ${isDark ? 'text-violet-300' : 'text-violet-800'}`}>Your plan is a living document 🌱</p>
                       <p className={`text-xs leading-relaxed mb-3 ${isDark ? 'text-violet-400' : 'text-violet-600'}`}>Come back anytime to adjust difficulty, add resources, skip ahead, extend the timeline, or completely restructure a phase. Just tell me what's working and what isn't.</p>
                       <div className="flex gap-2 justify-center">
-                        <Button size="sm" className={`rounded-xl text-xs font-semibold ${isDark ? 'bg-violet-600 hover:bg-violet-700 text-white' : 'bg-violet-600 hover:bg-violet-700 text-white'}`} onClick={() => navigate(`/goal/${pendingGoalId}`)}>
+                        <Button size="sm" className={`rounded-xl text-xs font-semibold ${isDark ? 'bg-violet-600 hover:bg-violet-700 text-white' : 'bg-violet-600 hover:bg-violet-700 text-white'}`} onClick={() => navigate(`/goal/${pendingGoalIdRef.current || pendingGoalId}`)}>
                           Go to Goal →
                         </Button>
                         <Button size="sm" variant="outline" className={`rounded-xl text-xs font-semibold ${isDark ? 'border-violet-700 text-violet-400 hover:bg-gray-700' : 'border-violet-200 text-violet-700 hover:bg-violet-50'}`} onClick={handleNewPlan}>

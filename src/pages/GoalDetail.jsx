@@ -104,7 +104,15 @@ export default function GoalDetail() {
 
   useEffect(() => { loadData(); }, [id]);
 
-  const loadData = async () => {
+  // Poll while building_months is non-empty
+  useEffect(() => {
+    if (!goal) return;
+    if (!goal.building_months || goal.building_months.length === 0) return;
+    const interval = setInterval(() => { loadData(true); }, 4000);
+    return () => clearInterval(interval);
+  }, [goal?.building_months?.length]);
+
+  const loadData = async (silent = false) => {
     try {
       const goalData = await base44.entities.Goal.list('-created_date');
       const target = goalData.find(g => g.id === id);
@@ -115,7 +123,7 @@ export default function GoalDetail() {
     } catch (err) {
       console.error(err);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -224,6 +232,12 @@ export default function GoalDetail() {
   };
   const sortedMonths = Object.keys(monthsMap).sort(monthSort);
 
+  // Months still being built in the background
+  const buildingMonths = (goal.building_months || []).map(n => `Month ${n}`);
+
+  // All month keys to show = existing months + building months (deduplicated, sorted)
+  const allMonthKeys = [...new Set([...sortedMonths, ...buildingMonths])].sort(monthSort);
+
   return (
     <div className="min-h-screen pb-32 px-4 pt-6">
       <div className="max-w-2xl mx-auto">
@@ -294,7 +308,33 @@ export default function GoalDetail() {
 
         {/* Steps - Month/Week Hierarchy */}
         <div className="space-y-3">
-          {sortedMonths.map(monthKey => {
+          {allMonthKeys.map(monthKey => {
+            const isBuilding = buildingMonths.includes(monthKey);
+
+            if (isBuilding) {
+              return (
+                <div key={monthKey} className="rounded-xl border border-violet-100 overflow-hidden bg-violet-50/40">
+                  <div className="flex items-center gap-3 px-4 py-3">
+                    <div className="w-1.5 h-5 bg-violet-300 rounded-full flex-shrink-0" />
+                    <div className="flex-1">
+                      <h3 className="text-sm font-bold text-gray-700">{monthKey}</h3>
+                      {monthTitles[monthKey] && (
+                        <p className="text-xs text-violet-400 mt-0.5">— {monthTitles[monthKey].replace(/\*+/g, '').trim()}</p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-violet-500 font-medium">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      Building…
+                    </div>
+                  </div>
+                  <div className="border-t border-violet-100 px-4 py-3 flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin text-violet-400 flex-shrink-0" />
+                    <p className="text-xs text-violet-500">Working on it — this month's steps will appear here shortly.</p>
+                  </div>
+                </div>
+              );
+            }
+
             const weeksMap = monthsMap[monthKey];
             const allMonthSteps = Object.values(weeksMap).flat();
             const isMonthOpen = expandedPhases[monthKey];
@@ -322,10 +362,7 @@ export default function GoalDetail() {
                 {/* Month content */}
                 {isMonthOpen && (
                   <div className="border-t border-gray-100 bg-gray-50 px-3 py-2 space-y-2">
-                    {/* Month-level steps (no week) */}
                     {monthOnlySteps.map(step => <StepRow key={step.id} step={step} onOpen={() => { setSelectedStep(step); setIsStepModalOpen(true); }} onToggle={() => toggleStepStatus(step)} onCheckIn={() => setHabitCheckInStep(step)} onUpdate={loadData} />)}
-
-                    {/* Week dropdowns */}
                     {sortedWeeks.map(weekKey => {
                       const weekSteps = weeksMap[weekKey];
                       const weekId = `${monthKey}-${weekKey}`;
@@ -359,7 +396,7 @@ export default function GoalDetail() {
               </div>
             );
           })}
-          {steps.length === 0 && (
+          {steps.length === 0 && buildingMonths.length === 0 && (
             <Card className="bg-gray-50 border-gray-200">
               <CardContent className="p-6 text-center text-gray-400">No steps yet. Check back when the plan is created.</CardContent>
             </Card>
