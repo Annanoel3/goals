@@ -288,45 +288,13 @@ export default function Planner() {
             await base44.functions.invoke('scheduleGoalNotifications', { goal_id: goal.id, goal_data: goal, timezoneOffsetMinutes: -new Date().getTimezoneOffset() }).catch(err => console.error('scheduleGoalNotifications failed:', err));
             
             // Background: create remaining steps without awaiting
-            (async () => {
-              for (let j = i; j < plan.steps.length; j++) {
-                const bgStep = plan.steps[j];
-                const bgCreatedStep = await base44.entities.GoalStep.create({
-                  goal_id: goal.id,
-                  title: bgStep.title,
-                  description: bgStep.description || "",
-                  phase: bgStep.phase || "",
-                  priority: bgStep.priority || "medium",
-                  due_date: bgStep.due_date || "",
-                  order_index: bgStep.order_index ?? j,
-                  status: "pending",
-                  step_resources: bgStep.step_resources || [],
-                  success_criteria: bgStep.success_criteria || [],
-                  tips_and_guidance: bgStep.tips_and_guidance || "",
-                  is_daily_habit: bgStep.is_daily_habit === true
-                });
-                
-                // Create sub-steps if provided
-                if (bgStep.sub_steps?.length > 0) {
-                  for (const subStep of bgStep.sub_steps) {
-                    await base44.entities.GoalStep.create({
-                      goal_id: goal.id,
-                      parent_step_id: bgCreatedStep.id,
-                      title: subStep.title,
-                      description: subStep.description || "",
-                      phase: bgStep.phase || "",
-                      priority: subStep.priority || "low",
-                      due_date: subStep.due_date || "",
-                      order_index: 0,
-                      status: "pending"
-                    });
-                  }
-                }
-              }
-              // All remaining steps created — no need to reschedule since Week 1 is already scheduled
-            })();
+            // Fire backend function to create remaining steps asynchronously
+            base44.functions.invoke('createRemainingGoalSteps', {
+              goal_id: goal.id,
+              steps: plan.steps.slice(i)
+            }).catch(err => console.error('createRemainingGoalSteps failed:', err));
             
-            break; // Exit main loop, background task handles the rest
+            break; // Exit main loop, backend task handles the rest
           }
           
           // Create first 2 months synchronously (await)
