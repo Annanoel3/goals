@@ -883,14 +883,26 @@ const COMIC_GIFS = [
 function GifCarousel({ gifs, onComplete }) {
   const [idx, setIdx] = React.useState(() => Math.floor(Math.random() * gifs.length));
   const [done, setDone] = React.useState(false);
+  
+  // Rotate GIFs every 3.5 seconds during the 28-second window
   React.useEffect(() => {
     if (done) return;
-    const timer = setTimeout(() => {
+    const rotateTimer = setInterval(() => {
+      setIdx(i => (i + 1) % gifs.length);
+    }, 3500);
+    return () => clearInterval(rotateTimer);
+  }, [done, gifs.length]);
+  
+  // End animation after 28 seconds total
+  React.useEffect(() => {
+    if (done) return;
+    const endTimer = setTimeout(() => {
       setDone(true);
       onComplete();
     }, 28000);
-    return () => clearTimeout(timer);
-  }, [idx, done, gifs, onComplete]);
+    return () => clearTimeout(endTimer);
+  }, [done, onComplete]);
+  
   return (
     <div className="flex flex-col items-center justify-center py-6 animate-in fade-in duration-300">
       <img
@@ -1176,7 +1188,7 @@ function SavingProgressBar({ isEdit = false, done = false }) {
           style={{ width: `${progress}%` }}
         />
       </div>
-      <p className={`text-xs mt-2 text-center ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>This usually takes 1–2 minutes.</p>
+      <p className={`text-xs mt-2 text-center ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>This usually takes 1–2 minutes. Please don't navigate away.</p>
     </div>
   );
 }
