@@ -42,12 +42,39 @@ Deno.serve(async (req) => {
   : `- Identify the exact duration from the conversation (a deadline, date, or duration phrase). Use that many months — do NOT shorten it.`;
 
     if (mode === 'extract_plan') {
+      // First: classify the goal type to drive downstream extraction rules
+      const goalClassification = await base44.asServiceRole.functions.invoke('classifyGoalType', {
+        conversation_text: conversationText,
+        title: '',
+        description: ''
+      });
+      
+      const classificationRules = {
+        reading: { is_daily_habit: true, notification_frequency: 'daily', requires_daily_breakdown: false },
+        fitness: { is_daily_habit: true, notification_frequency: 'daily', requires_daily_breakdown: true },
+        language: { is_daily_habit: true, notification_frequency: 'daily', requires_daily_breakdown: true },
+        creative: { is_daily_habit: true, notification_frequency: 'daily', requires_daily_breakdown: true },
+        learning: { is_daily_habit: false, notification_frequency: 'weekly', requires_daily_breakdown: false },
+        health: { is_daily_habit: true, notification_frequency: 'daily', requires_daily_breakdown: false },
+        career: { is_daily_habit: false, notification_frequency: 'weekly', requires_daily_breakdown: false },
+        finance: { is_daily_habit: false, notification_frequency: 'weekly', requires_daily_breakdown: false },
+        personal: { is_daily_habit: false, notification_frequency: 'weekly', requires_daily_breakdown: false },
+        project: { is_daily_habit: false, notification_frequency: 'weekly', requires_daily_breakdown: false },
+        other: { is_daily_habit: false, notification_frequency: 'weekly', requires_daily_breakdown: false }
+      };
+      
+      const rules = classificationRules[goalClassification.goal_type] || classificationRules.other;
+      
+      const granularityInstructions = rules.requires_daily_breakdown 
+        ? `TYPE A — DAILY PRACTICE: Break each week into daily tasks (Monday–Sunday). Mark as is_daily_habit: true.`
+        : `TYPE B — MILESTONE GOALS: Use 2-4 specific actions per week. Mark is_daily_habit: false UNLESS this is a ${goalClassification.goal_type} goal that naturally requires daily engagement (in which case, the classification already set it to true).`;
+      
       const extractionResponse = await openai.chat.completions.create({
         model: "gpt-4o",
         messages: [
           {
             role: "system",
-            content: `You are extracting a structured goal plan from a planning conversation. Return ONLY valid JSON, no markdown fences. ${monthsHint} CRITICAL: Even if the conversation only briefly mentions later months without weekly detail, you MUST still generate EXACTLY 4 weeks for EVERY month. Generate EXACTLY 4 steps per month. Each step IS one week. phase must be 'Month X, Week Y' (e.g. 'Month 1, Week 1', 'Month 2, Week 3'). title starts with 'Week 1:', 'Week 2:', 'Week 3:', or 'Week 4:' followed by a brief focus. description = 2-4 sentences. tips_and_guidance = 3-5 activities as a newline-separated list; if daily practice ALWAYS include 'Do [specific action] every day'. step_resources = [{title, specific_details}] main book/resource. No daily breakdowns.`
+            content: `You are extracting a structured goal plan from a planning conversation. This is a ${goalClassification.goal_type} goal. Return ONLY valid JSON, no markdown fences. ${monthsHint} CRITICAL: Even if the conversation only briefly mentions later months without weekly detail, you MUST still generate EXACTLY 4 weeks for EVERY month. Generate EXACTLY 4 steps per month. Each step IS one week. phase must be 'Month X, Week Y' (e.g. 'Month 1, Week 1', 'Month 2, Week 3'). title starts with 'Week 1:', 'Week 2:', 'Week 3:', or 'Week 4:' followed by a brief focus. description = 2-4 sentences. tips_and_guidance = 3-5 activities as a newline-separated list; if daily practice ALWAYS include 'Do [specific action] every day'. step_resources = [{title, specific_details}] main book/resource. ${granularityInstructions} CRITICAL: Set is_daily_habit=${rules.is_daily_habit} for ALL steps in this ${goalClassification.goal_type} goal.`
           },
           {
             role: "user",
@@ -258,24 +285,21 @@ CRITICAL:
         // notification_schedule comes from AI generation
         plan.notification_schedule = plan.notification_schedule || [];
 
-      // Extract habit metadata from the plan
-      const dailyHabitSteps = plan.steps?.filter(s => s.is_daily_habit === true) || [];
-      const hasAnyDailyHabit = dailyHabitSteps.length > 0;
+      // Use classification to set daily habit metadata
+      plan.requires_daily_action = rules.is_daily_habit;
       
-      // Analyze steps to determine weekdays_only
+      // Determine weekdays_only based on goal type
       let weekdaysOnly = false;
-      if (hasAnyDailyHabit) {
-        // Check if steps mention work/business/career context
-        const isWorkGoal = ['career', 'finance'].includes(plan.category);
-        const workKeywords = ['work', 'business', 'office', 'professional', 'job', 'client', 'employee', 'meeting'];
-        const conversationLower = conversationText.toLowerCase();
-        const mentionsWork = workKeywords.some(kw => conversationLower.includes(kw));
-        weekdaysOnly = isWorkGoal || mentionsWork;
+      if (rules.is_daily_habit && goalClassification.goal_type === 'career') {
+        weekdaysOnly = true;
       }
-      
-      plan.requires_daily_action = hasAnyDailyHabit;
       plan.weekdays_only = weekdaysOnly;
       plan.habit_days_of_week = [];
+      
+      // Apply classification notification frequency if not already set
+      if (!plan.notification_frequency) {
+        plan.notification_frequency = rules.notification_frequency;
+      }
 
       console.log(`[goalPlannerChat] Extracted plan: requires_daily_action=${plan.requires_daily_action}, weekdays_only=${plan.weekdays_only}, daily_habit_steps=${dailyHabitSteps.length}`);
 
