@@ -271,69 +271,38 @@ export default function Planner() {
       });
 
       if (plan.steps?.length > 0) {
-        let foundMonths2Boundary = false;
-        
-        // Create steps in batches: wait for first 2 months, then background the rest
-        for (let i = 0; i < plan.steps.length; i++) {
-          const step = plan.steps[i];
-          const monthMatch = (step.phase || '').match(/Month (\d+)/i);
-          const monthNum = monthMatch ? parseInt(monthMatch[1]) : 0;
-          
-          // If we've passed month 2 and haven't flagged yet, start background task
-          if (monthNum > 2 && !foundMonths2Boundary) {
-            foundMonths2Boundary = true;
-            setCanNavigateToGoal(true);
-            setPendingGoalId(goal.id);
+        // Detect total months from plan
+        const totalMonthsMatch = plan.timeline?.match(/(\d+)\s*month/i);
+        const titlesMaxMonth = Object.keys(plan.month_titles || {}).length > 0
+          ? Math.max(...Object.keys(plan.month_titles).map(k => parseInt(k)).filter(n => !isNaN(n)))
+          : 0;
+        const totalMonths = Math.max(totalMonthsMatch ? parseInt(totalMonthsMatch[1]) : 0, titlesMaxMonth, 3);
 
-            // Fire background tasks without awaiting so user doesn't wait
-            base44.functions.invoke('createRemainingGoalSteps', {
+        // Create stub months 1-N upfront with empty weeks (so they show in GoalDetail immediately)
+        for (let m = 1; m <= totalMonths; m++) {
+          for (let w = 1; w <= 4; w++) {
+            await base44.entities.GoalStep.create({
               goal_id: goal.id,
-              steps: plan.steps.slice(i)
-            }).catch(err => console.error('createRemainingGoalSteps failed:', err));
-
-            base44.functions.invoke('scheduleGoalNotifications', { goal_id: goal.id, goal_data: goal, timezoneOffsetMinutes: -new Date().getTimezoneOffset() }).catch(err => console.error('scheduleGoalNotifications failed:', err));
-
-            break; // Exit main loop, backend tasks handle the rest
-          }
-          
-          // Create first 2 months synchronously (await)
-          const createdStep = await base44.entities.GoalStep.create({
-            goal_id: goal.id,
-            title: step.title,
-            description: step.description || "",
-            phase: step.phase || "",
-            priority: step.priority || "medium",
-            due_date: step.due_date || "",
-            order_index: step.order_index ?? i,
-            status: "pending",
-            step_resources: step.step_resources || [],
-            success_criteria: step.success_criteria || [],
-            tips_and_guidance: step.tips_and_guidance || "",
-            is_daily_habit: step.is_daily_habit === true
-          });
-
-          // Create sub-steps if provided
-          if (step.sub_steps?.length > 0) {
-            for (const subStep of step.sub_steps) {
-              await base44.entities.GoalStep.create({
-                goal_id: goal.id,
-                parent_step_id: createdStep.id,
-                title: subStep.title,
-                description: subStep.description || "",
-                phase: step.phase || "",
-                priority: subStep.priority || "low",
-                due_date: subStep.due_date || "",
-                order_index: 0,
-                status: "pending"
-              });
-            }
+              title: `Month ${m} Week ${w}`,
+              description: "",
+              phase: `Month ${m}, Week ${w}`,
+              priority: "medium",
+              due_date: "",
+              order_index: (m - 1) * 4 + (w - 1),
+              status: "pending"
+            });
           }
         }
-        
-        // Schedule notifications in background regardless (never block user)
-        if (!foundMonths2Boundary) {
-          base44.functions.invoke('scheduleGoalNotifications', { goal_id: goal.id, goal_data: goal, timezoneOffsetMinutes: -new Date().getTimezoneOffset() }).catch(err => console.error('scheduleGoalNotifications failed:', err));
-        }
+
+        // Fill in the actual steps asynchronously in background
+        setCanNavigateToGoal(true);
+        setPendingGoalId(goal.id);
+        base44.functions.invoke('createRemainingGoalSteps', {
+          goal_id: goal.id,
+          steps: plan.steps
+        }).catch(err => console.error('createRemainingGoalSteps failed:', err));
+
+        base44.functions.invoke('scheduleGoalNotifications', { goal_id: goal.id, goal_data: goal, timezoneOffsetMinutes: -new Date().getTimezoneOffset() }).catch(err => console.error('scheduleGoalNotifications failed:', err));
       }
 
       setSaved(true);
