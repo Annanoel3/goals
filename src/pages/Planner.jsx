@@ -260,7 +260,6 @@ export default function Planner() {
         status: "active",
         preferred_time: plan.preferred_time || null,
         notification_frequency: plan.notification_frequency || "daily",
-        reminder_interval: plan.reminder_interval || "2hours",
         notification_days: plan.notification_days || null,
         event_cadence: plan.event_cadence || null,
         event_format: plan.event_format || null,
