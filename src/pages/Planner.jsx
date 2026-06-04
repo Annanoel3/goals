@@ -1138,9 +1138,11 @@ function MessageBubble({ msg, onExampleClick }) {
   const isDark = localStorage.getItem('adhd_theme') === 'dark';
 
   const isPlanMessage = (text) => {
-    // Has multiple Month headers OR has Month + Week structure
+    // Must have Month + Week structure to be a real plan (not just a summary listing months)
     const monthMatches = (text.match(/Month\s+\d+/gi) || []);
-    return monthMatches.length >= 2 || (monthMatches.length >= 1 && /Week\s+\d+/i.test(text));
+    const hasWeeks = /Week\s+\d+/i.test(text);
+    // Require at least 2 months AND week structure — summaries list months but don't have weeks
+    return monthMatches.length >= 2 && hasWeeks;
   };
 
   const renderMarkdown = (text) => {
