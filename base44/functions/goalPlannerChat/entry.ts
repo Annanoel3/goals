@@ -137,7 +137,10 @@ HEALTH & WELLNESS: Each week: specific habit target + educational context + meas
 
 LEARNING/SKILL GOALS (coding, design, public speaking): Each week: specific concept/skill + hands-on project + real-world application. Week 1-2: Core concepts (tutorials, theory, foundational projects). Week 3-4: Application (build real thing, solve problems, portfolio piece). Include: example projects, debugging tips, resources.
 
-For reading/daily practice goals: set is_daily_habit: true. For milestone-based goals: set is_daily_habit: false.
+READING GOALS ARE ALWAYS DAILY HABIT GOALS: If the goal title or description contains "read", "book", "novel", "story", or any reference to reading content — EVERY reading step (including all weekly phases) MUST have is_daily_habit: true, REGARDLESS of other factors. Reading goals require consistent daily engagement to hit the target, so each week's reading activities are daily habits.
+
+For other daily practice goals (instruments, languages, fitness, coding, art, meditation, exercise routines): set is_daily_habit: true.
+For milestone-based goals (save money, find job, start business, complete project): set is_daily_habit: false UNLESS daily action is required.
 
 TOKEN PRIORITY RULE: Completing ALL ${detectedMonths} months x 4 weeks = ${detectedMonths * 4} total week-phases is the HIGHEST priority. Trade depth for coverage always. CRITICAL: EVERY month (Month 1 through Month ${detectedMonths}) MUST have FULL step detail and granularity. Do NOT create a summary for later months like "Months 7-12: I will continue...". Each month must have 4 weeks with concrete steps. For short plans (3 months or fewer), use 5-7 steps per week. For longer plans, use 2-4 steps per week. Never sacrifice later months just to add detail to earlier ones. EVERY MONTH gets the same treatment.
 
