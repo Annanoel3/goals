@@ -75,15 +75,15 @@ Deno.serve(async (req) => {
 
     if (mode === 'extract_plan') {
       const extractionResponse = await openai.chat.completions.create({
-        model: "gpt-4o",
+        model: "gpt-4o-mini",
         messages: [
           {
             role: "system",
-            content: `You are extracting a structured goal plan from a planning conversation. Return ONLY valid JSON, no markdown fences. ${monthsHint} CRITICAL: Even if the conversation only briefly mentions later months without weekly detail, you MUST still generate EXACTLY 4 weeks for EVERY month. Generate EXACTLY 4 steps per month. Each step IS one week. phase must be 'Month X, Week Y' (e.g. 'Month 1, Week 1', 'Month 2, Week 3'). title starts with 'Week 1:', 'Week 2:', 'Week 3:', or 'Week 4:' followed by a brief focus. description = 1-2 sentences (REQUIRED -- NEVER empty or missing, even for months 3-12; shorter is fine, empty is a critical failure). tips_and_guidance = 3-5 activities as a newline-separated list; if daily practice ALWAYS include 'Do [specific action] every day'. step_resources = [{title, specific_details}] main book/resource. No daily breakdowns.`
+            content: `You are EXTRACTING (not creating) a structured goal plan from a planning conversation where the plan was ALREADY FULLY PRESENTED. The plan summary with all book titles / month themes already exists in the conversation — your job is to convert it to JSON. Return ONLY valid JSON, no markdown fences. ${monthsHint} CRITICAL: Generate EXACTLY 4 steps per month. Each step IS one week. phase must be 'Month X, Week Y' (e.g. 'Month 1, Week 1', 'Month 2, Week 3'). title starts with 'Week 1:', 'Week 2:', 'Week 3:', or 'Week 4:' followed by a brief focus. description = 1-2 sentences. tips_and_guidance = 3-5 activities as a newline-separated list. step_resources = [{title, specific_details}] main book/resource. Extract the SPECIFIC book titles and content already decided in the conversation — do NOT invent new ones.`
           },
           {
             role: "user",
-            content: `Extract the FINAL agreed plan from this conversation:
+            content: `Extract the FINAL agreed plan from this conversation. The plan was already presented and approved — convert it to JSON:
 
 ${conversationText}
 
@@ -235,7 +235,7 @@ CRITICAL:
 7. This removes all excuses — users have everything they need to execute.`
           }
         ],
-        max_tokens: 16000,
+        max_tokens: 12000,
         response_format: { type: "json_object" }
       });
 
@@ -822,8 +822,32 @@ ANY of the following phrases is an AUTOMATIC CRITICAL FAILURE — if you write a
 You have the user's genre preferences, favorite books, things they liked/disliked, and mood from the conversation. Use that information RIGHT NOW to select every single book. Draw on your knowledge of the genre. Pick them all in this message. Every month. No exceptions. ████
 
 (2) Ask if this summary is accurate and whether they would like to adjust or add anything before the plan is built. (3) Only after they confirm the summary looks right, build the full plan immediately and say PLAN_APPROVED. Do NOT add an extra "ready to build?" question after confirmation — when they say yes to the summary, go straight to building and saving.
-10. When user approves (says "looks great", "perfect", "save it", "let's do it", "that works", "yes", "looks good"), FIRST verify your plan covers ALL months from Month 1 to the final month with no gaps. If the plan is incomplete (e.g. only 2 of 7 months covered), DO NOT say PLAN_APPROVED — instead present the missing months immediately. Only say PLAN_APPROVED when the COMPLETE plan has been presented in the conversation. Then start your response with EXACTLY "PLAN_APPROVED" and give a warm 2-3 sentence summary, then add: "Remember, this plan is a living document. Come back anytime to adjust the difficulty, add new resources, extend the timeline, skip ahead if you're crushing it, or completely restructure a phase. Just tell me what's working and what isn't — I'll update your plan instantly."
-10b. CRITICAL: When presenting the initial plan draft, you MUST present ALL months/weeks for the FULL timeline in a single response. Do NOT present only 1-2 months and stop. If the plan is 7 months, show all 7 months. If it's 12 months, show all 12. Never truncate the plan — present the complete plan in full before asking for approval.
+10. When user approves (says "looks great", "perfect", "save it", "let's do it", "that works", "yes", "looks good"), FIRST verify your plan covers ALL months from Month 1 to the final month with no gaps. If the plan is incomplete (e.g. only 2 of 7 months covered), DO NOT say PLAN_APPROVED — instead present the missing months immediately. Only say PLAN_APPROVED when the COMPLETE plan has been presented in the conversation. Then start your response with EXACTLY "PLAN_APPROVED" followed immediately by the FULL STRUCTURED PLAN in the format below — this is critical so the plan can be saved without a separate AI call. After the plan, add a warm 2-3 sentence closing note.
+
+PLAN_APPROVED FORMAT — output exactly this structure after "PLAN_APPROVED":
+
+Month 1 – [Book Title or Phase Name]
+Week 1: [brief focus]
+- [task 1]
+- [task 2]
+- [task 3]
+Week 2: [brief focus]
+- [task 1]
+- [task 2]
+Week 3: [brief focus]
+- [task 1]
+- [task 2]
+Week 4: [brief focus]
+- [task 1]
+- [task 2]
+
+Month 2 – [Book Title or Phase Name]
+Week 1: [brief focus]
+...and so on for EVERY month.
+
+CRITICAL: Every month and every week must appear in this structured format. The month titles here MUST match the book titles / themes already presented in the summary. Do NOT change titles at approval time.
+
+10b. CRITICAL: When presenting the initial plan draft (the summary), you MUST present ALL months/weeks for the FULL timeline in a single response. Do NOT present only 1-2 months and stop. If the plan is 7 months, show all 7 months. If it's 12 months, show all 12. Never truncate the plan — present the complete plan in full before asking for approval.
 10c. SEQUENTIAL MONTHS — NON-NEGOTIABLE: The plan MUST list months in sequential order with NO GAPS. If the plan is 7 months, you MUST have Month 1, Month 2, Month 3, Month 4, Month 5, Month 6, Month 7 — ALL of them. Jumping from Month 2 to Month 7 is a critical failure. Every single month between the first and last must appear with its own weeks and steps.
 
 ██████████████████████████████████████████████████████████
