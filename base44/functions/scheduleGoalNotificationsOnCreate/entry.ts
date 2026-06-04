@@ -55,10 +55,20 @@ Deno.serve(async (req) => {
       return Response.json({ success: false, error: 'Missing OneSignal config' }, { status: 500 });
     }
 
-    // Fetch goal and user from DB
-    const goal = await base44.asServiceRole.entities.Goal.get(goal_id);
+    // Fetch goal with retry — goal may not be committed yet when this is called
+    let goal = null;
+    for (let attempt = 1; attempt <= 5; attempt++) {
+      try {
+        goal = await base44.asServiceRole.entities.Goal.get(goal_id);
+        if (goal) break;
+      } catch (e) {
+        console.log(`[scheduleGoalNotificationsOnCreate] attempt ${attempt} failed:`, e.message);
+      }
+      console.log(`[scheduleGoalNotificationsOnCreate] goal not found yet, waiting... (attempt ${attempt}/5)`);
+      await new Promise(r => setTimeout(r, 2000 * attempt));
+    }
     if (!goal) {
-      return Response.json({ success: false, error: 'Goal not found' }, { status: 404 });
+      return Response.json({ success: false, error: 'Goal not found after retries' }, { status: 404 });
     }
 
     const userList = await base44.asServiceRole.entities.User.filter({ email: user_email });
