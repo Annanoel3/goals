@@ -163,7 +163,7 @@ IMPORTANT: Generate 2-4 specific, actionable tasks per week-phase. Keep descript
   "description": "what the user wants to achieve",
   "timeline": "e.g. 5 months",
   "target_date": "YYYY-MM-DD calculated from today ${today}",
-  "category": "one of: learning, health, career, finance, relationships, personal, creative, other",
+  "category": "one of: learning, health, career, finance, relationships, personal, creative, other — CRITICAL: reading goals (books, novels, literature) = 'learning'. Daily habit/routine goals = 'personal'. Never use 'personal' for reading or skill-building goals.",
   "notification_frequency": "daily|weekdays|weekly|3x_per_week|2x_per_week|once_per_week — inferred from conversation",
   "plan_summary": "2-3 sentence summary of the overall plan",
   "month_titles": {
