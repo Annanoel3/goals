@@ -984,16 +984,20 @@ Always be specific, warm, encouraging, and treat the plan as a living document t
      const isDateOnly = (t) => /^(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}$/i.test(t);
      const stripFormatting = (s) => s.replace(/\*+/g, '').replace(/^[#>\s-]+/, '').trim();
 
+     // Track which month numbers we've seen to validate sequential order
+     const seenMonthNumbers = new Set();
+
      for (let li = 0; li < replyLines.length; li++) {
        const cleanLine = stripFormatting(replyLines[li]);
 
        // Format 1: "Month 1 – Title" or "Month 1 - *Title*" on same line
        const inlineMatch = cleanLine.match(/^Month\s+(\d+)\s*[–—:\-]+\s*(.+)/i);
        if (inlineMatch) {
-         const num = inlineMatch[1];
+         const num = parseInt(inlineMatch[1], 10);
          const title = stripFormatting(inlineMatch[2]);
          if (title && !isDateOnly(title) && title.length <= 120 && !chatMonthTitles[num]) {
            chatMonthTitles[num] = title;
+           seenMonthNumbers.add(num);
          }
          continue;
        }
@@ -1001,7 +1005,7 @@ Always be specific, warm, encouraging, and treat the plan as a living document t
        // Format 2: "Month 1" alone (or "**Month 1**"), next non-empty line is the title
        const monthNumMatch = cleanLine.match(/^Month\s+(\d+)$/i);
        if (monthNumMatch) {
-         const num = monthNumMatch[1];
+         const num = parseInt(monthNumMatch[1], 10);
          // Scan up to 5 lines ahead for the title (skip blank lines)
          for (let nli = li + 1; nli < replyLines.length && nli < li + 6; nli++) {
            const candidate = stripFormatting(replyLines[nli]);
@@ -1013,7 +1017,10 @@ Always be specific, warm, encouraging, and treat the plan as a living document t
            // Skip "continue to select" or generic placeholders
            const isGenericPlaceholder = /continue\s+to\s+select|will\s+continue|for\s+these\s+months/i.test(candidate);
            if (!isWeekLine && !isMonthLine && !isDateOnly(candidate) && !isGenericPlaceholder && candidate.length <= 150 && !isTaskBullet) {
-             if (!chatMonthTitles[num]) chatMonthTitles[num] = candidate;
+             if (!chatMonthTitles[num]) {
+               chatMonthTitles[num] = candidate;
+               seenMonthNumbers.add(num);
+             }
            }
            break;
          }
