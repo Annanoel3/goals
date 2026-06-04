@@ -66,22 +66,12 @@ Deno.serve(async (req) => {
           );
 
           if (user?.email) {
-            // Send reminder via OneSignal push
+            // Send reminder
             try {
-              await fetch('https://onesignal.com/api/v1/notifications', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Basic ${Deno.env.get('ONESIGNAL_REST_API_KEY')}`
-                },
-                body: JSON.stringify({
-                  app_id: Deno.env.get('ONESIGNAL_APP_ID'),
-                  include_external_user_ids: [user.email],
-                  channel_for_external_user_ids: 'push',
-                  headings: { en: `⏰ Still working on "${goal.title}"?` },
-                  contents: { en: `You scheduled a workout for ${goal.preferred_time}, but we haven't seen any activity yet. Tap to check in!` },
-                  data: { goal_id: goal.id, screen: 'GoalStepNotification' }
-                })
+              await base44.asServiceRole.integrations.Core.SendEmail({
+                to: user.email,
+                subject: `⏰ Hey! Still working on "${goal.title}"?`,
+                body: `You scheduled a workout for ${goal.preferred_time}, but we haven't seen any activity yet. Are you still planning to work out? If not, no worries—just let me know when you want to reschedule!`
               });
 
               results.push({

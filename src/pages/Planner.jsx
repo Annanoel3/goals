@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Send, Loader2, Mic, Sparkles, Target, Plus, Check, ChevronDown, ChevronUp, ChevronRight } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
-import { setUserActive, showInterstitialAd } from "@/lib/admob";
+import { setUserActive } from "@/lib/admob";
 
 export default function Planner() {
   const [messages, setMessages] = useState(() => {
@@ -19,7 +19,7 @@ export default function Planner() {
         const d = JSON.parse(s);
         if (d.messages?.length > 0) return d.messages;
       }
-    } catch { }
+    } catch {}
     return [];
   });
   const [input, setInput] = useState("");
@@ -34,27 +34,14 @@ export default function Planner() {
   const [goals, setGoals] = useState([]);
   const [editingGoal, setEditingGoal] = useState(null); // goal being edited in current session
   const [userCity, setUserCity] = useState(null);
-  const [currentUser, setCurrentUser] = useState(null);
   const [saveError, setSaveError] = useState(false);
   const messagesEndRef = useRef(null);
   const messagesRef = useRef(messages);
-  const pendingGoalIdRef = useRef(null);
-  const editingGoalRef = useRef(null);
-  const saveInProgressRef = useRef(false); // prevent double-save
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
-  const [showAdOverlay, setShowAdOverlay] = useState(false);
 
   useEffect(() => { messagesRef.current = messages; }, [messages]);
-  useEffect(() => { pendingGoalIdRef.current = pendingGoalId; }, [pendingGoalId]);
-  useEffect(() => { editingGoalRef.current = editingGoal; }, [editingGoal]);
-
-  // Suppress ads while the Planner is open
-  useEffect(() => {
-    setUserActive(true);
-    return () => setUserActive(false);
-  }, []);
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -66,15 +53,26 @@ export default function Planner() {
       // If there's a saved in-progress session, restore it (unless navigated with ?edit or ?nudge)
       const editId = searchParams.get('edit');
       const nudgeGoalId = searchParams.get('nudge');
-      // pendingAction is intentionally NOT restored from localStorage.
-      // It is only set live when the AI response contains a full plan in the current session.
-    }).catch(() => { });
-    base44.auth.me().then(u => { setCurrentUser(u); if (u?.city) setUserCity(u.city); }).catch(() => { });
+      if (!editId && !nudgeGoalId) {
+        // Messages already eagerly restored in useState initializer.
+        // Only restore pendingAction if the last message looks like a full plan.
+        try {
+          const sessionData = JSON.parse(localStorage.getItem('plannerInProgress') || '{}');
+          const lastMsg = sessionData.messages?.[sessionData.messages.length - 1];
+          const lastContent = lastMsg?.content || '';
+          const looksLikePlan = lastContent.includes('Month 1') && (lastContent.includes('Month 2') || lastContent.includes('Week 1'));
+          if (looksLikePlan && lastMsg?.role === 'assistant') {
+            setPendingAction('plan_proposed');
+          }
+        } catch {}
+      }
+    }).catch(() => {});
+    base44.auth.me().then(u => { if (u?.city) setUserCity(u.city); }).catch(() => {});
 
     // Subscribe to goal changes to catch pending goals being created
     const unsubscribe = base44.entities.Goal.subscribe((event) => {
       if (event.type === 'create' || event.type === 'update') {
-        base44.entities.Goal.list().then(setGoals).catch(() => { });
+        base44.entities.Goal.list().then(setGoals).catch(() => {});
       }
     });
 
@@ -107,13 +105,12 @@ export default function Planner() {
 
   const startEditSession = (goal) => {
     setEditingGoal(goal);
-    editingGoalRef.current = goal;
     // Load conversation history if available, otherwise show edit prompt
     if (goal.conversation_history && goal.conversation_history.length > 0) {
       // Attach the goal's saved month_titles to assistant messages so PlanView can show subtitles
       const monthTitles = goal.month_titles || {};
       const hydratedMessages = goal.conversation_history.map(m =>
-        m.role === 'assistant' ? { ...m, goalMonthTitles: { ...monthTitles, ...(m.goalMonthTitles || {}) } } : m
+        m.role === 'assistant' ? { ...m, goalMonthTitles: m.goalMonthTitles || monthTitles } : m
       );
       setMessages(hydratedMessages);
       setPendingAction(null);
@@ -171,13 +168,7 @@ export default function Planner() {
       if (editingGoal) payload.goal_id = editingGoal.id;
 
       const res = await base44.functions.invoke("goalPlannerChat", payload);
-      if (!res.data) {
-        throw new Error('No response from planner');
-      }
-      const { message, action, goal_id, month_titles, error } = res.data;
-      if (error) {
-        throw new Error(error);
-      }
+      const { message, action, goal_id, month_titles } = res.data;
 
       // If the AI returned new month_titles, use them exclusively (they reflect the new plan).
       // Only fall back to the existing goal's titles if the AI returned nothing at all.
@@ -186,26 +177,24 @@ export default function Planner() {
         : (editingGoal?.month_titles || {});
       const updatedMessages = [...newMessages, { role: "assistant", content: message, goalMonthTitles: newMonthTitles }];
       setMessages(updatedMessages);
-      // Update localStorage (don't persist pendingAction — it's derived live from message content)
-      const sessionData = { startedAt: new Date().toISOString(), messages: updatedMessages, completed: false };
+      // Update localStorage
+      const sessionData = { startedAt: new Date().toISOString(), messages: updatedMessages, pendingAction: action || pendingAction, completed: false };
       localStorage.setItem('plannerInProgress', JSON.stringify(sessionData));
 
       // Detect if AI proposed a full plan (new or edit) — show approval buttons
       // ONLY show save buttons when the message actually contains a full plan with multiple months/weeks
-      const looksLikeFullPlan = message?.includes('Month 1') && (message?.includes('Month 2') &&
-        message?.includes('Month 3'));
+      const looksLikeFullPlan = message?.includes('Month 1') && (message?.includes('Month 2') || message?.includes('Week 1') || message?.includes('Week 2'));
       if (looksLikeFullPlan && !message?.includes('EDIT_APPROVED')) {
         // Full plan is visible in this message — show approval buttons
         setPendingAction('plan_proposed');
       } else if (action === 'edit_approved' || message?.includes('EDIT_APPROVED')) {
         setPendingAction('edit_approved');
-        const resolvedGoalId = goal_id || editingGoalRef.current?.id;
+        const resolvedGoalId = goal_id || editingGoal?.id;
         setPendingGoalId(resolvedGoalId);
-        pendingGoalIdRef.current = resolvedGoalId;
         // If we weren't already in an edit session, set it now
-        if (!editingGoalRef.current && resolvedGoalId) {
+        if (!editingGoal && resolvedGoalId) {
           const found = goals.find(g => g.id === resolvedGoalId);
-          if (found) { setEditingGoal(found); editingGoalRef.current = found; }
+          if (found) setEditingGoal(found);
         }
       }
     } catch (err) {
@@ -219,38 +208,51 @@ export default function Planner() {
     if (!plan.steps || plan.steps.length === 0) {
       throw new Error("No steps found in plan. Please try again.");
     }
-    // Just warn — don't block saving over missing months; backend already validated structure
-    if (plan.steps.length < 4) {
-      console.warn(`Warning: Only ${plan.steps.length} steps for ${plan.timeline} goal. Plan may lack detail.`);
+
+    // Check for month gaps
+    const timelineMatch = plan.timeline?.match(/(\d+)\s*month/i);
+    const expectedMonths = timelineMatch ? parseInt(timelineMatch[1], 10) : null;
+    
+    if (expectedMonths && expectedMonths >= 3) {
+      const monthCounts = {};
+      plan.steps.forEach(s => {
+        const monthMatch = (s.phase || '').match(/Month (\d+)/i);
+        if (monthMatch) {
+          monthCounts[parseInt(monthMatch[1], 10)] = true;
+        }
+      });
+      
+      const missing = [];
+      for (let i = 1; i <= expectedMonths; i++) {
+        if (!monthCounts[i]) missing.push(i);
+      }
+      
+      if (missing.length > 0) {
+        throw new Error(`Plan incomplete: missing Month ${missing.join(', Month ')}. Expected all ${expectedMonths} months.`);
+      }
+    }
+    
+    // Warn if too few steps
+    if (plan.steps.length < 15) {
+      console.warn(`Warning: Only ${plan.steps.length} steps for ${plan.timeline} goal (expected 15+). Plan may lack detail.`);
     }
   };
 
   const handleSaveNewGoal = async () => {
-    if (saveInProgressRef.current) return;
-    saveInProgressRef.current = true;
-    setShowAdOverlay(true);
-    await showInterstitialAd();
     setIsSaving(true);
     setSaveError(false);
     try {
       const allMessages = messagesRef.current.filter(m => m.role !== "system");
-      const res = await base44.functions.invoke("goalPlannerChat", {
-        messages: allMessages,
-        mode: "extract_plan",
-      });
-
+      const res = await base44.functions.invoke("goalPlannerChat", { messages: allMessages, mode: "extract_plan" });
+      
       if (res.data?.error) {
         throw new Error(res.data.error);
       }
-
+      
       const plan = res.data.plan;
       validatePlanSteps(plan);
 
-      // Create goal immediately (steps build in background)
-      const totalMonths = Object.keys(plan.month_titles || {}).length || 1;
-      const buildingMonths = totalMonths > 0 ? Array.from({length: totalMonths}, (_, i) => i + 1) : null;
-      
-      const createdGoal = await base44.entities.Goal.create({
+      const goal = await base44.entities.Goal.create({
         title: plan.title,
         description: plan.description,
         plan_summary: plan.plan_summary,
@@ -261,24 +263,53 @@ export default function Planner() {
         preferred_time: plan.preferred_time || null,
         notification_frequency: plan.notification_frequency || "daily",
         reminder_interval: plan.reminder_interval || "2hours",
-        notification_days: plan.notification_days || null,
-        event_cadence: plan.event_cadence || null,
-        event_format: plan.event_format || null,
         conversation_history: allMessages,
-        month_titles: plan.month_titles || {},
-        building_months: buildingMonths,
+        month_titles: plan.month_titles || {}
       });
 
-      const goal = createdGoal;
-      if (!goal?.id) throw new Error('Goal creation returned no ID');
-      await base44.entities.Goal.update(goal.id, { goal_id: goal.id });
+      if (plan.steps?.length > 0) {
+        for (let i = 0; i < plan.steps.length; i++) {
+          const step = plan.steps[i];
+          const createdStep = await base44.entities.GoalStep.create({
+            goal_id: goal.id,
+            title: step.title,
+            description: step.description || "",
+            phase: step.phase || "",
+            priority: step.priority || "medium",
+            due_date: step.due_date || "",
+            order_index: step.order_index ?? i,
+            status: "pending",
+            step_resources: step.step_resources || [],
+            success_criteria: step.success_criteria || [],
+            tips_and_guidance: step.tips_and_guidance || "",
+            is_daily_habit: step.is_daily_habit === true
+          });
 
-      pendingGoalIdRef.current = goal.id;
+          // Create sub-steps if provided
+          if (step.sub_steps?.length > 0) {
+            for (const subStep of step.sub_steps) {
+              await base44.entities.GoalStep.create({
+                goal_id: goal.id,
+                parent_step_id: createdStep.id,
+                title: subStep.title,
+                description: subStep.description || "",
+                phase: step.phase || "",
+                priority: subStep.priority || "low",
+                due_date: subStep.due_date || "",
+                order_index: 0,
+                status: "pending"
+              });
+            }
+          }
+        }
+      }
+
       setSaved(true);
       setPendingGoalId(goal.id);
+      // Clear the in-progress session
       localStorage.removeItem('plannerInProgress');
 
-      // Back-fill month_titles
+      // Back-fill month_titles into the last assistant message so PlanView shows all subtitles
       if (plan.month_titles && Object.keys(plan.month_titles).length > 0) {
         setMessages(prev => prev.map((m, i) =>
           i === prev.length - 1 && m.role === 'assistant'
@@ -287,32 +318,14 @@ export default function Planner() {
         ));
       }
 
-      // Create all steps in background (don't await)
-      base44.functions.invoke('goalPlannerChat', {
-        messages: [],
-        mode: 'bulk_insert_steps',
-        goal_id: goal.id,
-        steps: plan.steps || [],
-      }).then(() => {
-        // Clear building_months once done
-        base44.entities.Goal.update(goal.id, { building_months: null });
-      }).catch(err => console.error('Failed to insert steps:', err));
-
-      base44.functions.invoke('scheduleGoalNotificationsOnCreate', { goal_id: goal.id, user_email: currentUser?.email, goal_start_date: createdGoal.target_date }).catch(err => console.error('Failed to schedule notifications:', err));
-
+      // Schedule all notifications — short delay to ensure the goal record is fully persisted
+      setTimeout(() => {
+        base44.functions.invoke('scheduleGoalNotifications', { goal_id: goal.id, preferred_time: plan.preferred_time, timezoneOffsetMinutes: -new Date().getTimezoneOffset() }).catch(err => console.error('scheduleGoalNotifications failed:', err));
+      }, 2000);
     } catch (err) {
-      console.error('Goal save error:', err);
-      console.error('Error details:', {
-        message: err?.message,
-        response: err?.response?.data,
-        status: err?.response?.status,
-        fullError: err
-      });
       setSaveError(true);
-      saveInProgressRef.current = false;
     } finally {
       setIsSaving(false);
-      setShowAdOverlay(false);
     }
   };
 
@@ -320,8 +333,8 @@ export default function Planner() {
     setIsSaving(true);
     try {
       const allMessages = messagesRef.current.filter(m => m.role !== "system");
-      const gid = pendingGoalIdRef.current || editingGoalRef.current?.id;
-
+      const gid = pendingGoalId || editingGoal?.id;
+      
       // Save conversation history only — let apply_edit handle month_titles from the new plan
       if (gid) {
         await base44.entities.Goal.update(gid, { conversation_history: allMessages });
@@ -330,7 +343,7 @@ export default function Planner() {
       await base44.functions.invoke("goalPlannerChat", {
         messages: allMessages,
         mode: "apply_edit",
-        goal_id: gid,
+        goal_id: gid
       });
 
       setSaved(true);
@@ -339,7 +352,8 @@ export default function Planner() {
 
       // Reschedule all notifications for this goal (cancels old ones first)
       if (gid) {
-        base44.functions.invoke('rescheduleAllGoalNotifications', { goal_id: gid }).catch(err => console.error('rescheduleAllGoalNotifications failed:', err));
+        const currentGoal = goals.find(g => g.id === gid);
+        base44.functions.invoke('scheduleGoalNotifications', { goal_id: gid, preferred_time: currentGoal?.preferred_time, timezoneOffsetMinutes: -new Date().getTimezoneOffset() }).catch(err => console.error('scheduleGoalNotifications failed:', err));
       }
     } catch (err) {
       toast({ title: "Error applying changes", description: "Please try again.", variant: "destructive" });
@@ -428,14 +442,14 @@ export default function Planner() {
           </div>
           <div className="flex items-center gap-2">
             {(editingGoal || messages.length > 0) && (
-              <Button variant="ghost" size="sm" onClick={handleNewPlan} disabled={isLoading} className={`text-xs h-7 px-3 rounded-full ${isDark ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-500 hover:bg-gray-100'}`}>
+              <Button variant="ghost" size="sm" onClick={handleNewPlan} disabled={isSaving} className={`text-xs h-7 px-3 rounded-full ${isDark ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-500 hover:bg-gray-100'}`}>
                 {editingGoal ? 'Back' : 'New'}
               </Button>
             )}
             <Button
               variant="ghost"
               size="sm"
-              disabled={isLoading}
+              disabled={isSaving}
               className={`text-xs h-7 px-3 rounded-full ${isDark ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-500 hover:bg-gray-100'}`}
               onClick={() => navigate("/Goals")}
             >
@@ -457,19 +471,19 @@ export default function Planner() {
             {messages.map((msg, i) => (
               <MessageBubble key={i} msg={msg} onExampleClick={i === 0 ? sendMessage : null} />
             ))}
-            {isLoading && !showAdOverlay && (
-              <div className="flex justify-center py-4">
-                {editingGoal ? (
-                  <SavingProgressBar isEdit done={false} isSavingToDb={false} />
-                ) : (
-                  <div className="flex gap-1.5 items-center">
-                    <div className="w-2.5 h-2.5 bg-violet-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                    <div className="w-2.5 h-2.5 bg-violet-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                    <div className="w-2.5 h-2.5 bg-violet-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                  </div>
-                )}
-              </div>
-            )}
+            {isLoading && (
+        <div className="flex justify-center py-4">
+          {editingGoal ? (
+            <SavingProgressBar isEdit done={false} />
+          ) : (
+            <div className="flex gap-1.5 items-center">
+              <div className="w-2.5 h-2.5 bg-violet-400 rounded-full animate-bounce" style={{animationDelay:'0ms'}} />
+              <div className="w-2.5 h-2.5 bg-violet-400 rounded-full animate-bounce" style={{animationDelay:'150ms'}} />
+              <div className="w-2.5 h-2.5 bg-violet-400 rounded-full animate-bounce" style={{animationDelay:'300ms'}} />
+            </div>
+          )}
+        </div>
+      )}
 
             {/* Plan preview before approval — new goal */}
             {pendingAction === 'plan_proposed' && !isLoading && !saved && !editingGoal && !showCelebration && (
@@ -513,25 +527,25 @@ export default function Planner() {
 
             {/* Celebration + saving animation (shared between new goal and edit) */}
             {pendingAction !== null && !isLoading && !saved && showCelebration && (
-              <>
-                <GifCarousel gifs={COMIC_GIFS} onComplete={() => { }} />
-                {saveError ? (
-                  <div className="flex flex-col items-center gap-3 py-2">
-                    <p className={`text-sm font-medium ${isDark ? 'text-red-400' : 'text-red-600'}`}>Something went wrong saving your goal.</p>
-                    <Button
-                      onClick={editingGoal ? handleApplyEdits : handleSaveNewGoal}
-                      className={`rounded-2xl px-6 py-2.5 font-semibold ${isDark ? 'bg-violet-600 hover:bg-violet-700 text-white' : 'bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white'}`}
-                    >
-                      Retry
-                    </Button>
-                  </div>
-                ) : isSaving && (
-                  <div className="flex justify-center">
-                    <SavingProgressBar isEdit={!!editingGoal} done={!isSaving} isSavingToDb={true} />
-                  </div>
-                )}
-              </>
-            )}
+        <>
+          <GifCarousel gifs={COMIC_GIFS} onComplete={() => {}} />
+          {saveError ? (
+            <div className="flex flex-col items-center gap-3 py-2">
+              <p className={`text-sm font-medium ${isDark ? 'text-red-400' : 'text-red-600'}`}>Something went wrong saving your goal.</p>
+              <Button
+                onClick={editingGoal ? handleApplyEdits : handleSaveNewGoal}
+                className={`rounded-2xl px-6 py-2.5 font-semibold ${isDark ? 'bg-violet-600 hover:bg-violet-700 text-white' : 'bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white'}`}
+              >
+                Retry
+              </Button>
+            </div>
+          ) : isSaving && (
+            <div className="flex justify-center">
+              <SavingProgressBar isEdit={!!editingGoal} done={!isSaving} />
+            </div>
+          )}
+        </>
+      )}
 
             {/* Edit approval */}
             {pendingAction === 'edit_approved' && !saved && !showCelebration && (
@@ -568,13 +582,13 @@ export default function Planner() {
                       <p className={`text-sm font-medium mb-1 ${isDark ? 'text-violet-300' : 'text-violet-800'}`}>Your plan is a living document 🌱</p>
                       <p className={`text-xs leading-relaxed mb-3 ${isDark ? 'text-violet-400' : 'text-violet-600'}`}>Come back anytime to adjust difficulty, add resources, skip ahead, extend the timeline, or completely restructure a phase. Just tell me what's working and what isn't.</p>
                       <div className="flex gap-2 justify-center">
-                        <Button size="sm" className={`rounded-xl text-xs font-semibold ${isDark ? 'bg-violet-600 hover:bg-violet-700 text-white' : 'bg-violet-600 hover:bg-violet-700 text-white'}`} onClick={() => navigate(`/goal/${pendingGoalIdRef.current || pendingGoalId}`)}>
-                          Go to Goal →
-                        </Button>
-                        <Button size="sm" variant="outline" className={`rounded-xl text-xs font-semibold ${isDark ? 'border-violet-700 text-violet-400 hover:bg-gray-700' : 'border-violet-200 text-violet-700 hover:bg-violet-50'}`} onClick={handleNewPlan}>
-                          Plan Another
-                        </Button>
-                      </div>
+                         <Button size="sm" className={`rounded-xl text-xs font-semibold ${isDark ? 'bg-violet-600 hover:bg-violet-700 text-white' : 'bg-violet-600 hover:bg-violet-700 text-white'}`} onClick={() => navigate(`/goal/${pendingGoalId}`)}>
+                           Go to Goal →
+                         </Button>
+                         <Button size="sm" variant="outline" className={`rounded-xl text-xs font-semibold ${isDark ? 'border-violet-700 text-violet-400 hover:bg-gray-700' : 'border-violet-200 text-violet-700 hover:bg-violet-50'}`} onClick={handleNewPlan}>
+                           Plan Another
+                         </Button>
+                       </div>
                     </div>
                   </>
                 )}
@@ -599,6 +613,8 @@ export default function Planner() {
           <Textarea
             value={input}
             onChange={e => setInput(e.target.value)}
+            onFocus={() => setUserActive(true)}
+            onBlur={() => setUserActive(false)}
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(input); } }}
             placeholder={
               editingGoal
@@ -693,8 +709,8 @@ function parsePlanHierarchy(text, goalMonthTitles = {}) {
 
   // "Month 1, Week 2" or "Month 1 Week 2" — combined header
   const isCombinedHeader = (l) => /Month\s+\d+[,\s]+Week\s+\d+/i.test(l.replace(/\*\*/g, ''));
-  // Pure "Month 1" header (no week) — also matches "#### Month 1 - Title" and "**Month 1**"
-  const isPureMonthHeader = (l) => /^(#{1,4}\s*)?(\*{1,2})?Month\s+\d+(\*{1,2})?(?:[:\s\-–—].*)?$/i.test(l.trim());
+  // Pure "Month 1" header (no week) — also matches "#### Month 1 - Title"
+  const isPureMonthHeader = (l) => /^(#{1,4}\s+)?(\*\*)?Month\s+\d+(\*\*)?(?:[:\s-].*)?$/i.test(l.replace(/\*\*/g, '').trim());
   // Pure "Week 1" or "Week 1:" standalone — also matches "#### Week 1 - Title"
   const isPureWeekHeader = (l) => /^(#{1,4}\s+)?(\*\*)?Week\s+\d+(\*\*)?[:\s-]*/i.test(l.replace(/\*\*/g, '').trim()) && !/Month/i.test(l);
   const isTaskLine = (l) => /^[-•*]\s+/.test(l) || /^\d+\.\s+/.test(l) || /^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|Day\s*\d+)/i.test(l);
@@ -732,7 +748,7 @@ function parsePlanHierarchy(text, goalMonthTitles = {}) {
         // Extract subtitle e.g. "Month 1 - Begin Immersion" → store as month subtitle
         const subtitle = cleanHeader(line).replace(/^Month\s+\d+\s*[-–—:]\s*/i, '').trim();
         // Only set subtitle if it's different from just "Month N" and not a pure date (e.g. "June 2026")
-        const isDateOnly = /^(January|February|March|April|May|June|July|August|September|October|November|December)(\s+\d{4})?$/i.test(subtitle);
+        const isDateOnly = /^(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}$/i.test(subtitle);
         if (subtitle && !isDateOnly && !/^Month\s+\d+$/i.test(subtitle)) currentMonth.subtitle = subtitle;
         currentWeek = null;
         prevLineWasMonthHeader = true;
@@ -762,19 +778,12 @@ function parsePlanHierarchy(text, goalMonthTitles = {}) {
     } else {
       // If we're right after a month header and no subtitle yet, this non-task, non-week line might be the book title
       if (prevLineWasMonthHeader && currentMonth && !currentMonth.subtitle) {
-        const candidateSubtitle = line.replace(/\*+/g, '').replace(/^[-\u2013\u2014:#>\s]+/, '').trim();
-        const isDateOnly = /^(January|February|March|April|May|June|July|August|September|October|November|December)(\s+\d{4})?$/i.test(candidateSubtitle.trim());
-        const isTooLong = candidateSubtitle.length > 100;
-        const isWeekLine = /^Week\s+\d+/i.test(candidateSubtitle);
-        const isMonthLine = /^Month\s+\d+/i.test(candidateSubtitle);
-        if (candidateSubtitle && !isDateOnly && !isTooLong && !isWeekLine && !isMonthLine && candidateSubtitle.length >= 2) {
-          currentMonth.subtitle = candidateSubtitle;
-          prevLineWasMonthHeader = false;
-        } else if (!isDateOnly) {
-          prevLineWasMonthHeader = false;
-        }
-        // (if isDateOnly, keep prevLineWasMonthHeader=true to keep scanning)
+        const candidateSubtitle = line.replace(/\*+/g, '').replace(/^[-–—:]\s*/, '').trim();
+        const isDateOnly = /^(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}$/i.test(candidateSubtitle);
+        const isTooLong = candidateSubtitle.length > 80;
+        if (candidateSubtitle && !isDateOnly && !isTooLong) currentMonth.subtitle = candidateSubtitle;
       }
+      prevLineWasMonthHeader = false;
       if (months.length === 0) {
         preamble.push(line);
       }
@@ -800,8 +809,6 @@ function parsePlanHierarchy(text, goalMonthTitles = {}) {
     }
   }
 
-  // CRITICAL: Extract month subtitles from text (use existing textLines/stripMd below)
-
   // Detect total months from preamble/text ("12-month plan", "12 months", etc.)
   // Also check goalMonthTitles keys to know how many months the AI intended
   const totalMonthsMatch = text.match(/(\d+)[\s-]month/i);
@@ -813,55 +820,18 @@ function parsePlanHierarchy(text, goalMonthTitles = {}) {
     for (let m = months.length + 1; m <= totalMonths; m++) {
       months.push({
         title: 'Month ' + m,
-        weeks: [1, 2, 3, 4].map(n => ({ title: 'Week ' + n, tasks: [], description: '' }))
+        weeks: [1,2,3,4].map(n => ({ title: 'Week ' + n, tasks: [], description: '' }))
       });
     }
   }
 
-  // Build a direct regex scan of the full text as a robust fallback for month titles
-  // This catches "Month 1 – Title", "**Month 1** – Title", "Month 1\n*Title*", etc.
-  const scannedTitles = {};
-  const textLines = text.split('\n');
-  const stripMd = (s) => s.replace(/\*+/g, '').replace(/^[#>\s\-\u2013\u2014:]+/, '').trim();
-  const isDateStr = (s) => /^(January|February|March|April|May|June|July|August|September|October|November|December)(\s+\d{4})?$/i.test(s.trim());
-  for (let i = 0; i < textLines.length; i++) {
-    const clean = stripMd(textLines[i]);
-    // Inline: "Month N – Title" or "Month N: Title"
-    const inlineM = clean.match(/^Month\s+(\d+)\s*[–—:\-]+\s*(.+)/i);
-    if (inlineM) {
-      const t = stripMd(inlineM[2]);
-      if (t && !isDateStr(t) && t.length >= 2 && t.length <= 120) scannedTitles[inlineM[1]] = t;
-      continue;
-    }
-    // Standalone "Month N" — look at next few non-empty lines
-    const monthM = clean.match(/^Month\s+(\d+)$/i);
-    if (monthM) {
-      const num = monthM[1];
-      for (let j = i + 1; j < textLines.length && j < i + 8; j++) {
-        const candidate = stripMd(textLines[j]);
-        if (!candidate) continue;
-        if (/^(Week|Month)\s+\d+/i.test(candidate)) break;
-        if (/^[-•*]\s/.test(textLines[j].trim()) || /^\d+\.\s/.test(textLines[j].trim())) break;
-        if (!isDateStr(candidate) && candidate.length >= 2 && candidate.length <= 120) {
-          scannedTitles[num] = candidate;
-          break;
-        }
-      }
-    }
-  }
-
-  // Apply titles: priority order = inline parse → goalMonthTitles prop → scanned from text
+  // Apply goalMonthTitles to all months (including stubs) that don't already have a subtitle
   for (const month of months) {
     const mNum = month.title.match(/\d+/)?.[0];
-    if (mNum) {
-      const fromProp = goalMonthTitles[mNum] || goalMonthTitles[parseInt(mNum)];
-      if (fromProp) {
-        month.subtitle = fromProp.replace(/^\d+:\s*/, '').replace(/\*+/g, '').trim();
-      } else if (!month.subtitle) {
-        const fromScan = scannedTitles[mNum];
-        if (fromScan) {
-          month.subtitle = fromScan.replace(/^\d+:\s*/, '').replace(/\*+/g, '').trim();
-        }
+    if (mNum && !month.subtitle) {
+      const rawTitle = goalMonthTitles[mNum] || goalMonthTitles[parseInt(mNum)];
+      if (rawTitle) {
+        month.subtitle = rawTitle.replace(/^\d+:\s*/, '').replace(/\*+/g, '').trim();
       }
     }
   }
@@ -905,7 +875,7 @@ function GifCarousel({ gifs, onComplete }) {
         src={gifs[idx]}
         alt="celebration"
         className="w-52 h-52 object-contain rounded-2xl shadow-lg animate-in zoom-in duration-300"
-        style={{ imageRendering: 'auto' }}
+        style={{imageRendering:'auto'}}
       />
     </div>
   );
@@ -917,12 +887,12 @@ function WeekDropdown({ week }) {
   const [showTimeInput, setShowTimeInput] = React.useState(false);
   const [timeValue, setTimeValue] = React.useState("13:00");
   const isDark = localStorage.getItem('adhd_theme') === 'dark';
-
+  
   const handleTimeChange = (e) => {
     setTimeValue(e.target.value);
     // You could emit an event or callback here to update the parent state
   };
-
+  
   return (
     <div className={`border rounded-xl overflow-hidden mb-1.5 ${isDark ? 'border-gray-700' : 'border-gray-100'}`}>
       <div className={`flex items-center transition-colors ${isDark ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-gray-50'}`}>
@@ -976,24 +946,24 @@ function WeekDropdown({ week }) {
 
 
 function MonthDropdown({ month }) {
-  const [open, setOpen] = React.useState(false);
-  const isDark = localStorage.getItem('adhd_theme') === 'dark';
-
-  // Use the subtitle already extracted by parsePlanHierarchy from the AI's response text
-  const displayTitle = month.subtitle;
-
-  return (
-    <div className={`border rounded-xl overflow-hidden mb-2 shadow-sm ${isDark ? 'border-gray-700' : 'border-violet-100'}`}>
-      <button
-        onClick={() => setOpen(v => !v)}
-        className={`w-full flex items-center justify-between gap-2 px-4 py-3 text-left transition-colors ${isDark ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-violet-50/50'}`}
-      >
-        <div className="flex-1 min-w-0">
-          <span className={`font-semibold text-sm ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{month.title}</span>
-          {displayTitle && (
-            <span className={`block text-sm font-medium mt-1 ${isDark ? 'text-violet-400' : 'text-violet-600'}`}>{displayTitle}</span>
-          )}
-        </div>
+   const [open, setOpen] = React.useState(false);
+   const isDark = localStorage.getItem('adhd_theme') === 'dark';
+   
+   // Use the subtitle already extracted by parsePlanHierarchy from the AI's response text
+   const displayTitle = month.subtitle;
+   
+   return (
+     <div className={`border rounded-xl overflow-hidden mb-2 shadow-sm ${isDark ? 'border-gray-700' : 'border-violet-100'}`}>
+       <button
+         onClick={() => setOpen(v => !v)}
+         className={`w-full flex items-center justify-between gap-2 px-4 py-3 text-left transition-colors ${isDark ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-violet-50/50'}`}
+       >
+         <div className="flex-1 min-w-0">
+             <span className={`font-semibold text-sm ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{month.title}</span>
+             {displayTitle && (
+               <span className={`block text-sm font-medium mt-1 ${isDark ? 'text-violet-400' : 'text-violet-600'}`}>{displayTitle}</span>
+             )}
+           </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           <span className={`text-[10px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{month.weeks.length} weeks</span>
           {open ? <ChevronUp className={`w-4 h-4 flex-shrink-0 ${isDark ? 'text-gray-500' : 'text-violet-400'}`} /> : <ChevronDown className={`w-4 h-4 flex-shrink-0 ${isDark ? 'text-gray-500' : 'text-violet-400'}`} />}
@@ -1013,9 +983,9 @@ function MonthDropdown({ month }) {
 }
 
 function PlanView({ text, goalMonthTitles = {} }) {
-  const isDark = localStorage.getItem('adhd_theme') === 'dark';
-  const [showMarkdown, setShowMarkdown] = React.useState(false);
-  const { months, preamble } = parsePlanHierarchy(text, goalMonthTitles);
+   const isDark = localStorage.getItem('adhd_theme') === 'dark';
+   const [showMarkdown, setShowMarkdown] = React.useState(false);
+   const { months, preamble } = parsePlanHierarchy(text, goalMonthTitles);
   const cleanedPreamble = preamble ? renderPreamble(preamble) : '';
 
   if (showMarkdown) {
@@ -1027,7 +997,7 @@ function PlanView({ text, goalMonthTitles = {} }) {
         >
           Show Plan View
         </button>
-        <pre className={`text-xs leading-relaxed overflow-auto p-3 rounded-lg ${isDark ? 'bg-gray-900 text-gray-300' : 'bg-gray-50 text-gray-700'}`} style={{ maxHeight: '400px' }}>
+        <pre className={`text-xs leading-relaxed overflow-auto p-3 rounded-lg ${isDark ? 'bg-gray-900 text-gray-300' : 'bg-gray-50 text-gray-700'}`} style={{maxHeight: '400px'}}>
           {text}
         </pre>
       </div>
@@ -1046,8 +1016,8 @@ function PlanView({ text, goalMonthTitles = {} }) {
         <p className={`text-sm leading-relaxed mb-3 whitespace-pre-wrap ${isDark ? 'text-gray-300' : 'text-gray-800'}`}>{renderInlineText(cleanedPreamble)}</p>
       )}
       {months.length > 0 ? (
-        months.map((month, i) => <MonthDropdown key={i} month={month} />)
-      ) : (
+         months.map((month, i) => <MonthDropdown key={i} month={month} />)
+       ) : (
         <span className={`whitespace-pre-wrap text-sm ${isDark ? 'text-gray-300' : 'text-gray-800'}`}>{renderInlineText(text)}</span>
       )}
     </div>
@@ -1059,18 +1029,14 @@ function MessageBubble({ msg, onExampleClick }) {
   const isDark = localStorage.getItem('adhd_theme') === 'dark';
 
   const isPlanMessage = (text) => {
-    // Must have Month + Week structure to be a real plan (not just a summary listing months)
-    const monthMatches = (text.match(/Month\s+\d+/gi) || []);
-    const hasWeeks = /Week\s+\d+/i.test(text);
-    // Require at least 2 months AND week structure — summaries list months but don't have weeks
-    return monthMatches.length >= 2 && hasWeeks;
+    return /Month\s+\d+/i.test(text) && /Week\s+\d+/i.test(text);
   };
 
   const renderMarkdown = (text) => {
     // Parse markdown and return JSX
     const lines = text.split('\n');
     const elements = [];
-
+    
     lines.forEach((line, idx) => {
       // Headers
       if (line.startsWith('###')) {
@@ -1095,7 +1061,7 @@ function MessageBubble({ msg, onExampleClick }) {
           if (part === '- ') return null;
           return <span key={`text-${i}`}>{part}</span>;
         });
-
+        
         if (line.startsWith('-')) {
           elements.push(<li key={`li-${idx}`} className={`ml-4 text-sm ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{jsxParts}</li>);
         } else {
@@ -1105,7 +1071,7 @@ function MessageBubble({ msg, onExampleClick }) {
         elements.push(<div key={`br-${idx}`} className="h-2" />);
       }
     });
-
+    
     return <div className="space-y-1">{elements}</div>;
   };
 
@@ -1117,10 +1083,11 @@ function MessageBubble({ msg, onExampleClick }) {
             <Sparkles className="w-3.5 h-3.5 text-white" />
           </div>
         )}
-        <div className={`max-w-[88%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${isUser
-          ? isDark ? 'bg-violet-700 text-white rounded-br-sm shadow-md shadow-violet-900/30' : 'bg-gradient-to-br from-violet-600 to-indigo-600 text-white rounded-br-sm shadow-md shadow-violet-100'
-          : isDark ? 'bg-gray-800 border border-gray-700 text-gray-100 rounded-bl-sm shadow-sm' : 'bg-white border border-gray-100 text-gray-800 rounded-bl-sm shadow-sm'
-          }`}>
+        <div className={`max-w-[88%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+          isUser
+            ? isDark ? 'bg-violet-700 text-white rounded-br-sm shadow-md shadow-violet-900/30' : 'bg-gradient-to-br from-violet-600 to-indigo-600 text-white rounded-br-sm shadow-md shadow-violet-100'
+            : isDark ? 'bg-gray-800 border border-gray-700 text-gray-100 rounded-bl-sm shadow-sm' : 'bg-white border border-gray-100 text-gray-800 rounded-bl-sm shadow-sm'
+        }`}>
           {isUser ? renderInlineText(msg.content) : (
             isPlanMessage(msg.content) ? (
               <PlanView text={msg.content} goalMonthTitles={msg.goalMonthTitles || {}} />
@@ -1137,10 +1104,11 @@ function MessageBubble({ msg, onExampleClick }) {
             <button
               key={ex}
               onClick={() => onExampleClick(ex)}
-              className={`text-xs px-3 py-1.5 rounded-full border transition-all ${isDark
-                ? 'bg-gray-800 border-gray-600 text-gray-300 hover:border-violet-500 hover:text-violet-300 hover:bg-gray-700'
-                : 'bg-white border-gray-200 text-gray-600 hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700'
-                }`}
+              className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
+                isDark
+                  ? 'bg-gray-800 border-gray-600 text-gray-300 hover:border-violet-500 hover:text-violet-300 hover:bg-gray-700'
+                  : 'bg-white border-gray-200 text-gray-600 hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700'
+              }`}
             >
               {ex}
             </button>
@@ -1151,7 +1119,7 @@ function MessageBubble({ msg, onExampleClick }) {
   );
 }
 
-function SavingProgressBar({ isEdit = false, done = false, isSavingToDb = false }) {
+function SavingProgressBar({ isEdit = false, done = false }) {
   const newGoalSteps = [
     "Laying out the timeline…",
     "Structuring your milestones…",
@@ -1168,13 +1136,7 @@ function SavingProgressBar({ isEdit = false, done = false, isSavingToDb = false 
     "Applying your edits…",
     "Almost done…",
   ];
-  const dbSaveSteps = [
-    "Saving your goal…",
-    "Creating your steps…",
-    "Setting up notifications…",
-    "Almost done…",
-  ];
-  const steps = isSavingToDb ? dbSaveSteps : (isEdit ? editSteps : newGoalSteps);
+  const steps = isEdit ? editSteps : newGoalSteps;
   const [stepIndex, setStepIndex] = React.useState(0);
   const [progress, setProgress] = React.useState(5);
 
@@ -1209,7 +1171,7 @@ function SavingProgressBar({ isEdit = false, done = false, isSavingToDb = false 
           style={{ width: `${progress}%` }}
         />
       </div>
-      {isSavingToDb && <p className={`text-xs mt-2 text-center ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>This usually takes 1–2 minutes. Feel free to navigate away.</p>}
+      <p className={`text-xs mt-2 text-center ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>This usually takes 1–2 minutes. Please don't navigate away.</p>
     </div>
   );
 }
@@ -1233,11 +1195,11 @@ function TypingIndicator() {
 
 function GoalsList({ goals, onSelectGoal, onNewChat }) {
   const isDark = localStorage.getItem('adhd_theme') === 'dark';
-
+  
   // Separate active and pending goals
   const activeGoals = goals.filter(g => g.status === 'active');
   const pendingGoals = goals.filter(g => g.status !== 'active' && g.id); // Show any non-active goals as "building"
-
+  
   return (
     <div className="flex flex-col items-center py-12 px-6">
       <div className={`w-20 h-20 rounded-3xl flex items-center justify-center mb-6 shadow-sm ${isDark ? 'bg-violet-900/40' : 'bg-gradient-to-br from-violet-100 to-indigo-100'}`}>

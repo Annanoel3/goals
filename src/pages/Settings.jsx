@@ -24,9 +24,6 @@ export default function Settings() {
   const [user, setUser] = useState(null);
   const [notificationTime, setNotificationTime] = useState('10:00');
   const [isSavingTime, setIsSavingTime] = useState(false);
-  const [openaiKey, setOpenaiKey] = useState(() => localStorage.getItem('openai_api_key') || '');
-  const [showKey, setShowKey] = useState(false);
-  const [isSavingKey, setIsSavingKey] = useState(false);
 
   useEffect(() => {
     loadUser();
@@ -63,17 +60,6 @@ export default function Settings() {
       console.error('Error saving notification time:', error);
     } finally {
       setIsSavingTime(false);
-    }
-  };
-
-  const saveOpenaiKey = async () => {
-    setIsSavingKey(true);
-    try {
-      localStorage.setItem('openai_api_key', openaiKey);
-    } catch (error) {
-      console.error('Error saving OpenAI key:', error);
-    } finally {
-      setIsSavingKey(false);
     }
   };
 

@@ -12,9 +12,6 @@ let hasInitializedAdMob = false;
 let userIsActive = false;
 export function setUserActive(active) { userIsActive = active; }
 
-// Track whether an ad was already shown in this session (app-open or goal save)
-let adShownThisSession = false;
-
 export async function initAdMob() {
   if (hasInitializedAdMob) return;
   hasInitializedAdMob = true;
@@ -32,9 +29,6 @@ export async function initAdMob() {
 
 export async function showInterstitialAd() {
   if (!AdMob) return false;
-  // Never show two ads in the same session
-  if (adShownThisSession) return false;
-  adShownThisSession = true;
   try {
     await AdMob.prepareInterstitial({ adId: AD_UNIT_ID, isTesting: false });
     await AdMob.showInterstitial();

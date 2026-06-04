@@ -1,542 +1,290 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
-import OpenAI from 'npm:openai';
 
 const ONESIGNAL_APP_ID = Deno.env.get("ONESIGNAL_APP_ID");
 const ONESIGNAL_REST_API_KEY = Deno.env.get("ONESIGNAL_REST_API_KEY");
 
-// ── Send an immediate push ────────────────────────────────────────────────────
-async function sendPush({ externalId, title, body, data }) {
+async function sendPush({ externalId, title, body, data, buttons }) {
   const payload = {
     app_id: ONESIGNAL_APP_ID,
-    include_external_user_ids: [String(externalId)],
-    channel_for_external_user_ids: 'push',
+    include_aliases: { external_id: [String(externalId)] },
+    target_channel: 'push',
     headings: { en: title },
     contents: { en: body },
     data: data || {},
+    ...(buttons ? { buttons } : {}),
   };
   const res = await fetch("https://onesignal.com/api/v1/notifications", {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Basic ${ONESIGNAL_REST_API_KEY}` },
-    body: JSON.stringify(payload)
-  });
-  if (!res.ok) {
-    const errText = await res.text();
-    console.error(`[OneSignal Error] ${res.status}: ${errText}`);
-  }
-  const json = await res.json();
-  return json?.id || null;
-}
-
-// ── Schedule a future-dated push ──────────────────────────────────────────────
-async function schedulePush({ externalId, title, body, data, sendAt, buttons }) {
-  const payload = {
-    app_id: ONESIGNAL_APP_ID,
-    include_external_user_ids: [String(externalId)],
-    channel_for_external_user_ids: 'push',
-    headings: { en: title },
-    contents: { en: body },
-    data,
-    send_after: sendAt,
-    ...(buttons ? { buttons } : {}),
-  };
-  const res = await fetch('https://onesignal.com/api/v1/notifications', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Basic ${ONESIGNAL_REST_API_KEY}` },
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Basic ${ONESIGNAL_REST_API_KEY}`
+    },
     body: JSON.stringify(payload)
   });
   const json = await res.json();
   return json?.id || null;
 }
 
-async function cancelPush(notifId) {
-  try {
-    await fetch(`https://onesignal.com/api/v1/notifications/${notifId}?app_id=${ONESIGNAL_APP_ID}`, {
-      method: 'DELETE',
-      headers: { 'Authorization': `Basic ${ONESIGNAL_REST_API_KEY}` },
-    });
-  } catch (_) {}
-}
-
-async function generateMessage(openai, systemPrompt, userPrompt) {
-  const res = await openai.chat.completions.create({
-    model: 'gpt-4o-mini',
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userPrompt }
-    ],
-    max_tokens: 300,
-    response_format: { type: 'json_object' }
-  });
-  return JSON.parse(res.choices[0].message.content);
-}
-
-function parsePhase(phase) {
-  if (!phase) return null;
-  const full = phase.match(/Month\s+(\d+)\s+Week\s+(\d+)/i);
-  if (full) return { month: parseInt(full[1]), week: parseInt(full[2]) };
-  const monthOnly = phase.match(/Month\s+(\d+)/i);
-  if (monthOnly) return { month: parseInt(monthOnly[1]), week: null };
-  return null;
-}
-
-function localTimeOnDate(dateStr, localHour, localMin, tzOffsetMinutes) {
+function daysAgo(dateStr, n) {
   const d = new Date(dateStr + 'T00:00:00Z');
-  d.setUTCHours(
-    localHour + Math.floor(tzOffsetMinutes / 60),
-    localMin + (tzOffsetMinutes % 60),
-    0, 0
-  );
-  return d;
-}
-
-function addDays(dateStr, n) {
-  const d = new Date(dateStr + 'T00:00:00Z');
-  d.setUTCDate(d.getUTCDate() + n);
+  d.setUTCDate(d.getUTCDate() - n);
   return d.toISOString().split('T')[0];
 }
-
-// ── Re-schedule all future-dated step/week/month push notifications for a goal ─
-async function rescheduleGoalPushes(base44, goal, steps, user) {
-  const externalId = user.email;
-  const now = new Date();
-
-  let prefHour = 9, prefMin = 0;
-  if (user?.preferred_notification_time) {
-    const tp = user.preferred_notification_time.match(/(\d{1,2}):(\d{2})/);
-    if (tp) { prefHour = parseInt(tp[1]); prefMin = parseInt(tp[2]); }
-  }
-  const tzOffset = user.timezone_offset || 0;
-
-  let scheduled = 0, cancelled = 0;
-
-  // Only schedule steps due within the next 7 days (rolling weekly window)
-  const windowEnd = new Date(now);
-  windowEnd.setDate(windowEnd.getDate() + 7);
-  const windowEndStr = windowEnd.toISOString().split('T')[0];
-  const todayStr = now.toISOString().split('T')[0];
-
-  // Cancel + reschedule step-level notifications (milestone steps only, not daily habits)
-  for (const step of steps) {
-    const existingIds = step.onesignal_notification_ids || [];
-    for (const nid of existingIds) { await cancelPush(nid); cancelled++; }
-
-    const newNotifIds = [];
-    if (step.due_date && !step.is_daily_habit && step.due_date >= todayStr && step.due_date <= windowEndStr) {
-      const dayBeforeStr = addDays(step.due_date, -1);
-      const dayBeforeSendAt = localTimeOnDate(dayBeforeStr, prefHour, prefMin, tzOffset);
-      if (dayBeforeSendAt > now) {
-        const nid = await schedulePush({
-          externalId,
-          title: `📌 "${step.title}" is due tomorrow`,
-          body: `Get a head start on this step for ${goal.title}`,
-          data: { screen: 'GoalStepNotification', action: 'goal_step_tomorrow', goal_id: goal.id, step_id: step.id },
-          sendAt: dayBeforeSendAt.toISOString(),
-          buttons: [{ id: 'complete', text: '✅ Done' }, { id: 'remind_later', text: '🔔 Remind Later' }],
-        });
-        if (nid) { newNotifIds.push(nid); scheduled++; }
-      }
-
-      const dueSendAt = localTimeOnDate(step.due_date, prefHour, prefMin, tzOffset);
-      if (dueSendAt > now) {
-        const nid = await schedulePush({
-          externalId,
-          title: `🎯 "${step.title}" is due today`,
-          body: `Time to work on this step for ${goal.title}`,
-          data: { screen: 'GoalStepNotification', action: 'goal_step_due', goal_id: goal.id, step_id: step.id },
-          sendAt: dueSendAt.toISOString(),
-          buttons: [{ id: 'complete', text: '✅ Done' }, { id: 'remind_later', text: '🔔 Remind Later' }],
-        });
-        if (nid) { newNotifIds.push(nid); scheduled++; }
-      }
-    }
-
-    if (newNotifIds.length > 0 || existingIds.length > 0) {
-      await base44.asServiceRole.entities.GoalStep.update(step.id, { onesignal_notification_ids: newNotifIds });
-    }
-  }
-
-  const isMilestoneGoal = !steps.some(s => s.is_daily_habit && s.habit_time);
-
-  // Cancel old goal-level notifications
-  const existingGoalNotifIds = goal.onesignal_notification_ids || [];
-  for (const nid of existingGoalNotifIds) { await cancelPush(nid); cancelled++; }
-  const goalNotifIds = [];
-
-  // Build week/month maps from step phases and due_dates
-  const weekMap = {};
-  const monthMap = {};
-  for (const step of steps) {
-    if (!step.due_date) continue;
-    const p = parsePhase(step.phase);
-    if (!p) continue;
-    const mk = String(p.month);
-    if (!monthMap[mk]) monthMap[mk] = { month: p.month, dates: [] };
-    monthMap[mk].dates.push(step.due_date);
-    if (p.week !== null) {
-      const wk = `${p.month}-${p.week}`;
-      if (!weekMap[wk]) weekMap[wk] = { month: p.month, week: p.week, dates: [], titles: [] };
-      weekMap[wk].dates.push(step.due_date);
-      if (step.title) weekMap[wk].titles.push(step.title);
-    }
-  }
-
-  // Week begin + end notifications — only for weeks starting within the next 7 days
-  for (const wData of Object.values(weekMap)) {
-    const sortedDates = [...wData.dates].sort();
-    const weekEndDate = sortedDates[sortedDates.length - 1];
-    const weekStartDate = addDays(weekEndDate, -6);
-    const monthTheme = goal.month_titles?.[wData.month];
-    const weekFocus = wData.titles.slice(0, 2).join(' & ') || monthTheme || goal.title;
-
-    const weekBeginSendAt = localTimeOnDate(weekStartDate, prefHour, prefMin, tzOffset);
-    if (weekBeginSendAt > now && weekStartDate <= windowEndStr) {
-      const nid = await schedulePush({
-        externalId,
-        title: `📅 Month ${wData.month}, Week ${wData.week} begins`,
-        body: monthTheme ? `This week is part of "${monthTheme}". Focus: ${weekFocus} 🚀` : `Week ${wData.week} of "${goal.title}" starts now. This week: ${weekFocus} 🚀`,
-        data: { screen: 'GoalDetail', action: 'week_begin', goal_id: goal.id, month: wData.month, week: wData.week },
-        sendAt: weekBeginSendAt.toISOString(),
-      });
-      if (nid) { goalNotifIds.push(nid); scheduled++; }
-    }
-
-    const weekEndSendAt = localTimeOnDate(weekEndDate, 19, 0, tzOffset);
-    if (weekEndSendAt > now) {
-      const nid = await schedulePush({
-        externalId,
-        title: `🏁 Week ${wData.week} wrap-up`,
-        body: monthTheme ? `Week ${wData.week} of "${monthTheme}" is done. How'd it go? Check your progress. 💪` : `Week ${wData.week} of "${goal.title}" is wrapping up. Reflect on what you accomplished. 💪`,
-        data: { screen: 'GoalDetail', action: 'week_end', goal_id: goal.id, month: wData.month, week: wData.week },
-        sendAt: weekEndSendAt.toISOString(),
-      });
-      if (nid) { goalNotifIds.push(nid); scheduled++; }
-    }
-  }
-
-  // Month begin + end notifications
-  for (const mData of Object.values(monthMap)) {
-    const sortedDates = [...mData.dates].sort();
-    const monthStartDate = sortedDates[0];
-    const monthEndDate = sortedDates[sortedDates.length - 1];
-    const monthTheme = goal.month_titles?.[mData.month];
-
-    const mBeginSendAt = localTimeOnDate(monthStartDate, prefHour, prefMin, tzOffset);
-    if (mBeginSendAt > now) {
-      const nid = await schedulePush({
-        externalId,
-        title: `📅 Month ${mData.month} begins`,
-        body: monthTheme ? `Month ${mData.month} is all about "${monthTheme}" for "${goal.title}". Let's go! 🎯` : `Month ${mData.month} of "${goal.title}" starts now. Make it count! 🎯`,
-        data: { screen: 'GoalDetail', action: 'month_begin', goal_id: goal.id, month: mData.month },
-        sendAt: mBeginSendAt.toISOString(),
-      });
-      if (nid) { goalNotifIds.push(nid); scheduled++; }
-    }
-
-    const mEndSendAt = localTimeOnDate(monthEndDate, 19, 0, tzOffset);
-    if (mEndSendAt > now) {
-      const nid = await schedulePush({
-        externalId,
-        title: monthTheme ? `🌟 Month ${mData.month}: "${monthTheme}" — complete!` : `🌟 Month ${mData.month} complete!`,
-        body: `How did Month ${mData.month} go for "${goal.title}"? Zoom out — see the full picture. 📊`,
-        data: { screen: 'GoalDetail', action: 'month_end', goal_id: goal.id, month: mData.month, ...(isMilestoneGoal && { trigger_celebration: true }) },
-        sendAt: mEndSendAt.toISOString(),
-      });
-      if (nid) { goalNotifIds.push(nid); scheduled++; }
-    }
-  }
-
-  await base44.asServiceRole.entities.Goal.update(goal.id, { onesignal_notification_ids: goalNotifIds });
-  return { scheduled, cancelled };
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const openai = new OpenAI({ apiKey: Deno.env.get('OPENAI_API_KEY') });
 
     const now = new Date();
     const todayStr = now.toISOString().split('T')[0];
     const todayUTC = new Date(todayStr + 'T00:00:00Z');
-    const dayOfWeek = todayUTC.getDay();
+    const dayOfWeek = todayUTC.getDay(); // 0=Sun, 1=Mon
     const dayOfMonth = todayUTC.getDate();
 
     const isMonday = dayOfWeek === 1;
     const isSunday = dayOfWeek === 0;
     const isFirstOfMonth = dayOfMonth === 1;
+
+    // Check if last day of month
     const nextDay = new Date(todayUTC);
     nextDay.setDate(todayUTC.getDate() + 1);
     const isLastOfMonth = nextDay.getDate() === 1;
 
+    // Pre-load all users once
     const allUsers = await base44.asServiceRole.entities.User.list();
     const userByEmail = {};
-    const userById = {};
-    for (const u of allUsers) { userByEmail[u.email] = u; userById[u.id] = u; }
+    for (const u of allUsers) userByEmail[u.email] = u;
 
     const goals = await base44.asServiceRole.entities.Goal.list();
-    const results = { week_preview: 0, week_summary: 0, month_preview: 0, month_summary: 0, rescheduled: 0, skipped: 0, catchup_nudges: 0 };
+    const results = {
+      month_notifs: 0, week_notifs: 0, step_notifs: 0,
+      followup_day1: 0, followup_day3: 0, engagement_notifs: 0,
+      week_stats_notifs: 0, month_stats_notifs: 0, inactivity_notifs: 0
+    };
+
+    // Group goals by user for inactivity check
+    const goalsByUser = {};
 
     for (const goal of goals) {
       if (goal.status !== 'active') continue;
 
-      const user = userById[goal.created_by_id] || userByEmail[goal.created_by];
+      const user = userByEmail[goal.created_by];
       if (!user) continue;
       const externalId = user.email;
 
+      // Group for inactivity check later
+      if (!goalsByUser[externalId]) goalsByUser[externalId] = [];
+      goalsByUser[externalId].push(goal);
+
+      // Get all steps for this goal
       const steps = await base44.asServiceRole.entities.GoalStep.filter({ goal_id: goal.id });
-      const completedSteps = steps.filter(s => s.status === 'completed');
+      const pendingSteps = steps.filter(s => s.status !== 'completed' && s.status !== 'skipped');
 
-      // ── SUNDAY: Roll the weekly notification window ──────────────────────────
-      if (isSunday) {
-        const tzOffset = user.timezone_offset || 0;
-        await base44.asServiceRole.functions.invoke('scheduleGoalNotificationsOnCreate', {
-          goal_id: goal.id,
-          timezoneOffsetMinutes: tzOffset,
-        });
-        results.rescheduled++;
-      }
+      // ── 1. MONTH START: first of month → summarize upcoming month ────────────
+      if (isFirstOfMonth) {
+        const createdDate = new Date(goal.created_date);
+        const monthsElapsed = Math.floor((now - createdDate) / (1000 * 60 * 60 * 24 * 30.44));
+        const currentMonthNum = monthsElapsed + 1;
+        const currentMonthLabel = `Month ${currentMonthNum}`;
 
-      // ── MISSED STEP CATCH-UP (runs every day) ────────────────────────────────
-      // Applies to ALL goal types that have scheduled/due steps:
-      //   - Health/fitness: missed run day, workout, training session
-      //   - Learning: missed practice session (language, instrument, coding, drawing)
-      //   - Habit: missed daily habit (reading, meditation, journaling, streak)
-      //   - Career/professional: task due by end of week not completed by Friday
-      //   - Relationships/social: missed date night, weekly activity, monthly outing
-      //   - Creative: missed writing/art/music session
-      //   - Finance: missed weekly review, monthly budget check
-      //   - Any goal with steps due yesterday that aren't completed
-      const yesterdayStr = addDays(todayStr, -1);
-      // For career/finance goals, also check Friday→Saturday/Monday carry-over
-      const isMondayFollowup = dayOfWeek === 1; // Monday: check Friday's missed steps too
-      const checkMissedFrom = isMondayFollowup ? addDays(todayStr, -3) : yesterdayStr;
-
-      const missedSteps = steps.filter(s => {
-        if (s.status === 'completed' || s.status === 'skipped' || s.is_daily_habit) return false;
-        if (!s.due_date) return false;
-        return s.due_date >= checkMissedFrom && s.due_date <= yesterdayStr;
-      });
-
-      if (missedSteps.length > 0) {
-        const weeksElapsedForMissed = Math.floor((now - new Date(goal.created_date)) / (1000 * 60 * 60 * 24 * 7));
-        const currentMonthNumForMissed = Math.floor(weeksElapsedForMissed / 4) + 1;
-        const monthTitleForMissed = goal.month_titles?.[String(currentMonthNumForMissed)] || null;
-        const firstName = user.full_name?.split(' ')[0] || 'there';
-
-        // Build context-aware prompt based on goal category and specific missed steps
-        const missedTitles = missedSteps.slice(0, 3).map(s => `- ${s.title}`).join('\n');
-        const totalOverall = completedSteps.length;
-        const totalSteps = steps.length;
-        const progressPct = totalSteps > 0 ? Math.round((totalOverall / totalSteps) * 100) : 0;
-
-        // Category-specific context for the AI to write a personalized catch-up message
-        const categoryContext = {
-          health: `This is a fitness/health goal. The missed steps are likely workouts or training sessions. Acknowledge the specific exercise missed, remind them their body builds consistency not perfection, and encourage them to get back at it TODAY.`,
-          learning: `This is a skill-building/learning goal. The missed steps are practice sessions. Remind them that skill-building requires consistency, even 10 minutes counts, and getting back today is what separates people who improve from those who don't.`,
-          habit: `This is a habit/streak goal. The missed steps break the streak. Be compassionate — acknowledge that life happens — and remind them that one miss doesn't erase all their progress. Encourage them to restart TODAY.`,
-          career: `This is a career/professional development goal. The missed steps are likely tasks or skill-building actions. Remind them that small consistent actions compound, and catching up now keeps momentum.`,
-          relationships: `This is a relationships/social goal. The missed steps might be a date night, social outing, or planned activity. Gently remind them that connection requires intention and ask them to reschedule soon.`,
-          creative: `This is a creative goal (writing, art, music, etc.). The missed steps are creative sessions. Remind them that creative momentum is built through showing up even when uninspired, and even 15 minutes matters.`,
-          finance: `This is a finance goal. The missed steps are likely reviews, tracking, or financial actions. Remind them that financial progress requires consistent check-ins and now is a great time to catch up.`,
-          personal: `This is a personal growth goal. The missed steps are reflection or growth exercises. Gently encourage them to return to the practice, noting that growth is non-linear.`,
-        }[goal.category] || `This goal requires consistent action to achieve. The user missed some scheduled steps. Be warm, non-judgmental, and motivating about getting back on track.`;
-
-        const goalContext = `
-Goal: "${goal.title}"
-Category: ${goal.category || 'personal'}
-Timeline: ${goal.timeline || 'unknown'}
-Overall progress: ${totalOverall}/${totalSteps} steps done (${progressPct}%)
-${monthTitleForMissed ? `Current phase theme: "${monthTitleForMissed}"` : ''}
-User first name: ${firstName}
-${isMondayFollowup ? 'Today is Monday — these steps were due last week (Friday).' : 'These steps were due YESTERDAY and not completed.'}
-Missed steps:
-${missedTitles}${missedSteps.length > 3 ? `\n+ ${missedSteps.length - 3} more` : ''}
-
-${categoryContext}
-        `.trim();
-
-        const catchupMsg = await generateMessage(openai,
-          `You write warm, non-judgmental catch-up notifications for a goal tracking app. The user missed some scheduled steps. Your job: acknowledge the miss without shame, motivate them to get back TODAY, and make them feel capable — not guilty. Be specific to the goal type and what was missed. Never use generic "you can do it" platitudes — be specific to THEIR goal and situation.
-Return JSON: { "push_title": "short compassionate title (max 8 words)", "push_body": "one-line nudge (max 15 words)", "in_app_message": "warm catch-up message (2-3 sentences, specific to what was missed, encouraging action today)" }`,
-          goalContext
+        const monthSteps = pendingSteps.filter(s =>
+          s.phase && new RegExp(`Month\\s*${currentMonthNum}\\b`, 'i').test(s.phase)
         );
 
-        const missedStepId = missedSteps[0]?.id || null;
+        if (monthSteps.length > 0) {
+          const stepTitles = monthSteps.slice(0, 3).map(s => `• ${s.title}`).join('\n');
+          const more = monthSteps.length > 3 ? `\n+ ${monthSteps.length - 3} more` : '';
+          await sendPush({
+            externalId,
+            title: `${currentMonthLabel} starts today! 🗓️`,
+            body: `Here's what's coming up for "${goal.title}":\n${stepTitles}${more}`,
+            data: { screen: 'GoalStepNotification', action: 'goal_month', goal_id: goal.id, month_label: currentMonthLabel }
+          });
+          results.month_notifs++;
+        }
+      }
+
+      // ── 2. WEEK START: Monday → summarize upcoming week ───────────────────────
+      if (isMonday) {
+        const createdDate = new Date(goal.created_date);
+        const weeksElapsed = Math.floor((now - createdDate) / (1000 * 60 * 60 * 24 * 7));
+        const currentWeekNum = (weeksElapsed % 4) + 1;
+        const currentMonthNum2 = Math.floor(weeksElapsed / 4) + 1;
+        const currentWeekLabel = `Month ${currentMonthNum2}, Week ${currentWeekNum}`;
+
+        const weekSteps = pendingSteps.filter(s =>
+          s.phase &&
+          s.phase.toLowerCase().includes(`month ${currentMonthNum2}`) &&
+          s.phase.toLowerCase().includes(`week ${currentWeekNum}`)
+        );
+
+        if (weekSteps.length > 0) {
+          const stepTitles = weekSteps.slice(0, 4).map(s => `• ${s.title}`).join('\n');
+          const more = weekSteps.length > 4 ? `\n+ ${weekSteps.length - 4} more` : '';
+          await sendPush({
+            externalId,
+            title: `New week, new steps! 💪`,
+            body: `${currentWeekLabel} of "${goal.title}":\n${stepTitles}${more}`,
+            data: { screen: 'GoalStepNotification', action: 'goal_week', goal_id: goal.id, week_label: currentWeekLabel }
+          });
+          results.week_notifs++;
+        }
+      }
+
+      // ── 3. MORNING REMINDER: step due today ───────────────────────────────────
+      const todaySteps = pendingSteps.filter(s => s.due_date === todayStr);
+      for (const step of todaySteps) {
+        const alreadySent = step.onesignal_notification_ids?.length > 0;
+        if (alreadySent) continue;
+
         const notifId = await sendPush({
           externalId,
-          title: catchupMsg.push_title,
-          body: catchupMsg.push_body,
-          data: {
-            screen: 'GoalStepNotification',
-            action: 'catchup_nudge',
-            goal_id: goal.id,
-            step_id: missedStepId,
-            in_app_message: catchupMsg.in_app_message,
-          }
+          title: `Today: ${step.title}`,
+          body: step.description
+            ? `${step.description.slice(0, 100)}${step.description.length > 100 ? '…' : ''}`
+            : `Tap to view details and mark complete.`,
+          data: { screen: 'GoalStepNotification', action: 'goal_step', goal_id: goal.id, step_id: step.id },
+          buttons: [
+            { id: 'complete', text: '✓ Done' },
+            { id: 'remind_later', text: '⏰ Remind in 3h' },
+            { id: 'delegate', text: '📅 Move it' },
+          ],
         });
 
         if (notifId) {
-          const pending = goal.pending_notifications || [];
-          pending.push({
-            id: notifId,
-            type: 'catchup_nudge',
-            title: catchupMsg.push_title,
-            message: catchupMsg.in_app_message,
-            created_at: now.toISOString(),
-            seen: false,
+          const existing = step.onesignal_notification_ids || [];
+          await base44.asServiceRole.entities.GoalStep.update(step.id, {
+            onesignal_notification_ids: [...existing, notifId]
           });
-          await base44.asServiceRole.entities.Goal.update(goal.id, { pending_notifications: pending });
-          results.catchup_nudges = (results.catchup_nudges || 0) + 1;
+          results.step_notifs++;
         }
       }
 
-      // ── AI-POWERED PERIODIC MESSAGES (Mon/Sun/1st/last only) ─────────────────
-      if (!isMonday && !isSunday && !isFirstOfMonth && !isLastOfMonth) continue;
-
-      const weeksElapsed = Math.floor((now - new Date(goal.created_date)) / (1000 * 60 * 60 * 24 * 7));
-      const currentMonthNum = Math.floor(weeksElapsed / 4) + 1;
-      const currentWeekNum = (weeksElapsed % 4) + 1;
-
-      const currentWeekSteps = steps.filter(s =>
-        s.phase &&
-        new RegExp(`Month\\s*${currentMonthNum}`, 'i').test(s.phase) &&
-        new RegExp(`Week\\s*${currentWeekNum}`, 'i').test(s.phase)
-      );
-      const currentMonthSteps = steps.filter(s =>
-        s.phase && new RegExp(`Month\\s*${currentMonthNum}\\b`, 'i').test(s.phase)
-      );
-
-      const progressPct = steps.length > 0 ? Math.round((completedSteps.length / steps.length) * 100) : 0;
-      const monthTitle = goal.month_titles?.[String(currentMonthNum)] || null;
-
-      const goalContext = `
-Goal: "${goal.title}"
-Category: ${goal.category || 'personal'}
-Timeline: ${goal.timeline || 'unknown'}
-Overall progress: ${completedSteps.length}/${steps.length} steps done (${progressPct}%)
-Current phase: Month ${currentMonthNum}${monthTitle ? ` – "${monthTitle}"` : ''}, Week ${currentWeekNum}
-User first name: ${user.full_name?.split(' ')[0] || 'there'}
-${goal.event_format ? `Activity type: "${goal.event_format}" (${goal.event_cadence || 'recurring'})` : ''}
-${goal.notification_days?.length > 0 ? `Active days: ${goal.notification_days.join(', ')} (day numbers 0=Sun)` : ''}
-      `.trim();
-
-      // ── MONDAY: Week preview ─────────────────────────────────────────────────
-      if (isMonday) {
-        if (currentWeekSteps.length === 0) { results.skipped++; continue; }
-        const stepList = currentWeekSteps.slice(0, 5).map(s => `- ${s.title}`).join('\n');
-        const pendingCount = currentWeekSteps.filter(s => s.status !== 'completed').length;
-
-        const weekEventNote = goal.event_format
-          ? `\nThis goal involves a recurring "${goal.event_format}" (${goal.event_cadence || 'recurring'}). Reference the specific activity in the notification.`
-          : '';
-        const msg = await generateMessage(openai,
-          `You write motivating, personal, ADHD-friendly weekly goal preview notifications. Keep the in-app message warm, specific, and action-oriented. Max 3 sentences. Always reference the specific goal and what this week is about.${weekEventNote}
-Return JSON: { "push_title": "short punchy title (max 8 words)", "push_body": "one line preview (max 15 words)", "in_app_message": "fuller motivating message shown when they open the app (2-3 sentences)" }`,
-          `${goalContext}\n\nThis week's ${pendingCount} steps:\n${stepList}\n\nWrite a Monday morning week kickoff notification.`
-        );
-
-        const notifId = await sendPush({ externalId, title: msg.push_title, body: msg.push_body,
-          data: { screen: 'GoalStepNotification', action: 'week_preview', goal_id: goal.id, in_app_message: msg.in_app_message, week_label: `Month ${currentMonthNum}, Week ${currentWeekNum}`, month_title: monthTitle || '' }
+      // ── 4. DAY-1 FOLLOW-UP: step due yesterday, still pending ────────────────
+      const oneDayAgoStr = daysAgo(todayStr, 1);
+      const overdueDayOne = pendingSteps.filter(s => s.due_date === oneDayAgoStr);
+      for (const step of overdueDayOne) {
+        await sendPush({
+          externalId,
+          title: `"${step.title}" is 1 day overdue ⚠️`,
+          body: `You missed this step yesterday — want to mark it done or reschedule?`,
+          data: { screen: 'GoalStepNotification', action: 'goal_step_followup', goal_id: goal.id, step_id: step.id },
+          buttons: [
+            { id: 'complete', text: '✓ Done' },
+            { id: 'remind_later', text: '⏰ Remind in 3h' },
+            { id: 'delegate', text: '📅 Move it' },
+          ],
         });
+        results.followup_day1++;
+      }
 
-        if (notifId) {
-          const pending = goal.pending_notifications || [];
-          pending.push({ id: notifId, type: 'week_preview', title: msg.push_title, message: msg.in_app_message, week_label: `Month ${currentMonthNum}, Week ${currentWeekNum}`, created_at: now.toISOString(), seen: false });
-          await base44.asServiceRole.entities.Goal.update(goal.id, { pending_notifications: pending });
-          results.week_preview++;
+      // ── 5. DAY-3 FOLLOW-UP: step due 3 days ago, still pending ───────────────
+      const threeDaysAgoStr = daysAgo(todayStr, 3);
+      const overdueDay3 = pendingSteps.filter(s => s.due_date === threeDaysAgoStr);
+      for (const step of overdueDay3) {
+        await sendPush({
+          externalId,
+          title: `Still on your list: "${step.title}"`,
+          body: `This step has been waiting 3 days. Want to mark it done, adjust it, or move on? Your call.`,
+          data: { screen: 'GoalStepNotification', action: 'goal_step_followup', goal_id: goal.id, step_id: step.id }
+        });
+        results.followup_day3++;
+      }
+
+      // ── 6. 2-WEEK ENGAGEMENT CHECK: Monday only ───────────────────────────────
+      if (isMonday) {
+        const fourteenDaysAgoStr = daysAgo(todayStr, 14);
+        const recentDueSteps = steps.filter(s =>
+          s.due_date >= fourteenDaysAgoStr &&
+          s.due_date < todayStr
+        );
+        const completedRecently = recentDueSteps.filter(s => s.status === 'completed' || s.status === 'skipped').length;
+        const totalRecentDue = recentDueSteps.length;
+
+        if (totalRecentDue >= 3 && completedRecently / totalRecentDue < 0.3) {
+          await sendPush({
+            externalId,
+            title: `Let's recalibrate your plan 🔄`,
+            body: `You've had a tough couple of weeks on "${goal.title}" — and that's okay. Life happens. Your AI coach has some ideas to get things flowing again. Tap to chat.`,
+            data: {
+              screen: 'GoalStepNotification',
+              action: 'goal_plan_nudge',
+              goal_id: goal.id,
+              nudge_message: `I noticed you've had a challenging couple of weeks with "${goal.title}" — only ${completedRecently} of ${totalRecentDue} recent steps completed. No judgment at all — life gets busy. I have a few ideas:\n\n1. **Lighten the load** — reduce the number of weekly steps so it feels manageable\n2. **Extend the timeline** — spread things out so you're not racing against deadlines\n3. **Simplify the steps** — break them into smaller, more bite-sized actions\n4. **Swap out steps that aren't working** for ones that better fit your current life\n\nWhat feels right? Or tell me what's been getting in the way — I'll reshape the plan around that.`
+            }
+          });
+          results.engagement_notifs++;
         }
       }
 
-      // ── SUNDAY: Week wrap-up ─────────────────────────────────────────────────
+      // ── 7. END-OF-WEEK STATS: Sunday ─────────────────────────────────────────
       if (isSunday) {
         const weekStart = new Date(todayUTC);
         weekStart.setDate(todayUTC.getDate() - 6);
         const weekStartStr = weekStart.toISOString().split('T')[0];
         const dueThisWeek = steps.filter(s => s.due_date >= weekStartStr && s.due_date <= todayStr);
         const completedThisWeek = dueThisWeek.filter(s => s.status === 'completed');
-        if (dueThisWeek.length === 0) { results.skipped++; continue; }
-
-        const pct = Math.round((completedThisWeek.length / dueThisWeek.length) * 100);
-        const completedTitles = completedThisWeek.slice(0, 4).map(s => `- ${s.title}`).join('\n');
-        const missedTitles = dueThisWeek.filter(s => s.status !== 'completed').slice(0, 3).map(s => `- ${s.title}`).join('\n');
-
-        const weekSummaryEventNote = goal.event_format
-          ? `\nThis goal involves a recurring "${goal.event_format}" (${goal.event_cadence || 'recurring'}). Reference whether the activity happened this week and encourage consistency.`
-          : '';
-        const msg = await generateMessage(openai,
-          `You write warm, encouraging weekly wrap-up notifications. Celebrate wins. Be kind about misses. Casual, warm, ADHD-friendly. No bullet points in the in-app message.${weekSummaryEventNote}
-Return JSON: { "push_title": "short celebratory title (max 8 words)", "push_body": "one line summary (max 15 words)", "in_app_message": "warm wrap-up message (2-4 sentences, flowing prose)" }`,
-          `${goalContext}\n\nThis week: ${completedThisWeek.length}/${dueThisWeek.length} steps (${pct}%)\n${completedTitles ? `Completed:\n${completedTitles}` : ''}\n${missedTitles ? `Missed:\n${missedTitles}` : ''}`
-        );
-
-        const notifId = await sendPush({ externalId, title: msg.push_title, body: msg.push_body,
-          data: { screen: 'GoalStepNotification', action: 'week_summary', goal_id: goal.id, in_app_message: msg.in_app_message, week_label: `Month ${currentMonthNum}, Week ${currentWeekNum}`, completed: completedThisWeek.length, total: dueThisWeek.length, pct }
-        });
-
-        if (notifId) {
-          const pending = goal.pending_notifications || [];
-          pending.push({ id: notifId, type: 'week_summary', title: msg.push_title, message: msg.in_app_message, week_label: `Month ${currentMonthNum}, Week ${currentWeekNum}`, created_at: now.toISOString(), seen: false });
-          await base44.asServiceRole.entities.Goal.update(goal.id, { pending_notifications: pending });
-          results.week_summary++;
+        if (dueThisWeek.length > 0) {
+          const pct = Math.round((completedThisWeek.length / dueThisWeek.length) * 100);
+          const emoji = pct >= 80 ? '🌟' : pct >= 50 ? '💪' : '🔄';
+          const msg = pct >= 80 ? 'Incredible week!' : pct >= 50 ? 'Good progress — keep going!' : 'Next week is a fresh start.';
+          await sendPush({
+            externalId,
+            title: `Week wrap-up ${emoji}`,
+            body: `You finished ${completedThisWeek.length}/${dueThisWeek.length} steps on "${goal.title}" this week (${pct}%). ${msg}`,
+            data: { screen: 'GoalStepNotification', action: 'goal_step', goal_id: goal.id },
+          });
+          results.week_stats_notifs++;
         }
       }
 
-      // ── 1ST OF MONTH: Month preview ──────────────────────────────────────────
-      if (isFirstOfMonth) {
-        if (currentMonthSteps.length === 0) { results.skipped++; continue; }
-        const stepList = currentMonthSteps.slice(0, 6).map(s => `- ${s.title}`).join('\n');
-
-        const monthPreviewEventNote = goal.event_format
-          ? `\nThis goal involves a recurring "${goal.event_format}" (${goal.event_cadence || 'recurring'}). Reference what this month's version of that activity could look like.`
-          : '';
-        const msg = await generateMessage(openai,
-          `You write exciting, motivating monthly goal preview notifications for an ADHD productivity app. Fresh exciting chapter feel. Reference month theme if there is one. Personal and energizing.${monthPreviewEventNote}
-Return JSON: { "push_title": "exciting month kickoff title (max 8 words)", "push_body": "one line teaser (max 15 words)", "in_app_message": "motivating month preview (3-4 sentences, build excitement)" }`,
-          `${goalContext}\n\nMonth ${currentMonthNum} steps (${currentMonthSteps.length} total):\n${stepList}${currentMonthSteps.length > 6 ? `\n+ ${currentMonthSteps.length - 6} more` : ''}`
-        );
-
-        const notifId = await sendPush({ externalId, title: msg.push_title, body: msg.push_body,
-          data: { screen: 'GoalStepNotification', action: 'month_preview', goal_id: goal.id, in_app_message: msg.in_app_message, month_label: `Month ${currentMonthNum}`, month_title: monthTitle || '' }
-        });
-
-        if (notifId) {
-          const pending = goal.pending_notifications || [];
-          pending.push({ id: notifId, type: 'month_preview', title: msg.push_title, message: msg.in_app_message, month_label: `Month ${currentMonthNum}`, created_at: now.toISOString(), seen: false });
-          await base44.asServiceRole.entities.Goal.update(goal.id, { pending_notifications: pending });
-          results.month_preview++;
-        }
-      }
-
-      // ── LAST OF MONTH: Month wrap-up ─────────────────────────────────────────
+      // ── 8. END-OF-MONTH STATS ─────────────────────────────────────────────────
       if (isLastOfMonth) {
         const monthStart = `${todayStr.slice(0, 7)}-01`;
         const dueThisMonth = steps.filter(s => s.due_date >= monthStart && s.due_date <= todayStr);
         const completedThisMonth = dueThisMonth.filter(s => s.status === 'completed');
-        if (dueThisMonth.length === 0) { results.skipped++; continue; }
-
-        const pct = Math.round((completedThisMonth.length / dueThisMonth.length) * 100);
-        const completedTitles = completedThisMonth.slice(0, 5).map(s => `- ${s.title}`).join('\n');
-
-        const monthSummaryEventNote = goal.event_format
-          ? `\nThis goal involves a recurring "${goal.event_format}" (${goal.event_cadence || 'recurring'}). Reflect on how many times they did the activity this month and encourage continuing.`
-          : '';
-        const msg = await generateMessage(openai,
-          `You write deeply affirming, celebratory end-of-month notifications. Tone: you've been on a journey and should feel PROUD. Focus on growth, not metrics. Warm, personal, coach-like. Never harsh about missed steps.${monthSummaryEventNote}
-Return JSON: { "push_title": "celebratory month-end title (max 8 words)", "push_body": "one line highlight (max 15 words)", "in_app_message": "warm month wrap-up (3-5 sentences, flowing prose)" }`,
-          `${goalContext}\n\nMonth ${currentMonthNum}${monthTitle ? ` – "${monthTitle}"` : ''}: ${completedThisMonth.length}/${dueThisMonth.length} steps (${pct}%)\nCompleted:\n${completedTitles || '(none recorded)'}`
-        );
-
-        const notifId = await sendPush({ externalId, title: msg.push_title, body: msg.push_body,
-          data: { screen: 'GoalStepNotification', action: 'month_summary', goal_id: goal.id, in_app_message: msg.in_app_message, month_label: `Month ${currentMonthNum}`, completed: completedThisMonth.length, total: dueThisMonth.length, pct }
-        });
-
-        if (notifId) {
-          const pending = goal.pending_notifications || [];
-          pending.push({ id: notifId, type: 'month_summary', title: msg.push_title, message: msg.in_app_message, month_label: `Month ${currentMonthNum}`, created_at: now.toISOString(), seen: false });
-          await base44.asServiceRole.entities.Goal.update(goal.id, { pending_notifications: pending });
-          results.month_summary++;
+        if (dueThisMonth.length > 0) {
+          const pct = Math.round((completedThisMonth.length / dueThisMonth.length) * 100);
+          const emoji = pct >= 80 ? '🏆' : pct >= 50 ? '📈' : '💡';
+          const msg = pct >= 80 ? "You crushed it!" : pct >= 50 ? "Solid month — let's build on it!" : "New month, fresh energy — you've got this!";
+          await sendPush({
+            externalId,
+            title: `Month complete! ${emoji}`,
+            body: `This month on "${goal.title}": ${completedThisMonth.length}/${dueThisMonth.length} steps (${pct}%). ${msg}`,
+            data: { screen: 'GoalStepNotification', action: 'goal_step', goal_id: goal.id },
+          });
+          results.month_stats_notifs++;
         }
+      }
+    }
+
+    // ── 9. PER-USER INACTIVITY CHECK (7 days no activity) ─────────────────────
+    for (const [externalId, userGoals] of Object.entries(goalsByUser)) {
+      const sevenDaysAgo = daysAgo(todayStr, 7);
+      // Load all steps for this user's goals
+      let allUserSteps = [];
+      for (const g of userGoals) {
+        const s = await base44.asServiceRole.entities.GoalStep.filter({ goal_id: g.id });
+        allUserSteps = allUserSteps.concat(s);
+      }
+      const hadRecentActivity = allUserSteps.some(s =>
+        (s.status === 'completed' && s.completed_at && s.completed_at.split('T')[0] >= sevenDaysAgo) ||
+        (s.updated_date && s.updated_date.split('T')[0] >= sevenDaysAgo && s.status !== 'pending')
+      );
+      if (!hadRecentActivity && allUserSteps.length > 0) {
+        const goal = userGoals[0];
+        const nextPending = allUserSteps.find(s => s.status === 'pending' && s.goal_id === goal.id);
+        await sendPush({
+          externalId,
+          title: `Your goal misses you 💙`,
+          body: `It's been a week since any activity on "${goal.title}". ${nextPending ? `"${nextPending.title}" is still waiting. ` : ''}Want to shift your plan forward a week and start fresh?`,
+          data: { screen: 'GoalStepNotification', action: 'inactivity_nudge', goal_id: goal.id, can_shift_week: true },
+          buttons: [
+            { id: 'shift_week', text: '📅 Shift plan +1 week' },
+            { id: 'remind_later', text: '⏰ Remind tomorrow' },
+          ],
+        });
+        results.inactivity_notifs++;
       }
     }
 

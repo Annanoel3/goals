@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Target, Plus, CheckCircle2, Clock, Pause, ChevronRight, Loader2, Calendar, Bell, X } from "lucide-react";
+import { Target, Plus, CheckCircle2, Clock, Pause, ChevronRight, Loader2, Calendar } from "lucide-react";
 
 const CATEGORY_COLORS = {
   learning: "bg-blue-100 text-blue-700",
@@ -28,7 +28,6 @@ export default function Goals() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("active");
   const [inProgress, setInProgress] = useState(false);
-  const [pendingNotif, setPendingNotif] = useState(null); // { goalId, notif }
   const navigate = useNavigate();
   const theme = localStorage.getItem('adhd_theme') || 'minimalist';
   const isDark = theme === 'dark';
@@ -50,52 +49,11 @@ export default function Goals() {
       ]);
       setGoals(goalsData);
       setSteps(stepsData);
-      // Check for any unseen pending notifications across all goals
-      for (const goal of goalsData) {
-        const pending = (goal.pending_notifications || []).filter(n => !n.seen);
-        if (pending.length > 0) {
-          setPendingNotif({ goalId: goal.id, notif: pending[0] });
-          break; // show one at a time
-        }
-      }
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
     }
-  };
-
-  const dismissPendingNotif = async () => {
-    if (!pendingNotif) return;
-    const goal = goals.find(g => g.id === pendingNotif.goalId);
-    if (!goal) { setPendingNotif(null); return; }
-    const updated = (goal.pending_notifications || []).map(n =>
-      n.id === pendingNotif.notif.id ? { ...n, seen: true } : n
-    );
-    await base44.entities.Goal.update(pendingNotif.goalId, { pending_notifications: updated });
-    setPendingNotif(null);
-  };
-
-  const openPendingNotif = async () => {
-    if (!pendingNotif) return;
-    const goal = goals.find(g => g.id === pendingNotif.goalId);
-    if (!goal) return;
-    // Mark as seen
-    const updated = (goal.pending_notifications || []).map(n =>
-      n.id === pendingNotif.notif.id ? { ...n, seen: true } : n
-    );
-    await base44.entities.Goal.update(pendingNotif.goalId, { pending_notifications: updated });
-    setPendingNotif(null);
-    // Navigate to GoalStepNotification with the stored message data
-    const n = pendingNotif.notif;
-    const params = new URLSearchParams({
-      action: n.type,
-      goal_id: pendingNotif.goalId,
-      in_app_message: n.message || '',
-      ...(n.week_label ? { week_label: n.week_label } : {}),
-      ...(n.month_label ? { month_label: n.month_label } : {}),
-    });
-    navigate(`/GoalStepNotification?${params.toString()}`);
   };
 
   const getGoalProgress = (goalId) => {
@@ -147,33 +105,6 @@ export default function Goals() {
           ))}
         </div>
 
-        {/* Pending Notification Banner */}
-        {pendingNotif && activeTab === "active" && (
-          <div className={`mb-4 rounded-2xl border overflow-hidden ${isDark ? 'bg-violet-900/30 border-violet-700' : 'bg-violet-50 border-violet-200'}`}>
-            <button onClick={openPendingNotif} className="w-full text-left p-4">
-              <div className="flex items-start gap-3">
-                <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${isDark ? 'bg-violet-700' : 'bg-violet-200'}`}>
-                  <Bell className={`w-4 h-4 ${isDark ? 'text-violet-200' : 'text-violet-700'}`} />
-                </div>
-                <div className="flex-1 min-w-0 pr-2">
-                  <p className={`text-xs font-semibold uppercase tracking-wide mb-0.5 ${isDark ? 'text-violet-400' : 'text-violet-600'}`}>
-                    {pendingNotif.notif.type === 'week_preview' ? 'Week Preview' :
-                     pendingNotif.notif.type === 'week_summary' ? 'Week Wrap-Up' :
-                     pendingNotif.notif.type === 'month_preview' ? 'Month Preview' :
-                     'Month Wrap-Up'}
-                  </p>
-                  <p className={`text-sm font-semibold leading-snug ${isDark ? 'text-white' : 'text-gray-900'}`}>{pendingNotif.notif.title}</p>
-                  <p className={`text-xs mt-1 line-clamp-2 ${isDark ? 'text-violet-300' : 'text-violet-700'}`}>{pendingNotif.notif.message}</p>
-                  <p className={`text-xs mt-1.5 font-medium ${isDark ? 'text-violet-400' : 'text-violet-600'}`}>Tap to read →</p>
-                </div>
-                <button onClick={(e) => { e.stopPropagation(); dismissPendingNotif(); }} className={`flex-shrink-0 p-1 rounded-lg ${isDark ? 'hover:bg-violet-800 text-violet-400' : 'hover:bg-violet-100 text-violet-400'}`}>
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            </button>
-          </div>
-        )}
-
         {/* In-Progress Indicator */}
         {inProgress && activeTab === "active" && (
           <div className={`mb-6 p-4 rounded-2xl border flex items-start gap-3 ${isDark ? 'bg-blue-900/30 border-blue-700 text-blue-200' : 'bg-blue-50 border-blue-200 text-blue-800'}`}>
@@ -182,23 +113,12 @@ export default function Goals() {
               <p className="font-medium text-sm">Goal in progress...</p>
               <p className={`text-xs mt-1 ${isDark ? 'text-blue-300' : 'text-blue-700'}`}>A goal is being created. Go to Planner to continue or come back to see it appear here.</p>
             </div>
-            <div className="flex gap-2 flex-shrink-0">
-              <button
-                onClick={() => navigate("/Planner")}
-                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${isDark ? 'hover:bg-blue-800 text-blue-300' : 'hover:bg-blue-100 text-blue-600'}`}
-              >
-                Continue
-              </button>
-              <button
-                onClick={() => {
-                  localStorage.removeItem('plannerInProgress');
-                  setInProgress(false);
-                }}
-                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${isDark ? 'hover:bg-blue-800 text-blue-300' : 'hover:bg-blue-100 text-blue-600'}`}
-              >
-                Dismiss
-              </button>
-            </div>
+            <button
+              onClick={() => navigate("/Planner")}
+              className={`px-3 py-1 rounded-lg text-xs font-semibold flex-shrink-0 transition-all ${isDark ? 'hover:bg-blue-800 text-blue-300' : 'hover:bg-blue-100 text-blue-600'}`}
+            >
+              Continue
+            </button>
           </div>
         )}
 

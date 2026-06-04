@@ -1,8 +1,8 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
-import { createClient } from "npm:@supabase/supabase-js@2.38.4";
+import { createClientFromRequest } from "npm:@base44/sdk@0.8.25";
 import OpenAI from "npm:openai";
 
 Deno.serve(async (req) => {
+  const openai = new OpenAI({ apiKey: Deno.env.get('OPENAI_API_KEY') });
   try {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
@@ -10,16 +10,8 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Use Supabase directly for all DB ops — bypasses Base44 entity backend
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL'),
-      Deno.env.get('SUPABASE_ANON_KEY')
-    );
-
     const body = await req.json();
     const { messages, mode, goal_id, existing_goals } = body;
-    
-    const openai = new OpenAI({ apiKey: Deno.env.get('OPENAI_API_KEY') });
 
     // ── EXTRACT PLAN: parse conversation into structured JSON ──────────────────
 
@@ -31,40 +23,16 @@ Deno.serve(async (req) => {
   const _mNames = ['january','february','march','april','may','june','july','august','september','october','november','december'];
   const _wNum = {one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10,eleven:11,twelve:12};
   const _now = new Date();
-  // Only scan user messages to avoid AI responses polluting the first-match search
-  const _userText = messages.filter(m => m.role === 'user').map(m => m.content).join('\n\n');
   let detectedMonths = null;
-
-  // Range pattern: "months 3-12" or "months 1-6" → take upper bound
-  const _rangeM = _userText.match(/months?\s+(\d+)\s*[-\u2013]\s*(\d+)/i);
-  if (_rangeM) detectedMonths = Math.max(parseInt(_rangeM[1], 10), parseInt(_rangeM[2], 10));
-
-  // "a year" or "one year" → 12
-  if (!detectedMonths && /(a|one)\s+year\b/i.test(_userText)) detectedMonths = 12;
-
-  // "X years" → X * 12
-  if (!detectedMonths) { const m = _userText.match(/(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s+years?/i); if (m) { const n = parseInt(m[1]) || _wNum[(m[1]||'').toLowerCase()] || 1; detectedMonths = n * 12; } }
-
-  // "12 months", "six months", etc.
-  if (!detectedMonths) { const m = _userText.match(/(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s+months?/i); if (m) { detectedMonths = parseInt(m[1]) || _wNum[(m[1]||'').toLowerCase()] || 1; } }
-
-  // Bare "X-month" pattern
-  if (!detectedMonths) { const m = _userText.match(/(\d+)[- ]month/i); if (m) detectedMonths = parseInt(m[1], 10); }
-
-  // Weeks → months
-  if (!detectedMonths) { const m = _userText.match(/in\s+(\d+)\s+weeks?/i); if (m) detectedMonths = Math.max(1, Math.round(parseInt(m[1])/4)); }
-
-  // "by [month name]"
-  if (!detectedMonths) { const m = _userText.match(/by\s+(?:next\s+|this\s+|end\s+of\s+)?(january|february|march|april|may|june|july|august|september|october|november|december)/i); if (m) { const ti=_mNames.indexOf(m[1].toLowerCase()); const isNext=/next/i.test(m[0]); let ty=_now.getFullYear(); if(ti<=_now.getMonth()||isNext)ty++; detectedMonths=Math.max(1,(ty-_now.getFullYear())*12+(ti-_now.getMonth())); } }
-
-  // "by [year]"
-  if (!detectedMonths) { const m = _userText.match(/(?:by|before)\s+(?:(?:the\s+)?end\s+of\s+)?(\d{4})/i); if (m) { const ty=parseInt(m[1]); if(ty>=_now.getFullYear()) detectedMonths=Math.max(1,(ty-_now.getFullYear())*12+(11-_now.getMonth())); } }
-
-  // "by end of year"
-  if (!detectedMonths && /(?:by|before)\s+(?:the\s+)?end\s+of\s+(?:(?:this|the)\s+)?year/i.test(_userText)) detectedMonths = Math.max(1, 11-_now.getMonth());
-
-  // "next year"
-  if (!detectedMonths && /next\s+year/i.test(_userText)) detectedMonths = Math.max(6, 12-_now.getMonth()+6);
+  const _em = conversationText.match(/(\d+)[- ]month/i);
+  if (_em) detectedMonths = parseInt(_em[1], 10);
+  if (!detectedMonths) { const m = conversationText.match(/in\s+(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|\d+)\s+years?/i); if (m) detectedMonths = (parseInt(m[1])||_wNum[m[1].toLowerCase()]||1)*12; }
+  if (!detectedMonths) { const m = conversationText.match(/in\s+(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|\d+)\s+months?/i); if (m) detectedMonths = parseInt(m[1])||_wNum[m[1].toLowerCase()]||1; }
+  if (!detectedMonths) { const m = conversationText.match(/in\s+(\d+)\s+weeks?/i); if (m) detectedMonths = Math.max(1, Math.round(parseInt(m[1])/4)); }
+  if (!detectedMonths) { const m = conversationText.match(/by\s+(?:next\s+|this\s+|end\s+of\s+)?(january|february|march|april|may|june|july|august|september|october|november|december)/i); if (m) { const ti=_mNames.indexOf(m[1].toLowerCase()); const isNext=/next/i.test(m[0]); let ty=_now.getFullYear(); if(ti<=_now.getMonth()||isNext)ty++; detectedMonths=Math.max(1,(ty-_now.getFullYear())*12+(ti-_now.getMonth())); } }
+  if (!detectedMonths) { const m = conversationText.match(/(?:by|before)\s+(?:(?:the\s+)?end\s+of\s+)?(\d{4})/i); if (m) { const ty=parseInt(m[1]); if(ty>=_now.getFullYear()) detectedMonths=Math.max(1,(ty-_now.getFullYear())*12+(11-_now.getMonth())); } }
+  if (!detectedMonths && /(?:by|before)\s+(?:the\s+)?end\s+of\s+(?:(?:this|the)\s+)?year/i.test(conversationText)) detectedMonths = Math.max(1, 11-_now.getMonth());
+  if (!detectedMonths && /next\s+year/i.test(conversationText)) detectedMonths = Math.max(6, 12-_now.getMonth()+6);
     const monthsHint = detectedMonths
       ? `CRITICAL: The plan discussed in this conversation spans ${detectedMonths} months. You MUST generate steps for ALL ${detectedMonths} months (Month 1 through Month ${detectedMonths}). Do NOT stop at Month 2 or any earlier month. Each month MUST contain exactly 4 weeks. Total phases required: ${detectedMonths * 4}.`
       : `CRITICAL: Identify the full timeline from the conversation and generate steps for every single month/week discussed.`;
@@ -73,57 +41,17 @@ Deno.serve(async (req) => {
   ? `- Use EXACTLY ${detectedMonths} months for this plan. Do NOT recalculate or shorten it. MANDATORY WEEKS: Each of the ${detectedMonths} months MUST have exactly 4 weeks (Week 1, Week 2, Week 3, Week 4). Total required week-phases: ${detectedMonths * 4}. Never combine or skip weeks.`
   : `- Identify the exact duration from the conversation (a deadline, date, or duration phrase). Use that many months — do NOT shorten it.`;
 
-    // ── BULK INSERT STEPS: use Base44 SDK to insert all steps ─────────
-    if (mode === 'bulk_insert_steps') {
-      const { goal_id, steps } = body;
-      if (!goal_id || !steps) return Response.json({ error: 'Missing goal_id or steps' }, { status: 400 });
-
-      const stepRows = (steps || []).map((step, i) => ({
-        goal_id,
-        title: step.title,
-        description: step.description || "",
-        phase: step.phase || "",
-        priority: step.priority || "medium",
-        due_date: step.due_date || null,
-        order_index: step.order_index ?? i,
-        status: "pending",
-        step_resources: (step.step_resources || []).filter(r => r && r.type),
-        success_criteria: step.success_criteria || [],
-        tips_and_guidance: step.tips_and_guidance || "",
-        is_daily_habit: step.is_daily_habit === true,
-      }));
-
-      try {
-        // Create steps one at a time for reliability
-        let createdCount = 0;
-        for (const row of stepRows) {
-          try {
-            await base44.asServiceRole.entities.GoalStep.create(row);
-            createdCount++;
-          } catch (stepErr) {
-            console.error(`[goalPlannerChat] Failed to create step:`, { stepTitle: row.title, error: stepErr.message, stepData: row });
-            throw stepErr;
-          }
-        }
-        console.log(`[goalPlannerChat] bulk_insert_steps: created ${createdCount} steps for goal ${goal_id}`);
-        return Response.json({ success: true, steps_created: createdCount });
-      } catch (err) {
-        console.error(`[goalPlannerChat] bulk_insert_steps error:`, err.message, err);
-        return Response.json({ error: err.message }, { status: 500 });
-      }
-    }
-
     if (mode === 'extract_plan') {
       const extractionResponse = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
+        model: "gpt-4o",
         messages: [
           {
             role: "system",
-            content: `You are EXTRACTING (not creating) a structured goal plan from a planning conversation where the plan was ALREADY FULLY PRESENTED. The plan summary with all book titles / month themes already exists in the conversation — your job is to convert it to JSON. Return ONLY valid JSON, no markdown fences. ${monthsHint} CRITICAL: Generate EXACTLY 4 steps per month. Each step IS one week. phase must be 'Month X, Week Y' (e.g. 'Month 1, Week 1', 'Month 2, Week 3'). title starts with 'Week 1:', 'Week 2:', 'Week 3:', or 'Week 4:' followed by a brief focus. description = 1-2 sentences. tips_and_guidance = 3-5 activities as a newline-separated list. step_resources = [{title, specific_details}] main book/resource. Extract the SPECIFIC book titles and content already decided in the conversation — do NOT invent new ones.`
+            content: `You are extracting a structured goal plan from a planning conversation. Return ONLY valid JSON, no markdown fences. ${monthsHint} CRITICAL: Even if the conversation only briefly mentions later months without weekly detail, you MUST still generate EXACTLY 4 weeks for EVERY month. Generate EXACTLY 4 steps per month. Each step IS one week. phase must be 'Month X, Week Y' (e.g. 'Month 1, Week 1', 'Month 2, Week 3'). title starts with 'Week 1:', 'Week 2:', 'Week 3:', or 'Week 4:' followed by a brief focus. description = 2-4 sentences. tips_and_guidance = 3-5 activities as a newline-separated list; if daily practice ALWAYS include 'Do [specific action] every day'. step_resources = [{title, specific_details}] main book/resource. No daily breakdowns.`
           },
           {
             role: "user",
-            content: `Extract the FINAL agreed plan from this conversation. The plan was already presented and approved — convert it to JSON:
+            content: `Extract the FINAL agreed plan from this conversation:
 
 ${conversationText}
 
@@ -142,30 +70,14 @@ This applies to ALL goal types. Users should see meaningful milestone titles, no
 - For goals under 1 month, just use "Week 1", "Week 2" phases directly.
 READING GOALS — CRITICAL: You MUST select a specific, real book title for EVERY single month in month_titles, based on the user's stated genre and preferences. Draw on your knowledge of books in that genre. Placeholder titles (e.g. "Book Title", "Month 2 Book", "TBD") are a CRITICAL FAILURE — never output them.
 
-NOTIFICATION FREQUENCY DETECTION — infer from category + conversation context, never ask directly:
-- category='habit' → ALWAYS "daily" (reading streaks, daily meditation, daily journaling, etc.)
-- category='learning' → infer from how often user said they'd practice: daily practice = "daily", 3x/week = "3x_per_week", weekdays only = "weekdays". If unclear, default to "3x_per_week".
-- category='personal' → "3x_per_week" (mindset/growth goals don't need daily nagging)
-- category='health' → match their workout schedule ("daily", "3x_per_week", "weekdays", etc.)
-- category='career' → "weekdays"
-- category='finance' → "weekly"
-- category='creative' → based on their stated practice commitment, default "3x_per_week"
-- category='other' → "weekly"
+NOTIFICATION FREQUENCY DETECTION:
+Analyze the conversation for clues about how often the user wants to be reminded:
+- Daily tasks / morning routine / meditation / exercise / practice → "daily"
+- Weekday focus only (Mon-Fri) / work-related → "weekdays"
+- Once per week check-in / milestone goals → "weekly"
+- Multiple times per week → "3x_per_week" or "2x_per_week"
+- If unclear or they're doing daily actions → default to "daily"
 Set "notification_frequency" in the returned JSON to one of: "daily", "weekdays", "weekly", "3x_per_week", "2x_per_week", "once_per_week"
-
-NOTIFICATION_DAYS EXTRACTION — CRITICAL — extract the specific days of week the user plans to act:
-- If the user stated specific training/practice days (e.g. "Mon/Wed/Fri", "Tuesdays and Thursdays", "weekends") → set notification_days to the corresponding day numbers (0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat). Example: Mon/Wed/Fri = [1,3,5].
-- If the user stated a count without specific days (e.g. "3x per week") → leave notification_days as null (system will use notification_frequency).
-- Health/fitness goals: if user said "I want to run Monday, Wednesday, and Saturday" → notification_days=[1,3,6].
-- Social/relationship goals with a cadence (date nights every Friday, monthly employee outing on last Friday, weekly team lunch on Thursdays) → notification_days=[5] for weekly Friday, [4] for weekly Thursday, etc. For monthly, set event_cadence="monthly" and notification_days to the day of week (not day of month).
-- Learning/skill goals: only notify on days the user said they'll practice. "I'll practice guitar Tuesday and Thursday evenings" → notification_days=[2,4].
-- Career goals with events: if user described weekly team activities → set notification_days to that day.
-- If no specific days mentioned: set notification_days to null.
-
-EVENT_CADENCE and EVENT_FORMAT — for social, relationship, career (team-building), community, creative (group), and hobby goals:
-- event_cadence: "weekly", "biweekly", "monthly", or null. Set from conversation ("we do team lunches every week" → "weekly", "monthly happy hour" → "monthly").
-- event_format: the specific type of activity ("team lunch", "date night", "weekly outing", "monthly giveaway", "happy hour", "poker night", "book club", "volunteer day", etc.).
-- These power notification copy so the AI can say "Don't forget this week's date night 💕" vs "Ready for this month's team outing? 🎉"
 
 GRANULARITY RULES — choose the right level of detail per goal type:
 
@@ -219,11 +131,8 @@ IMPORTANT: Generate 2-4 specific, actionable tasks per week-phase. Keep descript
   "description": "what the user wants to achieve",
   "timeline": "e.g. 5 months",
   "target_date": "YYYY-MM-DD calculated from today ${today}",
-  "category": "one of: learning, habit, health, career, finance, relationships, personal, creative, other — CRITICAL CATEGORY RULES (infer from conversation context, do NOT ask the user directly):\n  - 'learning': skill-building that requires regular practice to improve (learning a language, instrument, coding, public speaking, drawing). Frequency is driven by how much practice the user committed to — could be daily OR 3x/week depending on what they said.\n  - 'habit': goals that require DAILY CONSISTENCY to hit a cumulative or streak-based target (read 12 books in 12 months, read every day, meditate daily, journal every day, build a workout streak). The defining signal: success depends on showing up EVERY day, not just improving a skill. Notification frequency = 'daily'.\n  - 'personal': mindset, emotional growth, confidence, happiness, relationships, wellbeing. These are NOT daily-action goals — they are reflective and periodic. Notification frequency = '3x_per_week' or 'weekly'.\n  - 'health': fitness, exercise, nutrition, sleep, medical. Notification frequency = based on workout schedule.\n  - 'career': job searching, promotions, professional skills. Notification frequency = 'weekdays'.\n  - 'finance': saving, investing, budgeting. Notification frequency = 'weekly'.\n  - 'creative': writing a novel, art projects, music composition. Frequency = based on practice commitment.\n  - NEVER use 'personal' for reading, skill-building, or habit goals.",
+  "category": "one of: learning, health, career, finance, relationships, personal, creative, other",
   "notification_frequency": "daily|weekdays|weekly|3x_per_week|2x_per_week|once_per_week — inferred from conversation",
-  "notification_days": [1, 3, 5],
-  "event_cadence": "weekly|biweekly|monthly|null — for social/relationship/career goals only",
-  "event_format": "e.g. 'team lunch', 'date night', 'monthly outing', 'weekly giveaway' — for social/relationship/career goals only",
   "plan_summary": "2-3 sentence summary of the overall plan",
   "month_titles": {
     "1": "Descriptive title for Month 1 (e.g. book title, phase name, milestone name)",
@@ -292,17 +201,11 @@ CRITICAL:
 7. This removes all excuses — users have everything they need to execute.`
           }
         ],
-        max_tokens: 12000,
+        max_tokens: 16000,
         response_format: { type: "json_object" }
       });
 
-      let plan;
-      try {
-        plan = JSON.parse(extractionResponse.choices[0].message.content);
-      } catch (parseErr) {
-        console.error('[extract_plan] JSON parse failed:', parseErr.message, 'Raw response:', extractionResponse.choices[0].message.content?.substring(0, 500));
-        return Response.json({ error: 'AI response was not valid JSON. Please try again.' }, { status: 400 });
-      }
+      const plan = JSON.parse(extractionResponse.choices[0].message.content);
 
       // Ensure all steps have required fields
        plan.steps = (plan.steps || []).map(step => ({
@@ -388,10 +291,10 @@ CRITICAL:
         });
         
         const avgStepsPerMonth = expectedMonths ? p.steps.length / expectedMonths : 0;
-        if (avgStepsPerMonth < 1) {
+        if (avgStepsPerMonth < 3) {
           return {
             valid: false,
-            error: `Insufficient detail: generated only ${p.steps.length} total steps for ${expectedMonths} months. Please try again.`
+            error: `Insufficient detail: generated only ${p.steps.length} total steps for ${expectedMonths} months (~${Math.round(avgStepsPerMonth)} per month). Expected 15-20+ per month.`
           };
         }
         
@@ -400,9 +303,44 @@ CRITICAL:
       
       const validation = validatePlanCompleteness(plan);
       if (!validation.valid) {
-        return Response.json({ 
-          error: `Plan validation failed: ${validation.error}. This might mean the AI didn't generate a complete plan. Please try again with a clearer timeline.` 
-        }, { status: 400 });
+        // Regenerate with stricter instructions
+        const retryResponse = await openai.chat.completions.create({
+           model: "gpt-4o",
+           messages: [
+             {
+               role: "system",
+               content: `You are extracting a structured goal plan. CRITICAL RULES: Every month MUST be expanded into exactly 4 weeks (Week 1, Week 2, Week 3, Week 4). Never output a bare 'Month X' phase — always use 'Month X Week Y' format.
+        1. EVERY MONTH from Month 1 through the final month MUST have steps. NO GAPS.
+        2. EVERY MONTH must have EXACTLY 4 steps — one per week. phase='Month X, Week Y' format required.
+        3. For a ${plan.timeline} goal, generate steps for ALL ${detectedMonths} months.
+        4. Return ONLY valid JSON, no markdown fences.
+        5. If previous extraction failed: "${validation.error}", you MUST fix it now.`
+            },
+            {
+              role: "user",
+              content: `Extract the plan from this conversation. CRITICAL — the previous extraction was incomplete or had gaps. Fix it now by including EVERY month and week with full detail:\n\n${conversationText}\n\n${monthsHint}\n\nReturn the SAME JSON structure, but with complete phases and steps for ALL ${detectedMonths || 'stated'} months.`
+            }
+          ],
+          max_tokens: 16000,
+        response_format: { type: "json_object" }
+        });
+        
+        const retryPlan = JSON.parse(retryResponse.choices[0].message.content);
+        retryPlan.steps = (retryPlan.steps || []).map(step => ({
+          ...step,
+          step_resources: step.step_resources || [],
+          success_criteria: step.success_criteria || [],
+          tips_and_guidance: step.tips_and_guidance || ""
+        }));
+        
+        const retryValidation = validatePlanCompleteness(retryPlan);
+        if (!retryValidation.valid) {
+          return Response.json({ 
+            error: `Plan generation failed validation: ${retryValidation.error}. Please try again with a clearer timeline or fewer goals.` 
+          }, { status: 400 });
+        }
+        
+        return Response.json({ plan: retryPlan });
       }
 
       // Extract preferred time from conversation for health goals
@@ -422,64 +360,24 @@ CRITICAL:
       if (!plan.notification_frequency) {
         plan.notification_frequency = 'daily';
       }
-
-      // Pass through new adaptive scheduling fields
-      plan.notification_days = plan.notification_days || null;
-      plan.event_cadence = plan.event_cadence || null;
-      plan.event_format = plan.event_format || null;
       
       return Response.json({ plan, month_titles: plan.month_titles || {} });
-    }
-
-    // ── BULK INSERT STEPS: create steps for a goal in background ──────────────
-    if (mode === 'bulk_insert_steps') {
-      const stepRows = (steps || []).map((step, i) => ({
-        goal_id,
-        title: step.title,
-        description: step.description || "",
-        phase: step.phase || "",
-        priority: step.priority || "medium",
-        due_date: step.due_date || null,
-        order_index: step.order_index ?? i,
-        status: "pending",
-        step_resources: (step.step_resources || []).filter(r => r && r.type),
-        success_criteria: step.success_criteria || [],
-        tips_and_guidance: step.tips_and_guidance || "",
-        is_daily_habit: step.is_daily_habit === true,
-      }));
-
-      try {
-        let createdCount = 0;
-        for (const row of stepRows) {
-          await base44.asServiceRole.entities.GoalStep.create(row);
-          createdCount++;
-        }
-        console.log(`[goalPlannerChat] bulk_insert_steps: created ${createdCount} steps for goal ${goal_id}`);
-        return Response.json({ success: true, steps_created: createdCount });
-      } catch (err) {
-        console.error(`[goalPlannerChat] bulk_insert_steps error:`, err.message);
-        return Response.json({ error: err.message }, { status: 500 });
-      }
     }
 
     // ── APPLY EDIT: commit approved edits to an existing goal ─────────────────
     if (mode === 'apply_edit') {
 
-      // Fetch existing goal & steps in parallel via Supabase
-      const [{ data: allGoals }, { data: existingSteps }] = await Promise.all([
-        supabase.from('Goal').select('*').eq('created_by_id', user.id),
-        supabase.from('GoalStep').select('*').eq('goal_id', goal_id)
-      ]);
-      const existingGoal = (allGoals || []).find(g => g.id === goal_id);
+      // Fetch existing goal & steps
+      const existingGoal = await base44.entities.Goal.list().then(all => all.find(g => g.id === goal_id));
+      const existingSteps = await base44.entities.GoalStep.filter({ goal_id });
 
       // Separate completed steps (keep) from pending/in_progress (will be replaced)
-      const allExistingSteps = existingSteps || [];
-      const completedSteps = allExistingSteps.filter(s => s.status === 'completed');
-      const replaceableSteps = allExistingSteps.filter(s => s.status !== 'completed');
+      const completedSteps = existingSteps.filter(s => s.status === 'completed');
+      const replaceableSteps = existingSteps.filter(s => s.status !== 'completed');
 
       // Extract the new plan from the conversation using AI
       const extractionResponse = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
+        model: "gpt-4o",
         messages: [
           {
             role: "system",
@@ -523,26 +421,26 @@ Extract every single step. If the planner listed 48 steps, return all 48.`
 
       const extracted = JSON.parse(extractionResponse.choices[0].message.content);
 
-      // Apply goal-level updates via Supabase
+      // Apply goal-level updates
       const goalUpdates = extracted.goal_updates || {};
       if (Object.keys(goalUpdates).length > 0) {
         const { month_titles, ...otherUpdates } = goalUpdates;
-        const updatePayload = { ...otherUpdates };
+        if (Object.keys(otherUpdates).length > 0) {
+          await base44.entities.Goal.update(goal_id, otherUpdates);
+        }
+        // Fully replace month_titles with the new ones from the revised plan
         if (month_titles && Object.keys(month_titles).length > 0) {
-          updatePayload.month_titles = month_titles;
-        }
-        if (Object.keys(updatePayload).length > 0) {
-          await supabase.from('Goal').update(updatePayload).eq('id', goal_id);
+          await base44.entities.Goal.update(goal_id, { month_titles });
         }
       }
 
-      // Delete ALL replaceable (non-completed) steps in parallel via Supabase
-      const replaceableIds = replaceableSteps.map(s => s.id);
-      if (replaceableIds.length > 0) {
-        await supabase.from('GoalStep').delete().in('id', replaceableIds);
+      // Delete ALL replaceable (non-completed) steps
+      for (const step of replaceableSteps) {
+        await base44.entities.GoalStep.delete(step.id);
       }
 
-      // Create all new steps — sort by month/week order first
+      // Create all new steps from the proposed plan
+      // ENFORCE WEEK ORDERING: Sort steps so weeks appear in correct sequence within each month
       const newSteps = extracted.new_steps || [];
       newSteps.sort((a, b) => {
         const aMonth = parseInt(a.phase?.match(/Month (\d+)/i)?.[1] || 0);
@@ -553,54 +451,40 @@ Extract every single step. If the planner listed 48 steps, return all 48.`
         return aWeek - bWeek;
       });
 
-      const stepRows = newSteps.map((step, i) => ({
-        goal_id,
-        title: step.title,
-        description: step.description || "",
-        phase: step.phase || "",
-        priority: step.priority || "medium",
-        due_date: step.due_date || null,
-        order_index: step.order_index ?? i,
-        status: "pending",
-        step_resources: step.step_resources || [],
-        success_criteria: step.success_criteria || [],
-        tips_and_guidance: step.tips_and_guidance || "",
-        is_daily_habit: step.is_daily_habit === true
-      }));
-      // Create steps one at a time for reliability
-      for (const row of stepRows) {
-        await base44.asServiceRole.entities.GoalStep.create(row);
+      for (let i = 0; i < newSteps.length; i++) {
+        const step = newSteps[i];
+        await base44.entities.GoalStep.create({
+          goal_id,
+          title: step.title,
+          description: step.description || "",
+          phase: step.phase || "",
+          priority: step.priority || "medium",
+          due_date: step.due_date || "",
+          order_index: step.order_index ?? i,
+          status: "pending",
+          step_resources: step.step_resources || [],
+          success_criteria: step.success_criteria || [],
+          tips_and_guidance: step.tips_and_guidance || "",
+          is_daily_habit: step.is_daily_habit === true
+        });
       }
 
       return Response.json({ success: true, steps_replaced: replaceableSteps.length, steps_created: newSteps.length, completed_kept: completedSteps.length });
     }
 
     // ── CHAT: main conversational mode ────────────────────────────────────────
-    // Load user's existing goals + all their steps via Supabase in parallel
+    // Load user's existing goals — use user-scoped client so RLS returns their own goals
     let existingGoalsList = [];
+    try {
+      existingGoalsList = await base44.entities.Goal.list('-created_date', 50);
+    } catch (_) { /* ignore */ }
+
+    // Load steps for all goals so AI has full context even in new-plan mode
     let allStepsMap = {};
     try {
-      const { data: goalsData } = await supabase
-        .from('Goal')
-        .select('*')
-        .eq('created_by_id', user.id)
-        .order('created_date', { ascending: false })
-        .limit(50);
-      existingGoalsList = goalsData || [];
-
-      if (existingGoalsList.length > 0) {
-        const goalIds = existingGoalsList.map(g => g.id);
-        const { data: stepsData } = await supabase
-          .from('GoalStep')
-          .select('*')
-          .in('goal_id', goalIds);
-        (stepsData || []).forEach(s => {
-          if (!allStepsMap[s.goal_id]) allStepsMap[s.goal_id] = [];
-          allStepsMap[s.goal_id].push(s);
-        });
-        Object.keys(allStepsMap).forEach(gid => {
-          allStepsMap[gid].sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
-        });
+      for (const g of existingGoalsList) {
+        const steps = await base44.entities.GoalStep.filter({ goal_id: g.id });
+        allStepsMap[g.id] = steps.sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
       }
     } catch (_) { /* ignore */ }
 
@@ -627,8 +511,7 @@ Extract every single step. If the planner listed 48 steps, return all 48.`
     if (isEditSession) {
       // Fetch current goal + steps for context
       const currentGoal = existingGoalsList.find(g => g.id === goal_id);
-      const { data: currentStepsData } = await supabase.from('GoalStep').select('*').eq('goal_id', goal_id);
-      const currentSteps = currentStepsData || [];
+      const currentSteps = await base44.asServiceRole.entities.GoalStep.filter({ goal_id });
       const stepsText = currentSteps
         .sort((a, b) => (a.order_index || 0) - (b.order_index || 0))
         .map(s => `  [${s.phase || 'No phase'}] ${s.title} (${s.priority}, due: ${s.due_date || 'TBD'}, status: ${s.status})`)
@@ -782,15 +665,7 @@ CRITICAL INTERPRETATION RULES:
 - "I enjoyed [book/thing]" = already read/experienced it = BANNED
 - "I already read [book]" = BANNED
 - "[Book] was great" = already read = BANNED
-- "[Book] had too much X" = already read = BANNED (AND triggers the X preference constraint — reduce X throughout the plan)
-- "[Book] was too X" = already read = BANNED (AND triggers the X preference constraint)
-- "[Book] felt too X" = already read = BANNED (AND triggers the X preference constraint)
-- ANY positive OR negative opinion about a specific book/resource = already read/experienced = BANNED
-- ANY complaint or criticism about a specific item = already read = BANNED + apply that complaint as a plan-wide constraint
-
-EXAMPLE: "Twilight had too much romance" → (1) Twilight is BANNED from the plan forever, AND (2) this is an explicit constraint: reduce romance throughout the plan
-
-APPROXIMATE/WRONG TITLE RULE: If the user references a book or item with an approximate, misspelled, or close-but-wrong title (e.g. "that book called 1954 or something" or "the Inferno book by that Italian guy"), you MUST resolve it to the actual title (e.g. 1984 by George Orwell, Dante's Inferno) and PERMANENTLY BAN that resolved title. "I liked that dystopian book called 1954 or something" = 1984 is BANNED. Do not put 1984 in the plan under any name or edition. (max 1 romance-heavy book total).
+- ANY positive or negative familiarity with a specific book/resource = BANNED
 
 BEFORE WRITING YOUR RESPONSE: Mentally compile the full banned list from this conversation and the original planning conversation, then verify every single book/resource in your proposal is NOT on that list. If you are about to write a banned item, stop and replace it with something the user has NOT mentioned.
 
@@ -847,9 +722,7 @@ PHASE 1 — GATHER INFO FIRST (STRICTLY REQUIRED before drafting any plan):
        - What obstacles or fears do they have? (always clarify: "I'll build specific contingency steps into your plan to address these")
        - Any specific deadline or target date? — ONLY ask this if the user has NOT already mentioned a deadline or timeframe in their goal description. If they said "by end of 2026", "before Christmas", "in 6 months", etc., skip this question entirely and use that date.
        - CRITICAL NEW: When do you want to START this goal? (e.g. "immediately", "next month", "after my vacation", a specific date). I'll calculate the exact timeline from your start date to the end date, so your plan aligns with when you're actually ready to begin.
-       - FOR HEALTH/FITNESS GOALS ONLY: Ask THREE things together in one question block: (1) What time of day do they prefer to work out/exercise? (2) How often do they currently exercise / what is their current fitness/ability level? (e.g. "I can currently run 1 mile without stopping", "I do zero exercise right now", "I work out 3x/week already"). (3) How many days per week do they WANT to do this activity? — This last answer directly sets their notification_days (e.g. Mon/Wed/Fri = 3x/week). Be specific: ask them to list actual days if they have a preference, or pick a number. These three answers together let you build a realistic progressive plan and set notifications ONLY on their actual training days.
-       - FOR SOCIAL/RELATIONSHIP/CAREER TEAM-BUILDING/COMMUNITY GOALS: Ask about the specific FORMAT and CADENCE of the activity. Examples: "date nights — how often? weekly, biweekly, monthly?", "employee events — what type? team lunch, happy hour, outing, giveaway? how often — weekly, monthly?", "friend activities — what kind of activities? how often?", "community volunteering — how often per month?". The cadence answer sets notification_days and event_cadence. The format answer sets event_format and personalizes every notification.
-       - FOR LEARNING/SKILL GOALS (instrument, language, art, dance, coding, public speaking): Ask how many days per week they plan to practice and optionally which specific days. This sets notification_days so notifications only fire on practice days, not every day.
+       - FOR HEALTH/FITNESS GOALS ONLY: What time of day do they prefer to work out/exercise?
        - BUDGET QUESTION (ask for virtually ALL goals — books, courses, activities, tools, coaching, classes, experiences all cost money): Ask "Do you have a budget for things like books, courses, activities, or tools? Even a rough idea helps — or I can stick to free resources only." The ONLY exception: skip this question if the goal is purely about saving or paying off money (e.g. "save $5000", "pay off credit card debt") where spending on resources makes no sense. Use the answer to STRICTLY filter all resource recommendations:
          * If they say NO budget / free only → ONLY recommend free resources (YouTube, free apps, free articles via Google search, free PDFs). NEVER recommend paid books, paid courses, or paid tools.
          * If they give a budget → tailor recommendations to fit within it (e.g. one $15 book per month if budget is $15/month). Prioritize highest-value paid resources first.
@@ -863,25 +736,6 @@ PHASE 1 — GATHER INFO FIRST (STRICTLY REQUIRED before drafting any plan):
 
 PHASE 2 — DRAFT THE FULL PLAN (only after sufficient info gathered):
 ${monthsRule}
-
-**CRITICAL PLAN OUTPUT FORMAT — ABSOLUTELY MANDATORY:**
-When presenting the full plan (with months/weeks), use EXACTLY this format:
-- ONE pass through all months. NO REPEATS. Each month shown EXACTLY ONCE.
-- Format: "Month N – Title" on its own line, followed by Week 1, Week 2, Week 3, Week 4 (each with a dash + activity bullets).
-- Example:
-  Month 1 – A Court of Thorns and Roses
-  - Week 1 – Introduction
-    • Read Chapters 1-6
-    • Research author Sarah J. Maas
-  - Week 2 – Building the Story
-    • Read Chapters 7-12
-    • Character analysis
-  
-  Month 2 – A Certain Slant of Light
-  - Week 1 – Opening Act
-    ...
-
-NEVER show months 1-6 in one section, then months 7-12 in another section. NEVER list the same month twice in a single message. NEVER split the plan across multiple "here are months 3-12" sections.
 4. STRICT PHASE NAMING RULES — VIOLATIONS ARE NOT ACCEPTABLE:
    - NEVER combine weeks: "Week 1-2", "Week 3-4", "Weeks 5-6" are ALL FORBIDDEN. Every week is its own entry: "Month 1, Week 1", "Month 1, Week 2", etc.
    - NEVER combine months. Every month is its own entry: "Month 4", "Month 5", "Month 6".
@@ -924,29 +778,9 @@ NEVER show months 1-6 in one section, then months 7-12 in another section. NEVER
 8. Cover the full timeline with clear phases.
 9. NEVER ask follow-up questions mid-plan like "do these resonate?" or "what type of resources do you prefer?" — commit to the full plan using everything the user already told you.
 9b. CRITICAL — END YOUR PLAN DRAFT WITH AN APPROVAL QUESTION: After presenting the complete plan, you MUST end with a direct question asking if it looks good, e.g. "Does this plan look good to you?" or "How does this look — ready to save it?" This is REQUIRED. Never end the plan presentation with a statement like "let me know what you think" or "I'll now draft" without a direct question.
-9c. TRANSITION TO PLAN — SUMMARIZE FIRST, THEN CONFIRM: Once you have gathered all the information you need, your next message must do THREE things in order: (1) Provide a detailed summary of everything you have learned about the user's goal — their timeline, preferences, specific details they mentioned, concerns, constraints, things they want to avoid, and any personal context they shared. Show the user you heard and retained everything they said. CRITICAL — APPLIES TO ALL GOAL TYPES AND ALL TIMELINE LENGTHS: The summary MUST cover EVERY SINGLE month/phase of the full timeline — whether it's 2 months or 24 months. If the user specified some content (e.g. "Month 1 I want X, Month 2 I want Y") and asked you to choose the rest, you MUST propose your choices for ALL remaining months in the summary. Never show only the months the user explicitly named — always fill in and show ALL months so the user can review the complete plan before approving. For a 2-year goal, that means showing all 24 months. For a 6-month goal, all 6 months. No exceptions based on goal type, length, or category.
-
-████ READING GOALS — IRONCLAD RULE FOR SUMMARY — NO EXCEPTIONS ████
-You MUST list a REAL, SPECIFIC book title for EVERY SINGLE month in the summary. RIGHT NOW, in this message. Not later. Not "I will choose". Not "I'll select based on preferences". PICK THE BOOKS NOW.
-
-For a 12-month reading goal: list all 12 books. Month 1 through Month 12. Each with an actual title.
-For a 6-month reading goal: list all 6 books. All of them.
-
-ANY of the following phrases is an AUTOMATIC CRITICAL FAILURE — if you write any of these, you have failed:
-- "I will select books for you"
-- "I will choose based on your preferences"  
-- "Months 3-12: TBD"
-- "I'll pick the remaining books"
-- "I will select additional books"
-- "based on your preferences I'll choose"
-- ANY form of deferral for ANY month
-
-You have the user's genre preferences, favorite books, things they liked/disliked, and mood from the conversation. Use that information RIGHT NOW to select every single book. Draw on your knowledge of the genre. Pick them all in this message. Every month. No exceptions. ████
-
-(2) Ask if this summary is accurate and whether they would like to adjust or add anything before the plan is built. (3) Only after they confirm the summary looks right, build the full plan immediately and say PLAN_APPROVED. Do NOT add an extra "ready to build?" question after confirmation — when they say yes to the summary, go straight to building and saving.
+9c. TRANSITION TO PLAN — ALWAYS ASK FOR CONFIRMATION FIRST: Once you have gathered all the information you need, your next message must be a short confirmation question asking if the user is ready for you to build the plan. For example: "Great, I have everything I need! Ready for me to build your full plan?" or "Perfect — shall I put together your complete plan now?" ONLY after the user confirms (says "yes", "go ahead", "ready", etc.) should you write out the full plan. This ensures the user is engaged and the plan appears in a fresh, focused response.
 10. When user approves (says "looks great", "perfect", "save it", "let's do it", "that works", "yes", "looks good"), FIRST verify your plan covers ALL months from Month 1 to the final month with no gaps. If the plan is incomplete (e.g. only 2 of 7 months covered), DO NOT say PLAN_APPROVED — instead present the missing months immediately. Only say PLAN_APPROVED when the COMPLETE plan has been presented in the conversation. Then start your response with EXACTLY "PLAN_APPROVED" and give a warm 2-3 sentence summary, then add: "Remember, this plan is a living document. Come back anytime to adjust the difficulty, add new resources, extend the timeline, skip ahead if you're crushing it, or completely restructure a phase. Just tell me what's working and what isn't — I'll update your plan instantly."
-
-10b. CRITICAL: When presenting the initial plan draft (the summary), you MUST present ALL months/weeks for the FULL timeline in a single response. Do NOT present only 1-2 months and stop. If the plan is 7 months, show all 7 months. If it's 12 months, show all 12. Never truncate the plan — present the complete plan in full before asking for approval.
+10b. CRITICAL: When presenting the initial plan draft, you MUST present ALL months/weeks for the FULL timeline in a single response. Do NOT present only 1-2 months and stop. If the plan is 7 months, show all 7 months. If it's 12 months, show all 12. Never truncate the plan — present the complete plan in full before asking for approval.
 10c. SEQUENTIAL MONTHS — NON-NEGOTIABLE: The plan MUST list months in sequential order with NO GAPS. If the plan is 7 months, you MUST have Month 1, Month 2, Month 3, Month 4, Month 5, Month 6, Month 7 — ALL of them. Jumping from Month 2 to Month 7 is a critical failure. Every single month between the first and last must appear with its own weeks and steps.
 
 ██████████████████████████████████████████████████████████
@@ -965,12 +799,8 @@ Examples of what triggers this ban:
 - "I tried Duolingo and hated it" → Duolingo BANNED
 - "smoothies didn't work for me" → pre-workout smoothies BANNED
 - "I know basic chords" → no beginner chord steps
-- "Twilight had too much romance" → Twilight is BANNED, AND romance is a restricted genre (max 1 romance-heavy book in the whole plan)
-- "That book was too slow" → book BANNED, AND note user preference for faster-paced books
-- "[Book] was boring" → BANNED, AND note it as a disliked style
 
-If the user says they LIKED or DISLIKED a book in ANY way, that means they ALREADY READ IT. Any opinion = read = banned from the plan.
-Any criticism about a trait (too much romance, too slow, too long, too dark, etc.) = apply that as a plan-wide preference constraint.
+If the user says they LIKED a book, that means they ALREADY READ IT. Liking = read = banned from the plan.
 
 BEFORE WRITING YOUR RESPONSE: List to yourself (mentally) every banned item from this conversation, then verify your proposed plan contains NONE of them. If you catch yourself about to include one, stop and pick a different item.
 ██████████████████████████████████████████████████████████
@@ -1044,7 +874,7 @@ Always be specific, warm, encouraging, and treat the plan as a living document t
     }
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4o",
       messages: [
         { role: "system", content: systemPrompt },
         ...messages
@@ -1078,18 +908,17 @@ Always be specific, warm, encouraging, and treat the plan as a living document t
         const query = JSON.parse(call.function.arguments).query;
         let searchResult = '';
         try {
-          const searchRes = await openai.chat.completions.create({
-            model: "gpt-4o-mini",
-            messages: [{ role: "user", content: `Search the web and return a concise factual summary about: "${query}". Include specific facts, numbers, resources, and current best practices. Be specific and accurate.` }],
-            max_tokens: 1000
+          const searchRes = await base44.asServiceRole.integrations.Core.InvokeLLM({
+            prompt: `Search the web and return a concise factual summary about: "${query}". Include specific facts, numbers, resources, and current best practices. Be specific and accurate.`,
+            add_context_from_internet: true
           });
-          searchResult = searchRes.choices[0].message.content || 'No results found.';
+          searchResult = typeof searchRes === 'string' ? searchRes : (searchRes?.text || searchRes?.content || JSON.stringify(searchRes));
         } catch (_) {
           searchResult = 'Search unavailable — use best available knowledge.';
         }
         toolMessages.push({ role: "tool", tool_call_id: call.id, content: searchResult });
       }
-      const followUp = await openai.chat.completions.create({ model: "gpt-4o-mini", messages: toolMessages, max_tokens: 16000 });
+      const followUp = await openai.chat.completions.create({ model: "gpt-4o", messages: toolMessages, max_tokens: 16000 });
       finalReply = followUp.choices[0].message.content;
     } else {
       finalReply = firstChoice.message.content;
@@ -1114,42 +943,39 @@ Always be specific, warm, encouraging, and treat the plan as a living document t
      //   "Month 1\n*Book Title*", "Month 1\nBook Title"
      const chatMonthTitles = {};
      const replyLines = finalReply.split('\n');
-     const isDateOnly = (t) => /^(January|February|March|April|May|June|July|August|September|October|November|December)\s*(\d{4})?$/i.test(t.trim());
-     const stripFormatting = (s) => s.replace(/\*+/g, '').replace(/^[#>\s–—:\-]+/, '').trim();
-     const stripAllFormatting = (s) => s.replace(/\*+/g, '').replace(/#/g, '').replace(/^[\s–—:\-]+/, '').trim();
+     const isDateOnly = (t) => /^(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}$/i.test(t);
+     const stripFormatting = (s) => s.replace(/\*+/g, '').replace(/^[#>\s-]+/, '').trim();
 
      for (let li = 0; li < replyLines.length; li++) {
-       const rawLine = replyLines[li];
-       const cleanLine = stripAllFormatting(rawLine);
+       const cleanLine = stripFormatting(replyLines[li]);
 
-       // Format 1: "Month 1 – Title" or "Month 1 - *Title*" or "**Month 1** – Title" on same line
+       // Format 1: "Month 1 – Title" or "Month 1 - *Title*" on same line
        const inlineMatch = cleanLine.match(/^Month\s+(\d+)\s*[–—:\-]+\s*(.+)/i);
        if (inlineMatch) {
          const num = inlineMatch[1];
-         const title = stripAllFormatting(inlineMatch[2]);
+         const title = stripFormatting(inlineMatch[2]);
          if (title && !isDateOnly(title) && title.length <= 120 && !chatMonthTitles[num]) {
            chatMonthTitles[num] = title;
          }
          continue;
        }
 
-       // Format 2: "Month 1" alone (or "**Month 1**"), look for title on subsequent lines
+       // Format 2: "Month 1" alone (or "**Month 1**"), next non-empty line is the title
        const monthNumMatch = cleanLine.match(/^Month\s+(\d+)$/i);
        if (monthNumMatch) {
          const num = monthNumMatch[1];
          // Scan up to 5 lines ahead for the title (skip blank lines)
          for (let nli = li + 1; nli < replyLines.length && nli < li + 6; nli++) {
-           const candidate = stripAllFormatting(replyLines[nli]);
-           if (!candidate) continue; // skip blank lines, keep scanning
+           const candidate = stripFormatting(replyLines[nli]);
+           if (!candidate) continue;
            const isWeekLine = /^Week\s+\d+/i.test(candidate);
            const isMonthLine = /^Month\s+\d+/i.test(candidate);
-           // Skip lines that are just task bullets
-           const isTaskBullet = (/^\d+\.\s/.test(candidate) || /^[-•*]\s/.test(candidate)) && candidate.length < 80;
-           if (isWeekLine || isMonthLine || isTaskBullet) break; // hit next section, stop
-           if (!isDateOnly(candidate) && candidate.length >= 2 && candidate.length <= 150) {
+           // Skip lines that are just task bullets (very short or start with numbers like "1.")
+           const isTaskBullet = /^\d+\.\s/.test(candidate) && candidate.length < 60;
+           if (!isWeekLine && !isMonthLine && !isDateOnly(candidate) && candidate.length <= 150 && !isTaskBullet) {
              if (!chatMonthTitles[num]) chatMonthTitles[num] = candidate;
-             break;
            }
+           break;
          }
        }
      }
