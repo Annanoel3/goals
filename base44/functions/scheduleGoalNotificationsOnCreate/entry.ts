@@ -1,5 +1,4 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
-import { createClient } from 'npm:@supabase/supabase-js@2.38.4';
 
 // Parse time strings in 'HH:MM' or 'H:MM AM/PM' format
 function parseNotifTime(timeStr) {
@@ -56,34 +55,35 @@ Deno.serve(async (req) => {
       return Response.json({ success: false, error: 'Missing OneSignal config' }, { status: 500 });
     }
 
-    const supabase = createClient(Deno.env.get('SUPABASE_URL'), Deno.env.get('SUPABASE_ANON_KEY'));
-
-    // Fetch goal with retry via Supabase — goal may not be committed yet when this is called
+    // Fetch goal with retry via Base44 SDK — goal may not be committed yet when this is called
     let goal = null;
     for (let attempt = 1; attempt <= 5; attempt++) {
-      const { data, error } = await supabase.from('Goal').select('*').eq('id', goal_id).single();
-      if (data && !error) {
-        goal = data;
-        console.log(`[scheduleGoalNotificationsOnCreate] goal found on attempt ${attempt}`);
-        break;
+      try {
+        const goals = await base44.asServiceRole.entities.Goal.filter({ id: goal_id });
+        if (goals && goals.length > 0) {
+          goal = goals[0];
+          console.log(`[scheduleGoalNotificationsOnCreate] goal found on attempt ${attempt}`);
+          break;
+        }
+      } catch (error) {
+        console.log(`[scheduleGoalNotificationsOnCreate] goal not found yet, waiting... (attempt ${attempt}/5)`, error?.message);
       }
-      console.log(`[scheduleGoalNotificationsOnCreate] goal not found yet, waiting... (attempt ${attempt}/5)`, error?.message);
       if (attempt < 5) await new Promise(r => setTimeout(r, 2000 * attempt));
     }
     if (!goal) {
       return Response.json({ success: false, error: 'Goal not found after retries' }, { status: 404 });
     }
 
-    // Fetch user profile via Supabase
-    const { data: userData } = await supabase.from('User').select('*').eq('email', user_email).single();
-    const user = userData;
+    // Fetch user profile via Base44 SDK
+    const users = await base44.asServiceRole.entities.User.filter({ email: user_email });
+    const user = users && users.length > 0 ? users[0] : null;
 
     const notifTime = user?.preferred_notification_time || goal.preferred_time || '09:00';
     const tzOffset = user?.timezone_offset || 0;
     console.log('[scheduleGoalNotificationsOnCreate] goal title:', goal.title, '| notifTime:', notifTime, '| tzOffset:', tzOffset, '| user found:', !!user);
 
-    // Fetch top-level steps via Supabase, sorted by order_index
-    const { data: allSteps } = await supabase.from('GoalStep').select('*').eq('goal_id', goal_id);
+    // Fetch top-level steps via Base44 SDK, sorted by order_index
+    const allSteps = await base44.asServiceRole.entities.GoalStep.filter({ goal_id: goal_id });
     const topLevel = (allSteps || [])
       .filter(function(s) { return !s.parent_step_id && s.status !== 'completed' && s.status !== 'skipped'; })
       .sort(function(a, b) { return (a.order_index || 0) - (b.order_index || 0); });
