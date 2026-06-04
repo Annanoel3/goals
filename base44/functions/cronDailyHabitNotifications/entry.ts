@@ -1,66 +1,83 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
+import OpenAI from 'npm:openai';
 
 const ONESIGNAL_APP_ID = Deno.env.get("ONESIGNAL_APP_ID")?.trim();
 const ONESIGNAL_REST_API_KEY = Deno.env.get("ONESIGNAL_REST_API_KEY")?.trim();
 
-function getMessageForHabit(stepTitle, stepDescription, dayOfWeek) {
+async function generateHabitNotificationMessage(openai, step, goal, dayOfWeek, context) {
+  // Use GPT-4o to generate personalized, contextual messages
   // dayOfWeek: 0 = Monday (start of week), 6 = Sunday (end of week)
-  // Use description if available, fall back to title
-  const context = stepDescription || stepTitle;
-  const lower = context.toLowerCase();
+  
+  const dayName = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][dayOfWeek];
   const isEarlyWeek = dayOfWeek <= 2; // Mon-Wed
   const isLateWeek = dayOfWeek >= 4; // Fri-Sun
+  const weekPhase = isEarlyWeek ? 'early week kickoff' : isLateWeek ? 'late week push' : 'mid-week momentum';
   
-  // Extract key action from description (e.g., "read 25% of a book" → "read")
-  const action = extractAction(context);
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o",
+    messages: [
+      {
+        role: "system",
+        content: `You generate a single, brief push notification (2 parts: title + body) for a daily habit reminder. 
+Output JSON only: {"title": "...", "body": "..."}
+Rules:
+- Title: max 5 words, one emoji, energetic but genuine
+- Body: max 1-2 sentences, conversational, speaks to ${weekPhase}
+- Personalize to: goal="${goal.title}", step="${step.title}", phase=${step.phase || 'ongoing'}, day=${dayName}
+- NO generic motivation; be specific to their exact habit
+- If it's ${dayOfWeek} (${dayName}), acknowledge where they are in their week`
+      },
+      {
+        role: "user",
+        content: `Habit: "${step.title}"\nGoal: "${goal.title}"\nDescription: "${context}"\nDay of week: ${dayName} (weekday ${dayOfWeek})\nWeek phase: ${weekPhase}`
+      }
+    ]
+  });
   
-  // Generate contextual message based on timing in the week
-  if (isEarlyWeek) {
-    // Start of week: encourage getting started
-    return {
-      title: "🚀 Let's kick this off!",
-      body: `Have you started ${action} today? This is your moment. Let's do this! 💪`
-    };
-  } else if (isLateWeek) {
-    // End of week: push for completion
-    return {
-      title: "📈 Almost there!",
-      body: `Are you on track with "${context}"? Push through today — you've got this! 🔥`
-    };
-  } else {
-    // Mid-week: keep momentum
-    return {
-      title: "⏰ Steady progress!",
-      body: `Keep the momentum going with "${action}". You're doing great! 🌟`
-    };
-  }
+  const result = JSON.parse(response.choices[0].message.content);
+  return result;
 }
 
-function getMissedHabitMessage(stepTitle, stepDescription) {
-  const context = stepDescription || stepTitle;
-  return {
-    title: "🙌 Let's get back on track",
-    body: `I noticed you missed your "${context}" yesterday, but don't worry. You can do this! Let's go. 💪`
-  };
+async function generateMissedHabitNotification(openai, step, goal, context) {
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o",
+    messages: [
+      {
+        role: "system",
+        content: `You generate a compassionate "missed habit" follow-up notification. Output JSON only: {"title": "...", "body": "..."}
+- Title: max 4 words, one emoji, supportive not judgmental
+- Body: 1-2 sentences, acknowledge they missed it, encourage restart without guilt
+- Be specific to their habit`
+      },
+      {
+        role: "user",
+        content: `Habit: "${step.title}"\nGoal: "${goal.title}"\nDescription: "${context}"\nThey missed this yesterday.`
+      }
+    ]
+  });
+  
+  return JSON.parse(response.choices[0].message.content);
 }
 
-function getThreeDayMissMessage(stepTitle, stepDescription) {
-  const context = stepDescription || stepTitle;
-  return {
-    title: "⏸️ Let's recalibrate",
-    body: `It looks like you've missed "${context}" for a few days. That's okay! Use the planner chat to adjust your plan if you need to, or keep up the great work catching up. I know you can do this! 💪`
-  };
-}
-
-function extractAction(text) {
-  // Extract action verb from description
-  // E.g., "read 25% of a book" → "read 25% of a book"
-  // E.g., "complete a workout" → "complete a workout"
-  const words = text.toLowerCase().split(' ');
-  if (words.length > 1) {
-    return text.substring(0, 40) + (text.length > 40 ? '...' : '');
-  }
-  return text;
+async function generateThreeDayMissNotification(openai, step, goal, context) {
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o",
+    messages: [
+      {
+        role: "system",
+        content: `You generate a 3+ day habit miss notification that's supportive and offers recalibration. Output JSON only: {"title": "...", "body": "..."}
+- Title: max 5 words, one emoji, calm and helpful
+- Body: 2 sentences max, acknowledge streak break, offer path forward without judgment
+- Reference the planner chat as a tool to adjust`
+      },
+      {
+        role: "user",
+        content: `Habit: "${step.title}"\nGoal: "${goal.title}"\nDescription: "${context}"\nThey've missed this for 3+ days.`
+      }
+    ]
+  });
+  
+  return JSON.parse(response.choices[0].message.content);
 }
 
 function buildSendAtISO(habitTime, userTimezoneOffsetMinutes = 0) {
@@ -113,38 +130,39 @@ function getConsecutiveMissedDays(step) {
   return missedDays;
 }
 
-async function scheduleHabitNotificationForUser(base44, step, userEmail, timezoneOffset = 0, goal = null) {
+async function scheduleHabitNotificationForUser(base44, step, userEmail, timezoneOffset = 0, goal = null, openai = null) {
    if (!step.habit_time || !step.is_daily_habit) return;
+   if (!openai) openai = new OpenAI({ apiKey: Deno.env.get("OPENAI_API_KEY") });
 
    const today = new Date().toISOString().split('T')[0];
 
    // 1. Schedule today's regular habit reminder
    if (step.last_habit_notification_date !== today) {
-     // Cancel old notification if exists
-     if (step.habit_notification_id) {
-       try {
-         await fetch(`https://onesignal.com/api/v1/notifications/${step.habit_notification_id}?app_id=${ONESIGNAL_APP_ID}`, {
-           method: 'DELETE',
-           headers: { 'Authorization': `Basic ${ONESIGNAL_REST_API_KEY}` }
-         });
-       } catch (_) { /* best effort */ }
-     }
+      // Cancel old notification if exists
+      if (step.habit_notification_id) {
+        try {
+          await fetch(`https://onesignal.com/api/v1/notifications/${step.habit_notification_id}?app_id=${ONESIGNAL_APP_ID}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Basic ${ONESIGNAL_REST_API_KEY}` }
+          });
+        } catch (_) { /* best effort */ }
+      }
 
-     const sendAtDate = new Date();
-     const dayOfWeek = sendAtDate.getDay();
+      const sendAtDate = new Date();
+      const dayOfWeek = sendAtDate.getDay();
 
-     // Get current month number (1-indexed) for month_titles lookup
-     // Derive plan month from step.phase (e.g. "Month 2 Week 3" -> 2)
-    const phaseMonthMatch = step.phase?.match(/Month\s+(\d+)/i);
-    const currentMonth = phaseMonthMatch ? parseInt(phaseMonthMatch[1]) : null;
-     const monthTitle = currentMonth && goal?.month_titles && goal.month_titles[currentMonth] 
-       ? goal.month_titles[currentMonth] 
-       : null;
+      // Get current month number (1-indexed) for month_titles lookup
+      // Derive plan month from step.phase (e.g. "Month 2 Week 3" -> 2)
+     const phaseMonthMatch = step.phase?.match(/Month\s+(\d+)/i);
+     const currentMonth = phaseMonthMatch ? parseInt(phaseMonthMatch[1]) : null;
+      const monthTitle = currentMonth && goal?.month_titles && goal.month_titles[currentMonth] 
+        ? goal.month_titles[currentMonth] 
+        : null;
 
-     // Use month-specific title if available, otherwise fall back to step description
-     const displayTitle = monthTitle || step.description || step.title;
-     const msg = getMessageForHabit(step.title, displayTitle, dayOfWeek);
-     const sendAt = buildSendAtISO(step.habit_time, timezoneOffset);
+      // Use month-specific title if available, otherwise fall back to step description
+      const displayTitle = monthTitle || step.description || step.title;
+      const msg = await generateHabitNotificationMessage(openai, step, goal, dayOfWeek, displayTitle);
+      const sendAt = buildSendAtISO(step.habit_time, timezoneOffset);
 
     const notificationPayload = {
       app_id: ONESIGNAL_APP_ID,
@@ -210,7 +228,7 @@ async function scheduleHabitNotificationForUser(base44, step, userEmail, timezon
        : null;
      const displayTitle = monthTitle || step.description || step.title;
 
-     const missedMsg = getMissedHabitMessage(step.title, displayTitle);
+     const missedMsg = await generateMissedHabitNotification(openai, step, goal, displayTitle);
      const sendAtMissed = buildMissedHabitSendAtISO(timezoneOffset);
 
     const missedNotificationPayload = {
@@ -253,17 +271,15 @@ async function scheduleHabitNotificationForUser(base44, step, userEmail, timezon
   // 3. Check if habit was missed 3+ days in a row and schedule check-in notification
   const consecutiveMissed = getConsecutiveMissedDays(step);
   const hasThreeDayNotificationToday = step.last_three_day_miss_notification_date === today;
-// Derive plan month from step.phase (e.g. "Month 2 Week 3" -> 2)
-    const phaseMonthMatch2 = step.phase?.match(/Month\s+(\d+)/i);
-    const currentMonth = phaseMonthMatch2 ? parseInt(phaseMonthMatch2[1]) : null;
   if (consecutiveMissed >= 3 && !hasThreeDayNotificationToday) {
-    const currentMonth = new Date().getMonth() + 1;
+    const phaseMonthMatch3 = step.phase?.match(/Month\s+(\d+)/i);
+    const currentMonth = phaseMonthMatch3 ? parseInt(phaseMonthMatch3[1]) : null;
     const monthTitle = currentMonth && goal?.month_titles && goal.month_titles[currentMonth] 
       ? goal.month_titles[currentMonth] 
       : null;
     const displayTitle = monthTitle || step.description || step.title;
 
-    const threeMsg = getThreeDayMissMessage(step.title, displayTitle);
+    const threeMsg = await generateThreeDayMissNotification(openai, step, goal, displayTitle);
     const sendAtThree = buildMissedHabitSendAtISO(timezoneOffset);
 
     const threeNotificationPayload = {
@@ -306,6 +322,7 @@ async function scheduleHabitNotificationForUser(base44, step, userEmail, timezon
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
+    const openai = new OpenAI({ apiKey: Deno.env.get("OPENAI_API_KEY") });
     
     // Get all active goals with habit steps
     const allGoals = await base44.asServiceRole.entities.Goal.filter({ status: 'active' });
@@ -323,7 +340,7 @@ Deno.serve(async (req) => {
            const timezoneOffset = user.timezone_offset || 0;
 
            for (const step of habitSteps) {
-             await scheduleHabitNotificationForUser(base44, step, user.email, timezoneOffset, goal);
+             await scheduleHabitNotificationForUser(base44, step, user.email, timezoneOffset, goal, openai);
              scheduledCount++;
            }
          }
