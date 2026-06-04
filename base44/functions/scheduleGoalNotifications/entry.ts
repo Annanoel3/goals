@@ -178,9 +178,10 @@ Deno.serve(async (req) => {
     }
 
     // ── WEEK NOTIFICATIONS (only Week 1 initially; subsequent weeks scheduled progressively) ──
-    // Only schedule Week 1 now — the entity automation handles scheduling future weeks based on progress
+    // CRITICAL: Only schedule Week 1 notifications now — the automation handles scheduling future weeks
+    // This keeps notifications personalized to the user's actual progress
     for (const wData of Object.values(weekMap)) {
-      // Only schedule Week 1 of Month 1 upfront
+      // Only schedule Week 1 of Month 1 upfront — all other weeks are scheduled by automation
       if (wData.month !== 1 || wData.week !== 1) continue;
 
       const sortedDates = [...wData.dates].sort();

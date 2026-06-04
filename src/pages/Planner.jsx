@@ -270,7 +270,6 @@ export default function Planner() {
       });
 
       if (plan.steps?.length > 0) {
-        let monthsCompleted = new Set();
         let foundMonths2Boundary = false;
         
         // Create steps in batches: wait for first 2 months, then background the rest
@@ -284,6 +283,9 @@ export default function Planner() {
             foundMonths2Boundary = true;
             setCanNavigateToGoal(true);
             setPendingGoalId(goal.id);
+            
+            // Schedule Week 1 notifications before the user navigates (should be fast)
+            await base44.functions.invoke('scheduleGoalNotifications', { goal_id: goal.id, goal_data: goal, timezoneOffsetMinutes: -new Date().getTimezoneOffset() }).catch(err => console.error('scheduleGoalNotifications failed:', err));
             
             // Background: create remaining steps without awaiting
             (async () => {
@@ -321,8 +323,7 @@ export default function Planner() {
                   }
                 }
               }
-              // Schedule notifications when all steps are done
-              await base44.functions.invoke('scheduleGoalNotifications', { goal_id: goal.id, timezoneOffsetMinutes: -new Date().getTimezoneOffset() }).catch(err => console.error('scheduleGoalNotifications failed:', err));
+              // All remaining steps created — no need to reschedule since Week 1 is already scheduled
             })();
             
             break; // Exit main loop, background task handles the rest
@@ -343,10 +344,6 @@ export default function Planner() {
             tips_and_guidance: step.tips_and_guidance || "",
             is_daily_habit: step.is_daily_habit === true
           });
-
-          if (monthMatch) {
-            monthsCompleted.add(monthNum);
-          }
 
           // Create sub-steps if provided
           if (step.sub_steps?.length > 0) {
