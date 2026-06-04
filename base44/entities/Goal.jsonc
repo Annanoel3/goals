@@ -53,6 +53,26 @@
       "description": "Preferred time of day for action/workout (e.g., '6:00 AM', '18:30')",
       "default": null
     },
+    "requires_daily_action": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether this goal requires daily habits (AI-determined during plan creation)"
+    },
+    "weekdays_only": {
+      "type": "boolean",
+      "default": false,
+      "description": "If true, daily habits only on weekdays (Mon-Fri); if false, 7 days/week (AI-determined during plan creation)"
+    },
+    "habit_days_of_week": {
+      "type": "array",
+      "items": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 6
+      },
+      "description": "Specific days for habits (0=Sun, 1=Mon, ... 6=Sat). If empty, follows weekdays_only logic.",
+      "default": []
+    },
     "reminder_interval": {
       "type": "string",
       "enum": [
