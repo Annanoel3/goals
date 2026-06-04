@@ -292,6 +292,8 @@ export default function GoalDetail() {
         {/* Steps - Month/Week Hierarchy */}
         <div className="space-y-3">
           {sortedMonths.map(monthKey => {
+            const monthNum = parseInt(monthKey.match(/\d+/)?.[0] || 0);
+            const isLoadingMonth = monthNum > 2; // Months 3+ show loading spinner
             const weeksMap = monthsMap[monthKey];
             const allMonthSteps = Object.values(weeksMap).flat();
             const isMonthOpen = expandedPhases[monthKey];
@@ -302,8 +304,9 @@ export default function GoalDetail() {
               <div key={monthKey} className="rounded-xl border border-gray-200 overflow-hidden">
                 {/* Month header */}
                 <button
-                  onClick={() => setExpandedPhases(prev => ({ ...prev, [monthKey]: !prev[monthKey] }))}
-                  className="w-full flex items-center gap-3 px-4 py-3 bg-white hover:bg-gray-50 transition-all text-left"
+                  onClick={() => !isLoadingMonth && setExpandedPhases(prev => ({ ...prev, [monthKey]: !prev[monthKey] }))}
+                  className={`w-full flex items-center gap-3 px-4 py-3 bg-white transition-all text-left ${!isLoadingMonth && 'hover:bg-gray-50'}`}
+                  disabled={isLoadingMonth}
                 >
                   <div className="w-1.5 h-5 bg-violet-500 rounded-full flex-shrink-0" />
                   <div className="flex-1">
@@ -312,12 +315,25 @@ export default function GoalDetail() {
                       <p className="text-xs text-violet-500 mt-0.5">— {monthTitles[monthKey].replace(/\*+/g, '').trim()}</p>
                     )}
                   </div>
-                  <span className="text-xs text-gray-400 mr-2">{allMonthSteps.filter(s => s.status === 'completed').length}/{allMonthSteps.length}</span>
-                  <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isMonthOpen ? 'rotate-180' : ''}`} />
+                  {isLoadingMonth ? (
+                    <Loader2 className="w-4 h-4 text-gray-400 animate-spin flex-shrink-0" />
+                  ) : (
+                    <>
+                      <span className="text-xs text-gray-400 mr-2">{allMonthSteps.filter(s => s.status === 'completed').length}/{allMonthSteps.length}</span>
+                      <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isMonthOpen ? 'rotate-180' : ''}`} />
+                    </>
+                  )}
                 </button>
 
                 {/* Month content */}
-                {isMonthOpen && (
+                {isLoadingMonth ? (
+                  <div className="border-t border-gray-100 bg-gray-50 px-3 py-6 flex items-center justify-center">
+                    <div className="flex flex-col items-center gap-2 text-gray-400">
+                      <Loader2 className="w-5 h-5 animate-spin text-violet-500" />
+                      <p className="text-xs">Creating plan…</p>
+                    </div>
+                  </div>
+                ) : isMonthOpen && (
                   <div className="border-t border-gray-100 bg-gray-50 px-3 py-2 space-y-2">
                     {/* Month-level steps (no week) */}
                     {monthOnlySteps.map(step => <StepRow key={step.id} step={step} onOpen={() => { setSelectedStep(step); setIsStepModalOpen(true); }} onToggle={() => toggleStepStatus(step)} onCheckIn={() => setHabitCheckInStep(step)} onUpdate={loadData} />)}
