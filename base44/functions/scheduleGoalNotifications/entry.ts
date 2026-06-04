@@ -86,7 +86,7 @@ Deno.serve(async (req) => {
     // If goal_data is passed, use it; otherwise fetch from database
     let goal = goal_data;
     if (!goal) {
-      goal = await base44.asServiceRole.entities.Goal.get(goal_id);
+      goal = await base44.entities.Goal.get(goal_id);
       if (!goal) return Response.json({ error: 'Goal not found' }, { status: 404 });
     }
 
