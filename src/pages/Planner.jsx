@@ -246,11 +246,7 @@ export default function Planner() {
       const plan = res.data.plan;
       validatePlanSteps(plan);
 
-      // Determine which months are still building
-      const totalMonths = Object.keys(plan.month_titles || {}).length || 1;
-      const buildingMonths = totalMonths > 0 ? Array.from({length: totalMonths}, (_, i) => i + 1) : null;
-
-      // Create goal immediately
+      // Create goal immediately (steps build in background)
       const createdGoal = await base44.entities.Goal.create({
         title: plan.title,
         description: plan.description,
@@ -267,7 +263,6 @@ export default function Planner() {
         event_format: plan.event_format || null,
         conversation_history: allMessages,
         month_titles: plan.month_titles || {},
-        building_months: buildingMonths,
       });
 
       const goal = createdGoal;
@@ -294,9 +289,6 @@ export default function Planner() {
         mode: 'bulk_insert_steps',
         goal_id: goal.id,
         steps: plan.steps || [],
-      }).then(() => {
-        // Clear building_months once done
-        base44.entities.Goal.update(goal.id, { building_months: null });
       }).catch(err => console.error('Failed to insert steps:', err));
 
       base44.functions.invoke('scheduleGoalNotificationsOnCreate', { goal_id: goal.id, user_email: currentUser?.email, goal_start_date: createdGoal.target_date }).catch(err => console.error('Failed to schedule notifications:', err));
