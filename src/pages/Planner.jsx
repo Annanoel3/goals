@@ -1171,7 +1171,7 @@ function SavingProgressBar({ isEdit = false, done = false }) {
           style={{ width: `${progress}%` }}
         />
       </div>
-      <p className={`text-xs mt-2 text-center ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>This usually takes 1–2 minutes. Please don't navigate away.</p>
+      <p className={`text-xs mt-2 text-center ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>This usually takes 1–2 minutes.</p>
     </div>
   );
 }
