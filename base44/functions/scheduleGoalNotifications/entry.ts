@@ -70,14 +70,18 @@ function addDays(dateStr, n) {
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const { goal_id, timezoneOffsetMinutes } = await req.json();
+    const { goal_id, goal_data, timezoneOffsetMinutes } = await req.json();
     if (!goal_id) return Response.json({ error: 'goal_id required' }, { status: 400 });
 
     const tzOffset = typeof timezoneOffsetMinutes === 'number' ? timezoneOffsetMinutes : 0;
     const now = new Date();
 
-    const goal = await base44.asServiceRole.entities.Goal.get(goal_id);
-    if (!goal) return Response.json({ error: 'Goal not found' }, { status: 404 });
+    // If goal_data is passed, use it; otherwise fetch from database
+    let goal = goal_data;
+    if (!goal) {
+      goal = await base44.asServiceRole.entities.Goal.get(goal_id);
+      if (!goal) return Response.json({ error: 'Goal not found' }, { status: 404 });
+    }
 
     const steps = await base44.asServiceRole.entities.GoalStep.filter({ goal_id });
     const user = await base44.asServiceRole.entities.User.get(goal.created_by_id);

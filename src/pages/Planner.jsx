@@ -318,10 +318,8 @@ export default function Planner() {
         ));
       }
 
-      // Schedule all notifications — short delay to ensure the goal record is fully persisted
-      setTimeout(() => {
-        base44.functions.invoke('scheduleGoalNotifications', { goal_id: goal.id, timezoneOffsetMinutes: -new Date().getTimezoneOffset() }).catch(err => console.error('scheduleGoalNotifications failed:', err));
-      }, 2000);
+      // Schedule notifications immediately with the goal data we just created
+      base44.functions.invoke('scheduleGoalNotifications', { goal_id: goal.id, goal_data: goal, timezoneOffsetMinutes: -new Date().getTimezoneOffset() }).catch(err => console.error('scheduleGoalNotifications failed:', err));
     } catch (err) {
       setSaveError(true);
     } finally {
