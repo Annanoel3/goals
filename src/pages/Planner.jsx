@@ -882,26 +882,14 @@ const COMIC_GIFS = [
 
 function GifCarousel({ gifs, onComplete }) {
   const [idx, setIdx] = React.useState(() => Math.floor(Math.random() * gifs.length));
-  const [done, setDone] = React.useState(false);
   
-  // Rotate GIFs every 28 seconds
+  // Rotate GIFs every 28 seconds indefinitely
   React.useEffect(() => {
-    if (done) return;
     const rotateTimer = setInterval(() => {
       setIdx(i => (i + 1) % gifs.length);
     }, 28000);
     return () => clearInterval(rotateTimer);
-  }, [done, gifs.length]);
-  
-  // End animation after 28 seconds total (for the first cycle)
-  React.useEffect(() => {
-    if (done) return;
-    const endTimer = setTimeout(() => {
-      setDone(true);
-      onComplete();
-    }, 28000);
-    return () => clearTimeout(endTimer);
-  }, [done, onComplete]);
+  }, [gifs.length]);
   
   return (
     <div className="flex flex-col items-center justify-center py-6 animate-in fade-in duration-300">
