@@ -246,16 +246,11 @@ export default function Planner() {
       const plan = res.data.plan;
       validatePlanSteps(plan);
 
-      // Split steps: first 2 months now, rest in background
-      const stepsPerMonth = Math.ceil((plan.steps || []).length / (Object.keys(plan.month_titles || {}).length || 1));
-      const firstTwoMonthsSteps = (plan.steps || []).slice(0, stepsPerMonth * 2);
-      const remainingSteps = (plan.steps || []).slice(stepsPerMonth * 2);
-      
       // Determine which months are still building
       const totalMonths = Object.keys(plan.month_titles || {}).length || 1;
-      const buildingMonths = totalMonths > 2 ? Array.from({length: totalMonths - 2}, (_, i) => i + 3) : null;
+      const buildingMonths = totalMonths > 0 ? Array.from({length: totalMonths}, (_, i) => i + 1) : null;
 
-      // Create goal with building_months flag
+      // Create goal immediately
       const createdGoal = await base44.entities.Goal.create({
         title: plan.title,
         description: plan.description,
@@ -279,24 +274,6 @@ export default function Planner() {
       if (!goal?.id) throw new Error('Goal creation returned no ID');
       await base44.entities.Goal.update(goal.id, { goal_id: goal.id });
 
-      // Create first 2 months of steps immediately
-      for (const step of firstTwoMonthsSteps) {
-        await base44.asServiceRole.entities.GoalStep.create({
-          goal_id: goal.id,
-          title: step.title,
-          description: step.description || "",
-          phase: step.phase || "",
-          priority: step.priority || "medium",
-          due_date: step.due_date || null,
-          order_index: step.order_index || 0,
-          status: "pending",
-          step_resources: (step.step_resources || []).filter(r => r && r.type),
-          success_criteria: step.success_criteria || [],
-          tips_and_guidance: step.tips_and_guidance || "",
-          is_daily_habit: step.is_daily_habit === true,
-        });
-      }
-
       pendingGoalIdRef.current = goal.id;
       setSaved(true);
       setPendingGoalId(goal.id);
@@ -311,18 +288,16 @@ export default function Planner() {
         ));
       }
 
-      // Create remaining steps in background (don't await)
-      if (remainingSteps.length > 0) {
-        base44.functions.invoke('goalPlannerChat', {
-          messages: [],
-          mode: 'bulk_insert_steps',
-          goal_id: goal.id,
-          steps: remainingSteps,
-        }).then(() => {
-          // Clear building_months once done
-          base44.entities.Goal.update(goal.id, { building_months: null });
-        }).catch(err => console.error('Failed to insert remaining steps:', err));
-      }
+      // Create all steps in background (don't await)
+      base44.functions.invoke('goalPlannerChat', {
+        messages: [],
+        mode: 'bulk_insert_steps',
+        goal_id: goal.id,
+        steps: plan.steps || [],
+      }).then(() => {
+        // Clear building_months once done
+        base44.entities.Goal.update(goal.id, { building_months: null });
+      }).catch(err => console.error('Failed to insert steps:', err));
 
       base44.functions.invoke('scheduleGoalNotificationsOnCreate', { goal_id: goal.id, user_email: currentUser?.email, goal_start_date: createdGoal.target_date }).catch(err => console.error('Failed to schedule notifications:', err));
 
