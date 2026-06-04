@@ -13,6 +13,9 @@ async function cancelNotification(notifId) {
 }
 
 async function scheduleNotification({ externalId, title, body, data, sendAt }) {
+  if (!ONESIGNAL_APP_ID || !ONESIGNAL_REST_API_KEY) {
+    throw new Error('Missing OneSignal credentials');
+  }
   const payload = {
     app_id: ONESIGNAL_APP_ID,
     include_external_user_ids: [String(externalId)],
@@ -20,7 +23,7 @@ async function scheduleNotification({ externalId, title, body, data, sendAt }) {
     contents: { en: body },
     data,
     channel_for_external_user_ids: 'push',
-    send_after: sendAt,
+    send_after: Math.floor(new Date(sendAt).getTime() / 1000),
     buttons: [
       { id: 'complete', text: '✅ Done' },
       { id: 'remind_later', text: '🔔 Remind Later' },
@@ -34,6 +37,10 @@ async function scheduleNotification({ externalId, title, body, data, sendAt }) {
     },
     body: JSON.stringify(payload),
   });
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(`OneSignal API error: ${res.status} ${errorText}`);
+  }
   const json = await res.json();
   return json?.id || null;
 }

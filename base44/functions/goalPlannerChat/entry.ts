@@ -71,13 +71,24 @@ This applies to ALL goal types. Users should see meaningful milestone titles, no
 READING GOALS — CRITICAL: You MUST select a specific, real book title for EVERY single month in month_titles (months 1 through ${detectedMonths}), based on the user's stated genre and preferences. Draw on your knowledge of books in that genre. Placeholder titles (e.g. "Book Title", "Month 2 Book", "TBD") are a CRITICAL FAILURE — never output them. EVERY MONTH MUST HAVE A REAL BOOK TITLE. If ${detectedMonths} months have been specified, month_titles must contain entries for ALL ${detectedMonths} months. There are NO summary placeholders like "Month 7-12: I will continue..." — that is a CRITICAL FAILURE. Instead, you MUST generate a specific real book title for Month 7, Month 8, Month 9, Month 10, Month 11, and Month 12 individually.
 
 NOTIFICATION FREQUENCY DETECTION:
-Analyze the conversation for clues about how often the user wants to be reminded:
-- Daily tasks / morning routine / meditation / exercise / practice → "daily"
-- Weekday focus only (Mon-Fri) / work-related → "weekdays"
-- Once per week check-in / milestone goals → "weekly"
-- Multiple times per week → "3x_per_week" or "2x_per_week"
+Analyze the conversation for clues about how often the user wants to be reminded — this varies PER GOAL:
+- Daily tasks / morning routine / meditation / exercise / practice / reading → "daily" (7 notifications Week 1)
+- Weekday focus only (Mon-Fri) / work-related goals → "weekdays" (5 notifications Week 1: Mon-Fri)
+- Once per week check-in / milestone goals → "weekly" (1 notification Week 1)
+- Multiple times per week → "3x_per_week" (3 notifications), "2x_per_week" (2 notifications)
+- Recurring social/work activities (weekly lunch, monthly outing) → determine the exact cadence from conversation, e.g. "weekly" for weekly lunch, "monthly" for monthly outing
 - If unclear or they're doing daily actions → default to "daily"
 Set "notification_frequency" in the returned JSON to one of: "daily", "weekdays", "weekly", "3x_per_week", "2x_per_week", "once_per_week"
+
+GENERATE NOTIFICATION SCHEDULE:
+After extracting the plan, generate a "notification_schedule" array with AI-determined notifications for Week 1 ONLY (subsequent weeks handled by automation).
+The AI MUST determine:
+1. How many check-in notifications for Week 1 based on notification_frequency and goal type (e.g., 7 for daily reading, 3 for fitness 3x/week, 1 for weekly check-in)
+2. Dates for each notification spread across Week 1
+3. Teaser text (short push notification)
+4. Full message text (what appears in-app when tapped or displayed same-day)
+5. Type: "check_in" for regular notifications, "week_summary_begin" for Week 1 start, "week_summary_end" for Week 1 end
+6. Week/month summaries ALWAYS included (beginning and end of Week 1)
 
 GRANULARITY RULES — choose the right level of detail per goal type:
 
@@ -144,6 +155,26 @@ IMPORTANT: Generate 2-4 specific, actionable tasks per week-phase. Keep descript
     "2": "Descriptive title for Month 2",
     "N": "Continue for every month in the plan"
   },
+  "notification_schedule": [
+    {
+      "id": "week_1_begin",
+      "type": "week_summary_begin",
+      "phase": "Month 1, Week 1",
+      "scheduled_date": "YYYY-MM-DD (first day of Week 1)",
+      "scheduled_time": "09:00",
+      "teaser_text": "Short push notification text",
+      "full_message_text": "Full message shown when user taps or opens app on the same day"
+    },
+    {
+      "id": "week_1_checkin_1",
+      "type": "check_in",
+      "phase": "Month 1, Week 1",
+      "scheduled_date": "YYYY-MM-DD",
+      "scheduled_time": "HH:MM",
+      "teaser_text": "Daily/recurring check-in teaser",
+      "full_message_text": "Full check-in message"
+    }
+  ],
   "steps": [
     {
       "title": "specific, granular subtask (e.g., 'Complete Lesson 2: Present Tense Conjugation')",
@@ -213,14 +244,16 @@ CRITICAL:
       const plan = JSON.parse(extractionResponse.choices[0].message.content);
 
       // Ensure all steps have required fields
-       plan.steps = (plan.steps || []).map(step => ({
-         ...step,
-         step_resources: step.step_resources || [],
-         success_criteria: step.success_criteria || [],
-         tips_and_guidance: step.tips_and_guidance || ""
-       }));
-       // month_titles comes directly from the top-level JSON field
-       plan.month_titles = plan.month_titles || {};
+        plan.steps = (plan.steps || []).map(step => ({
+          ...step,
+          step_resources: step.step_resources || [],
+          success_criteria: step.success_criteria || [],
+          tips_and_guidance: step.tips_and_guidance || ""
+        }));
+        // month_titles comes directly from the top-level JSON field
+        plan.month_titles = plan.month_titles || {};
+        // notification_schedule comes from AI generation
+        plan.notification_schedule = plan.notification_schedule || [];
 
       // VALIDATE: ensure no gaps in phases/timeline with week structure for 3+ month goals
       const validatePlanCompleteness = (p) => {
@@ -366,7 +399,7 @@ CRITICAL:
         plan.notification_frequency = 'daily';
       }
       
-      return Response.json({ plan, month_titles: plan.month_titles || {} });
+      return Response.json({ plan, month_titles: plan.month_titles || {}, notification_schedule: plan.notification_schedule || [] });
     }
 
     // ── APPLY EDIT: commit approved edits to an existing goal ─────────────────

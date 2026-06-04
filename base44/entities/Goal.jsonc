@@ -106,6 +106,71 @@
       "type": "object",
       "description": "Map of month numbers to their descriptive titles (e.g. {1: 'Book Title', 2: 'Next Book Title'} for reading goals)",
       "default": {}
+    },
+    "notification_schedule": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique ID for this notification (e.g. 'week_1_checkin_1')"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "check_in",
+              "missed_follow_up",
+              "week_summary_begin",
+              "week_summary_end",
+              "month_summary_begin",
+              "month_summary_end"
+            ],
+            "description": "Type of notification"
+          },
+          "phase": {
+            "type": "string",
+            "description": "Which phase this notification belongs to (e.g. 'Month 1, Week 1')"
+          },
+          "scheduled_date": {
+            "type": "string",
+            "format": "date",
+            "description": "Date to send this notification (YYYY-MM-DD)"
+          },
+          "scheduled_time": {
+            "type": "string",
+            "description": "Time to send (HH:MM format, in user's local timezone)"
+          },
+          "teaser_text": {
+            "type": "string",
+            "description": "Short notification text shown in push notification"
+          },
+          "full_message_text": {
+            "type": "string",
+            "description": "Full message shown when user taps notification or opens app same day"
+          },
+          "onesignal_notification_id": {
+            "type": "string",
+            "description": "OneSignal ID after scheduling (for cancellation)"
+          },
+          "has_been_displayed": {
+            "type": "boolean",
+            "default": false,
+            "description": "Whether user has seen this notification (tapped or dismissed)"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "phase",
+          "scheduled_date",
+          "scheduled_time",
+          "teaser_text",
+          "full_message_text"
+        ]
+      },
+      "default": [],
+      "description": "AI-generated notification schedule for the entire goal (Week 1 only scheduled upfront; automation handles subsequent weeks)"
     }
   },
   "required": [
