@@ -40,6 +40,7 @@ export default function Planner() {
   const messagesRef = useRef(messages);
   const pendingGoalIdRef = useRef(null);
   const editingGoalRef = useRef(null);
+  const saveInProgressRef = useRef(false); // prevent double-save
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
@@ -225,6 +226,8 @@ export default function Planner() {
   };
 
   const handleSaveNewGoal = async () => {
+    if (saveInProgressRef.current) return; // prevent double-save
+    saveInProgressRef.current = true;
     setShowAdOverlay(true);
     await showInterstitialAd();
     setIsSaving(true);
@@ -389,6 +392,7 @@ export default function Planner() {
       console.error('Goal save error:', err?.message || err);
       console.error('Goal save error detail:', JSON.stringify(err));
       setSaveError(true);
+      saveInProgressRef.current = false; // allow retry on error
     } finally {
       setIsSaving(false);
       setShowAdOverlay(false);

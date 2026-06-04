@@ -62,8 +62,12 @@ Deno.serve(async (req) => {
     let goal = null;
     for (let attempt = 1; attempt <= 5; attempt++) {
       const { data, error } = await supabase.from('Goal').select('*').eq('id', goal_id).single();
-      if (data) { goal = data; break; }
-      console.log(`[scheduleGoalNotificationsOnCreate] goal not found yet, waiting... (attempt ${attempt}/5)`);
+      if (data && !error) {
+        goal = data;
+        console.log(`[scheduleGoalNotificationsOnCreate] goal found on attempt ${attempt}`);
+        break;
+      }
+      console.log(`[scheduleGoalNotificationsOnCreate] goal not found yet, waiting... (attempt ${attempt}/5)`, error?.message);
       if (attempt < 5) await new Promise(r => setTimeout(r, 2000 * attempt));
     }
     if (!goal) {
