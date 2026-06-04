@@ -333,7 +333,10 @@ export default function Planner() {
         
         // If all steps were in months 1-2 (no background task started), schedule notifications now
         if (!foundMonths2Boundary) {
-          await base44.functions.invoke('scheduleGoalNotifications', { goal_id: goal.id, goal_data: goal, timezoneOffsetMinutes: -new Date().getTimezoneOffset() }).catch(err => console.error('scheduleGoalNotifications failed:', err));
+          base44.functions.invoke('scheduleGoalNotifications', { goal_id: goal.id, goal_data: goal, timezoneOffsetMinutes: -new Date().getTimezoneOffset() }).catch(err => console.error('scheduleGoalNotifications failed:', err));
+        } else {
+          // For longer goals, schedule notifications in the background (don't wait)
+          base44.functions.invoke('scheduleGoalNotifications', { goal_id: goal.id, goal_data: goal, timezoneOffsetMinutes: -new Date().getTimezoneOffset() }).catch(err => console.error('scheduleGoalNotifications failed:', err));
         }
       }
 
@@ -350,9 +353,6 @@ export default function Planner() {
             : m
         ));
       }
-
-      // Schedule notifications immediately with the goal data we just created
-      base44.functions.invoke('scheduleGoalNotifications', { goal_id: goal.id, goal_data: goal, timezoneOffsetMinutes: -new Date().getTimezoneOffset() }).catch(err => console.error('scheduleGoalNotifications failed:', err));
     } catch (err) {
       setSaveError(true);
     } finally {
@@ -980,39 +980,21 @@ function WeekDropdown({ week }) {
 
 
 function MonthDropdown({ month }) {
-   const [open, setOpen] = React.useState(false);
    const isDark = localStorage.getItem('adhd_theme') === 'dark';
-   
-   // Use the subtitle already extracted by parsePlanHierarchy from the AI's response text
    const displayTitle = month.subtitle;
    
    return (
-     <div className={`border rounded-xl overflow-hidden mb-2 shadow-sm ${isDark ? 'border-gray-700' : 'border-violet-100'}`}>
-       <button
-         onClick={() => setOpen(v => !v)}
-         className={`w-full flex items-center justify-between gap-2 px-4 py-3 text-left transition-colors ${isDark ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-violet-50/50'}`}
-       >
-         <div className="flex-1 min-w-0">
-             <span className={`font-semibold text-sm ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{month.title}</span>
-             {displayTitle && (
-               <span className={`block text-sm font-medium mt-1 ${isDark ? 'text-violet-400' : 'text-violet-600'}`}>{displayTitle}</span>
-             )}
-           </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <span className={`text-[10px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{month.weeks.length} weeks</span>
-          {open ? <ChevronUp className={`w-4 h-4 flex-shrink-0 ${isDark ? 'text-gray-500' : 'text-violet-400'}`} /> : <ChevronDown className={`w-4 h-4 flex-shrink-0 ${isDark ? 'text-gray-500' : 'text-violet-400'}`} />}
-        </div>
-      </button>
-      {open && (
-        <div className={`px-3 pb-3 pt-2 border-t ${isDark ? 'bg-gray-900/50 border-gray-700' : 'bg-violet-50/30 border-violet-100'}`}>
-          {month.weeks.length === 0 ? (
-            <p className="text-xs text-gray-400 italic px-1">No weeks found</p>
-          ) : month.weeks.map((week, i) => (
-            <WeekDropdown key={i} week={week} />
-          ))}
-        </div>
-      )}
-    </div>
+     <div className={`rounded-xl mb-2 overflow-hidden ${isDark ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-violet-200'} shadow-sm hover:shadow-md transition-shadow`}>
+       <div className={`px-4 py-3 ${isDark ? 'hover:bg-gray-700' : 'hover:bg-violet-50'}`}>
+         <div className="flex items-baseline gap-3">
+           <span className={`font-bold text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>{month.title}</span>
+           {displayTitle && (
+             <span className={`text-sm font-medium ${isDark ? 'text-violet-400' : 'text-violet-600'}`}>— {displayTitle}</span>
+           )}
+         </div>
+         <p className={`text-xs mt-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{month.weeks.length} weeks</p>
+       </div>
+     </div>
   );
 }
 
