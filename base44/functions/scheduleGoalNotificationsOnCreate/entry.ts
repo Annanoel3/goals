@@ -69,6 +69,7 @@ Deno.serve(async (req) => {
 
     const notifTime = user.preferred_notification_time || goal.preferred_time || '09:00';
     const tzOffset = user.timezone_offset || 0;
+    console.log('[scheduleGoalNotificationsOnCreate] goal title:', goal.title, '| notifTime:', notifTime, '| tzOffset:', tzOffset, '| user found:', !!user);
 
     // Fetch top-level steps, sorted by order_index
     const allSteps = await base44.asServiceRole.entities.GoalStep.filter({ goal_id: goal_id });
@@ -114,10 +115,12 @@ Deno.serve(async (req) => {
         body: JSON.stringify(notifPayload),
       });
       const resData = await res.json();
+      console.log('[scheduleGoalNotificationsOnCreate] day ' + day + ' response status:', res.status, JSON.stringify(resData));
       if (!res.ok) {
         console.error('[scheduleGoalNotificationsOnCreate] day ' + day + ' error:', JSON.stringify(resData));
         results.push({ day: day, success: false, error: resData });
       } else {
+        console.log('[scheduleGoalNotificationsOnCreate] day ' + day + ' success, id:', resData.id);
         results.push({ day: day, success: true, id: resData.id });
       }
     }
