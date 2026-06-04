@@ -140,6 +140,20 @@ NOTIFICATION FREQUENCY DETECTION — infer from category + conversation context,
 - category='other' → "weekly"
 Set "notification_frequency" in the returned JSON to one of: "daily", "weekdays", "weekly", "3x_per_week", "2x_per_week", "once_per_week"
 
+NOTIFICATION_DAYS EXTRACTION — CRITICAL — extract the specific days of week the user plans to act:
+- If the user stated specific training/practice days (e.g. "Mon/Wed/Fri", "Tuesdays and Thursdays", "weekends") → set notification_days to the corresponding day numbers (0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat). Example: Mon/Wed/Fri = [1,3,5].
+- If the user stated a count without specific days (e.g. "3x per week") → leave notification_days as null (system will use notification_frequency).
+- Health/fitness goals: if user said "I want to run Monday, Wednesday, and Saturday" → notification_days=[1,3,6].
+- Social/relationship goals with a cadence (date nights every Friday, monthly employee outing on last Friday, weekly team lunch on Thursdays) → notification_days=[5] for weekly Friday, [4] for weekly Thursday, etc. For monthly, set event_cadence="monthly" and notification_days to the day of week (not day of month).
+- Learning/skill goals: only notify on days the user said they'll practice. "I'll practice guitar Tuesday and Thursday evenings" → notification_days=[2,4].
+- Career goals with events: if user described weekly team activities → set notification_days to that day.
+- If no specific days mentioned: set notification_days to null.
+
+EVENT_CADENCE and EVENT_FORMAT — for social, relationship, career (team-building), community, creative (group), and hobby goals:
+- event_cadence: "weekly", "biweekly", "monthly", or null. Set from conversation ("we do team lunches every week" → "weekly", "monthly happy hour" → "monthly").
+- event_format: the specific type of activity ("team lunch", "date night", "weekly outing", "monthly giveaway", "happy hour", "poker night", "book club", "volunteer day", etc.).
+- These power notification copy so the AI can say "Don't forget this week's date night 💕" vs "Ready for this month's team outing? 🎉"
+
 GRANULARITY RULES — choose the right level of detail per goal type:
 
 MULTI-MONTH GOALS (2+ months): ALWAYS use week-steps with rich descriptions. No daily breakdowns. 4 steps per month, each with 2-4 sentences in description. TYPE A and TYPE B granularity only applies to single-month goals.
@@ -194,6 +208,9 @@ IMPORTANT: Generate 2-4 specific, actionable tasks per week-phase. Keep descript
   "target_date": "YYYY-MM-DD calculated from today ${today}",
   "category": "one of: learning, habit, health, career, finance, relationships, personal, creative, other — CRITICAL CATEGORY RULES (infer from conversation context, do NOT ask the user directly):\n  - 'learning': skill-building that requires regular practice to improve (learning a language, instrument, coding, public speaking, drawing). Frequency is driven by how much practice the user committed to — could be daily OR 3x/week depending on what they said.\n  - 'habit': goals that require DAILY CONSISTENCY to hit a cumulative or streak-based target (read 12 books in 12 months, read every day, meditate daily, journal every day, build a workout streak). The defining signal: success depends on showing up EVERY day, not just improving a skill. Notification frequency = 'daily'.\n  - 'personal': mindset, emotional growth, confidence, happiness, relationships, wellbeing. These are NOT daily-action goals — they are reflective and periodic. Notification frequency = '3x_per_week' or 'weekly'.\n  - 'health': fitness, exercise, nutrition, sleep, medical. Notification frequency = based on workout schedule.\n  - 'career': job searching, promotions, professional skills. Notification frequency = 'weekdays'.\n  - 'finance': saving, investing, budgeting. Notification frequency = 'weekly'.\n  - 'creative': writing a novel, art projects, music composition. Frequency = based on practice commitment.\n  - NEVER use 'personal' for reading, skill-building, or habit goals.",
   "notification_frequency": "daily|weekdays|weekly|3x_per_week|2x_per_week|once_per_week — inferred from conversation",
+  "notification_days": [1, 3, 5],
+  "event_cadence": "weekly|biweekly|monthly|null — for social/relationship/career goals only",
+  "event_format": "e.g. 'team lunch', 'date night', 'monthly outing', 'weekly giveaway' — for social/relationship/career goals only",
   "plan_summary": "2-3 sentence summary of the overall plan",
   "month_titles": {
     "1": "Descriptive title for Month 1 (e.g. book title, phase name, milestone name)",
@@ -386,6 +403,11 @@ CRITICAL:
       if (!plan.notification_frequency) {
         plan.notification_frequency = 'daily';
       }
+
+      // Pass through new adaptive scheduling fields
+      plan.notification_days = plan.notification_days || null;
+      plan.event_cadence = plan.event_cadence || null;
+      plan.event_format = plan.event_format || null;
       
       return Response.json({ plan, month_titles: plan.month_titles || {} });
     }
@@ -773,7 +795,9 @@ PHASE 1 — GATHER INFO FIRST (STRICTLY REQUIRED before drafting any plan):
        - What obstacles or fears do they have? (always clarify: "I'll build specific contingency steps into your plan to address these")
        - Any specific deadline or target date? — ONLY ask this if the user has NOT already mentioned a deadline or timeframe in their goal description. If they said "by end of 2026", "before Christmas", "in 6 months", etc., skip this question entirely and use that date.
        - CRITICAL NEW: When do you want to START this goal? (e.g. "immediately", "next month", "after my vacation", a specific date). I'll calculate the exact timeline from your start date to the end date, so your plan aligns with when you're actually ready to begin.
-       - FOR HEALTH/FITNESS GOALS ONLY: What time of day do they prefer to work out/exercise?
+       - FOR HEALTH/FITNESS GOALS ONLY: Ask THREE things together in one question block: (1) What time of day do they prefer to work out/exercise? (2) How often do they currently exercise / what is their current fitness/ability level? (e.g. "I can currently run 1 mile without stopping", "I do zero exercise right now", "I work out 3x/week already"). (3) How many days per week do they WANT to do this activity? — This last answer directly sets their notification_days (e.g. Mon/Wed/Fri = 3x/week). Be specific: ask them to list actual days if they have a preference, or pick a number. These three answers together let you build a realistic progressive plan and set notifications ONLY on their actual training days.
+       - FOR SOCIAL/RELATIONSHIP/CAREER TEAM-BUILDING/COMMUNITY GOALS: Ask about the specific FORMAT and CADENCE of the activity. Examples: "date nights — how often? weekly, biweekly, monthly?", "employee events — what type? team lunch, happy hour, outing, giveaway? how often — weekly, monthly?", "friend activities — what kind of activities? how often?", "community volunteering — how often per month?". The cadence answer sets notification_days and event_cadence. The format answer sets event_format and personalizes every notification.
+       - FOR LEARNING/SKILL GOALS (instrument, language, art, dance, coding, public speaking): Ask how many days per week they plan to practice and optionally which specific days. This sets notification_days so notifications only fire on practice days, not every day.
        - BUDGET QUESTION (ask for virtually ALL goals — books, courses, activities, tools, coaching, classes, experiences all cost money): Ask "Do you have a budget for things like books, courses, activities, or tools? Even a rough idea helps — or I can stick to free resources only." The ONLY exception: skip this question if the goal is purely about saving or paying off money (e.g. "save $5000", "pay off credit card debt") where spending on resources makes no sense. Use the answer to STRICTLY filter all resource recommendations:
          * If they say NO budget / free only → ONLY recommend free resources (YouTube, free apps, free articles via Google search, free PDFs). NEVER recommend paid books, paid courses, or paid tools.
          * If they give a budget → tailor recommendations to fit within it (e.g. one $15 book per month if budget is $15/month). Prioritize highest-value paid resources first.

@@ -36,11 +36,12 @@ export default function GoalStepNotification() {
     const inAppMessage = params.get('in_app_message');
     const monthTitle = params.get('month_title');
 
-    if (action === 'goal_step' || action === 'goal_step_followup' || action === 'goal_step_due' || action === 'goal_step_tomorrow' || action === 'habit_checkin' || action === 'inactivity_nudge') {
+    if (action === 'goal_step' || action === 'goal_step_followup' || action === 'goal_step_due' || action === 'goal_step_tomorrow' || action === 'habit_checkin' || action === 'inactivity_nudge' || action === 'catchup_nudge') {
       const step = stepId ? allSteps.find(s => s.id === stepId) : null;
-      const isFollowUp = action === 'goal_step_followup' || action === 'goal_step_tomorrow';
+      const isFollowUp = action === 'goal_step_followup' || action === 'goal_step_tomorrow' || action === 'catchup_nudge';
       const isHabit = action === 'habit_checkin';
-      setData({ type: 'step', goal, step, isFollowUp, isHabit });
+      const inAppMsg = params.get('in_app_message');
+      setData({ type: 'step', goal, step, isFollowUp, isHabit, inAppMessage: inAppMsg });
     } else if (action === 'week_preview') {
       const weekSteps = allSteps.filter(s =>
         s.phase && weekLabel && s.phase.toLowerCase().includes(weekLabel.toLowerCase().replace(', week', ' week').replace(',', '').trim().toLowerCase())
@@ -139,6 +140,9 @@ export default function GoalStepNotification() {
               <div className="mb-3 px-3 py-1.5 rounded-full bg-amber-50 border border-amber-200 inline-block">
                 <span className="text-xs font-semibold text-amber-700">⚠️ Missed yesterday</span>
               </div>
+            )}
+            {data.inAppMessage && data.isFollowUp && (
+              <p className={`text-sm leading-relaxed mb-3 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>{data.inAppMessage}</p>
             )}
             <p className={`text-xs font-semibold mb-1 ${isDark ? 'text-gray-400' : 'text-violet-500'}`}>{data.step.phase}</p>
             <h2 className={`text-lg font-bold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>{data.step.title}</h2>

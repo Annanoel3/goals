@@ -98,18 +98,32 @@ Deno.serve(async (req) => {
     // Build notification schedule based on goal's notification_frequency
     const freq = goal.notification_frequency || 'daily';
 
-    // Determine which days of the week (0=Sun...6=Sat) to send notifications
-    // We spread them across the 7-day window starting from today
+    // Determine which days to send notifications in the next 7-day window.
+    // PRIORITY: notification_days (specific days of week set during planning) > frequency fallback.
+    const today = new Date();
     let daysToNotify = [];
-    if (freq === 'daily') {
-      daysToNotify = [1, 2, 3, 4, 5, 6, 7];
-    } else if (freq === 'weekdays') {
-      // Days 1-7 from now, pick only Mon-Fri
-      const today = new Date();
+
+    if (goal.notification_days && goal.notification_days.length > 0) {
+      // User specified exact days of week (0=Sun ... 6=Sat). Map to offset days within next 7 days.
       for (let d = 1; d <= 7; d++) {
         const date = new Date(today);
         date.setDate(today.getDate() + d);
-        const dow = date.getDay(); // 0=Sun, 6=Sat
+        const dow = date.getDay();
+        if (goal.notification_days.includes(dow)) {
+          daysToNotify.push(d);
+        }
+      }
+      // Fallback: if none found in next 7 days (e.g. only 1 day/week), pick the nearest
+      if (daysToNotify.length === 0) {
+        daysToNotify = [1];
+      }
+    } else if (freq === 'daily') {
+      daysToNotify = [1, 2, 3, 4, 5, 6, 7];
+    } else if (freq === 'weekdays') {
+      for (let d = 1; d <= 7; d++) {
+        const date = new Date(today);
+        date.setDate(today.getDate() + d);
+        const dow = date.getDay();
         if (dow >= 1 && dow <= 5) daysToNotify.push(d);
       }
     } else if (freq === '3x_per_week') {
@@ -119,19 +133,36 @@ Deno.serve(async (req) => {
     } else if (freq === 'weekly' || freq === 'once_per_week') {
       daysToNotify = [1];
     } else {
-      // fallback to daily
       daysToNotify = [1, 2, 3, 4, 5, 6, 7];
     }
 
-    const allMessages = [
-      { t: 'Day 1 of ' + goalTitle, b: 'Week 1 focus: ' + week1Focus + ". Let's make it happen!" },
-      { t: 'Keep showing up', b: week1Focus + " takes consistency. You've got today — use it." },
-      { t: '3 days in on ' + goalTitle, b: "How's " + week1Focus + ' coming along? Small progress beats zero.' },
-      { t: 'Halfway through Week 1', b: week1Focus + ' is where the work is — stay on it.' },
-      { t: 'Past the easy part', b: 'The new-goal energy fades now. Push through ' + week1Focus + ' anyway.' },
-      { t: 'One more push', b: 'Almost through Week 1 of ' + goalTitle + '. Finish ' + week1Focus + ' strong.' },
-      { t: 'Week 1 wrap-up', b: "How did " + week1Focus + " go this week? Reflect and prep for Week 2." },
-    ];
+    // Build personalized messages — use event_format if available for social/career/relationship goals
+    const eventFormat = goal.event_format || null;
+    const eventCadence = goal.event_cadence || null;
+    const activityLabel = eventFormat
+      ? eventFormat
+      : week1Focus;
+
+    const allMessages = eventFormat
+      ? [
+          // Social/relationship/career event-style messages
+          { t: "Time for your " + eventFormat + "! 🎉", b: "Don't let it slip — schedule it today for " + goalTitle + "." },
+          { t: "Keeping the streak going 💪", b: "Your " + (eventCadence || 'regular') + " " + eventFormat + " makes a bigger difference than you think." },
+          { t: goalTitle + " check-in", b: "Have you planned your next " + eventFormat + "? Don't wait — put it on the calendar." },
+          { t: "Connection matters 🤝", b: "One " + eventFormat + " at a time. Keep showing up for " + goalTitle + "." },
+          { t: "Don't let it slide", b: "Your " + eventFormat + " won't happen by accident — make it happen for " + goalTitle + "." },
+          { t: "One more this " + (eventCadence === 'monthly' ? 'month' : 'week'), b: "Lock in your " + eventFormat + " before the week ends." },
+          { t: "How's " + goalTitle + " going?", b: "Reflect on your last " + eventFormat + " and plan the next one." },
+        ]
+      : [
+          { t: 'Day 1 of ' + goalTitle, b: 'Week 1 focus: ' + activityLabel + ". Let's make it happen!" },
+          { t: 'Keep showing up', b: activityLabel + " takes consistency. You've got today — use it." },
+          { t: '3 days in on ' + goalTitle, b: "How's " + activityLabel + ' coming along? Small progress beats zero.' },
+          { t: 'Halfway through Week 1', b: activityLabel + ' is where the work is — stay on it.' },
+          { t: 'Past the easy part', b: 'The new-goal energy fades now. Push through ' + activityLabel + ' anyway.' },
+          { t: 'One more push', b: 'Almost through Week 1 of ' + goalTitle + '. Finish ' + activityLabel + ' strong.' },
+          { t: 'Week 1 wrap-up', b: "How did " + activityLabel + " go this week? Reflect and prep for Week 2." },
+        ];
 
     // Pick messages evenly spaced across the scheduled days
     const msgs = daysToNotify.map((day, i) => ({

@@ -51,7 +51,7 @@
         "other"
       ],
       "default": "personal",
-      "description": "Goal category. 'learning' = skill-building requiring regular practice (language, coding, instrument). 'habit' = daily consistency goals (reading X books, daily journaling, meditation streak). 'personal' = mindset/growth goals (confidence, happiness). Others are self-explanatory."
+      "description": "Goal category."
     },
     "preferred_time": {
       "type": "string",
@@ -74,6 +74,24 @@
       "type": "string",
       "description": "How often notifications should be sent for this goal (e.g., 'daily', 'weekdays', 'weekly', '3x_per_week', '2x_per_week', 'once_per_week')",
       "default": "daily"
+    },
+    "notification_days": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      },
+      "description": "Specific days of week to send notifications (0=Sun, 1=Mon ... 6=Sat). Derived from the user's stated schedule (e.g. Mon/Wed/Fri runs = [1,3,5]). Overrides notification_frequency when set.",
+      "default": null
+    },
+    "event_cadence": {
+      "type": "string",
+      "description": "For social/career/relationship/creative goals: the cadence of the recurring activity, e.g. 'weekly', 'biweekly', 'monthly'. Used to personalize notification timing.",
+      "default": null
+    },
+    "event_format": {
+      "type": "string",
+      "description": "For social/career/relationship/creative goals: the type/format of recurring activity, e.g. 'team lunch', 'date night', 'weekly outing', 'monthly giveaway'. Used to personalize notification content.",
+      "default": null
     },
     "notes": {
       "type": "string",
@@ -110,7 +128,7 @@
     },
     "month_titles": {
       "type": "object",
-      "description": "Map of month numbers to their descriptive titles (e.g. {1: 'Book Title', 2: 'Next Book Title'} for reading goals)",
+      "description": "Map of month numbers to their descriptive titles",
       "default": {}
     },
     "pending_notifications": {
@@ -118,7 +136,7 @@
       "items": {
         "type": "object"
       },
-      "description": "AI-generated notification messages pending in-app display (week/month previews and summaries)",
+      "description": "AI-generated notification messages pending in-app display (week/month previews, summaries, and catch-up nudges)",
       "default": []
     },
     "building_months": {

@@ -275,7 +275,7 @@ Deno.serve(async (req) => {
     for (const u of allUsers) { userByEmail[u.email] = u; userById[u.id] = u; }
 
     const goals = await base44.asServiceRole.entities.Goal.list();
-    const results = { week_preview: 0, week_summary: 0, month_preview: 0, month_summary: 0, rescheduled: 0, skipped: 0 };
+    const results = { week_preview: 0, week_summary: 0, month_preview: 0, month_summary: 0, rescheduled: 0, skipped: 0, catchup_nudges: 0 };
 
     for (const goal of goals) {
       if (goal.status !== 'active') continue;
@@ -288,8 +288,6 @@ Deno.serve(async (req) => {
       const completedSteps = steps.filter(s => s.status === 'completed');
 
       // ── SUNDAY: Roll the weekly notification window ──────────────────────────
-      // Invoke scheduleGoalNotifications which uses AI to write personalized copy
-      // for all steps due in the next 7 days.
       if (isSunday) {
         const tzOffset = user.timezone_offset || 0;
         await base44.asServiceRole.functions.invoke('scheduleGoalNotificationsOnCreate', {
@@ -297,6 +295,100 @@ Deno.serve(async (req) => {
           timezoneOffsetMinutes: tzOffset,
         });
         results.rescheduled++;
+      }
+
+      // ── MISSED STEP CATCH-UP (runs every day) ────────────────────────────────
+      // Applies to ALL goal types that have scheduled/due steps:
+      //   - Health/fitness: missed run day, workout, training session
+      //   - Learning: missed practice session (language, instrument, coding, drawing)
+      //   - Habit: missed daily habit (reading, meditation, journaling, streak)
+      //   - Career/professional: task due by end of week not completed by Friday
+      //   - Relationships/social: missed date night, weekly activity, monthly outing
+      //   - Creative: missed writing/art/music session
+      //   - Finance: missed weekly review, monthly budget check
+      //   - Any goal with steps due yesterday that aren't completed
+      const yesterdayStr = addDays(todayStr, -1);
+      // For career/finance goals, also check Friday→Saturday/Monday carry-over
+      const isMondayFollowup = dayOfWeek === 1; // Monday: check Friday's missed steps too
+      const checkMissedFrom = isMondayFollowup ? addDays(todayStr, -3) : yesterdayStr;
+
+      const missedSteps = steps.filter(s => {
+        if (s.status === 'completed' || s.status === 'skipped' || s.is_daily_habit) return false;
+        if (!s.due_date) return false;
+        return s.due_date >= checkMissedFrom && s.due_date <= yesterdayStr;
+      });
+
+      if (missedSteps.length > 0) {
+        const weeksElapsedForMissed = Math.floor((now - new Date(goal.created_date)) / (1000 * 60 * 60 * 24 * 7));
+        const currentMonthNumForMissed = Math.floor(weeksElapsedForMissed / 4) + 1;
+        const monthTitleForMissed = goal.month_titles?.[String(currentMonthNumForMissed)] || null;
+        const firstName = user.full_name?.split(' ')[0] || 'there';
+
+        // Build context-aware prompt based on goal category and specific missed steps
+        const missedTitles = missedSteps.slice(0, 3).map(s => `- ${s.title}`).join('\n');
+        const totalOverall = completedSteps.length;
+        const totalSteps = steps.length;
+        const progressPct = totalSteps > 0 ? Math.round((totalOverall / totalSteps) * 100) : 0;
+
+        // Category-specific context for the AI to write a personalized catch-up message
+        const categoryContext = {
+          health: `This is a fitness/health goal. The missed steps are likely workouts or training sessions. Acknowledge the specific exercise missed, remind them their body builds consistency not perfection, and encourage them to get back at it TODAY.`,
+          learning: `This is a skill-building/learning goal. The missed steps are practice sessions. Remind them that skill-building requires consistency, even 10 minutes counts, and getting back today is what separates people who improve from those who don't.`,
+          habit: `This is a habit/streak goal. The missed steps break the streak. Be compassionate — acknowledge that life happens — and remind them that one miss doesn't erase all their progress. Encourage them to restart TODAY.`,
+          career: `This is a career/professional development goal. The missed steps are likely tasks or skill-building actions. Remind them that small consistent actions compound, and catching up now keeps momentum.`,
+          relationships: `This is a relationships/social goal. The missed steps might be a date night, social outing, or planned activity. Gently remind them that connection requires intention and ask them to reschedule soon.`,
+          creative: `This is a creative goal (writing, art, music, etc.). The missed steps are creative sessions. Remind them that creative momentum is built through showing up even when uninspired, and even 15 minutes matters.`,
+          finance: `This is a finance goal. The missed steps are likely reviews, tracking, or financial actions. Remind them that financial progress requires consistent check-ins and now is a great time to catch up.`,
+          personal: `This is a personal growth goal. The missed steps are reflection or growth exercises. Gently encourage them to return to the practice, noting that growth is non-linear.`,
+        }[goal.category] || `This goal requires consistent action to achieve. The user missed some scheduled steps. Be warm, non-judgmental, and motivating about getting back on track.`;
+
+        const goalContext = `
+Goal: "${goal.title}"
+Category: ${goal.category || 'personal'}
+Timeline: ${goal.timeline || 'unknown'}
+Overall progress: ${totalOverall}/${totalSteps} steps done (${progressPct}%)
+${monthTitleForMissed ? `Current phase theme: "${monthTitleForMissed}"` : ''}
+User first name: ${firstName}
+${isMondayFollowup ? 'Today is Monday — these steps were due last week (Friday).' : 'These steps were due YESTERDAY and not completed.'}
+Missed steps:
+${missedTitles}${missedSteps.length > 3 ? `\n+ ${missedSteps.length - 3} more` : ''}
+
+${categoryContext}
+        `.trim();
+
+        const catchupMsg = await generateMessage(openai,
+          `You write warm, non-judgmental catch-up notifications for a goal tracking app. The user missed some scheduled steps. Your job: acknowledge the miss without shame, motivate them to get back TODAY, and make them feel capable — not guilty. Be specific to the goal type and what was missed. Never use generic "you can do it" platitudes — be specific to THEIR goal and situation.
+Return JSON: { "push_title": "short compassionate title (max 8 words)", "push_body": "one-line nudge (max 15 words)", "in_app_message": "warm catch-up message (2-3 sentences, specific to what was missed, encouraging action today)" }`,
+          goalContext
+        );
+
+        const missedStepId = missedSteps[0]?.id || null;
+        const notifId = await sendPush({
+          externalId,
+          title: catchupMsg.push_title,
+          body: catchupMsg.push_body,
+          data: {
+            screen: 'GoalStepNotification',
+            action: 'catchup_nudge',
+            goal_id: goal.id,
+            step_id: missedStepId,
+            in_app_message: catchupMsg.in_app_message,
+          }
+        });
+
+        if (notifId) {
+          const pending = goal.pending_notifications || [];
+          pending.push({
+            id: notifId,
+            type: 'catchup_nudge',
+            title: catchupMsg.push_title,
+            message: catchupMsg.in_app_message,
+            created_at: now.toISOString(),
+            seen: false,
+          });
+          await base44.asServiceRole.entities.Goal.update(goal.id, { pending_notifications: pending });
+          results.catchup_nudges = (results.catchup_nudges || 0) + 1;
+        }
       }
 
       // ── AI-POWERED PERIODIC MESSAGES (Mon/Sun/1st/last only) ─────────────────
@@ -325,6 +417,8 @@ Timeline: ${goal.timeline || 'unknown'}
 Overall progress: ${completedSteps.length}/${steps.length} steps done (${progressPct}%)
 Current phase: Month ${currentMonthNum}${monthTitle ? ` – "${monthTitle}"` : ''}, Week ${currentWeekNum}
 User first name: ${user.full_name?.split(' ')[0] || 'there'}
+${goal.event_format ? `Activity type: "${goal.event_format}" (${goal.event_cadence || 'recurring'})` : ''}
+${goal.notification_days?.length > 0 ? `Active days: ${goal.notification_days.join(', ')} (day numbers 0=Sun)` : ''}
       `.trim();
 
       // ── MONDAY: Week preview ─────────────────────────────────────────────────
@@ -333,8 +427,11 @@ User first name: ${user.full_name?.split(' ')[0] || 'there'}
         const stepList = currentWeekSteps.slice(0, 5).map(s => `- ${s.title}`).join('\n');
         const pendingCount = currentWeekSteps.filter(s => s.status !== 'completed').length;
 
+        const weekEventNote = goal.event_format
+          ? `\nThis goal involves a recurring "${goal.event_format}" (${goal.event_cadence || 'recurring'}). Reference the specific activity in the notification.`
+          : '';
         const msg = await generateMessage(openai,
-          `You write motivating, personal, ADHD-friendly weekly goal preview notifications. Keep the in-app message warm, specific, and action-oriented. Max 3 sentences. Always reference the specific goal and what this week is about.
+          `You write motivating, personal, ADHD-friendly weekly goal preview notifications. Keep the in-app message warm, specific, and action-oriented. Max 3 sentences. Always reference the specific goal and what this week is about.${weekEventNote}
 Return JSON: { "push_title": "short punchy title (max 8 words)", "push_body": "one line preview (max 15 words)", "in_app_message": "fuller motivating message shown when they open the app (2-3 sentences)" }`,
           `${goalContext}\n\nThis week's ${pendingCount} steps:\n${stepList}\n\nWrite a Monday morning week kickoff notification.`
         );
@@ -364,8 +461,11 @@ Return JSON: { "push_title": "short punchy title (max 8 words)", "push_body": "o
         const completedTitles = completedThisWeek.slice(0, 4).map(s => `- ${s.title}`).join('\n');
         const missedTitles = dueThisWeek.filter(s => s.status !== 'completed').slice(0, 3).map(s => `- ${s.title}`).join('\n');
 
+        const weekSummaryEventNote = goal.event_format
+          ? `\nThis goal involves a recurring "${goal.event_format}" (${goal.event_cadence || 'recurring'}). Reference whether the activity happened this week and encourage consistency.`
+          : '';
         const msg = await generateMessage(openai,
-          `You write warm, encouraging weekly wrap-up notifications. Celebrate wins. Be kind about misses. Casual, warm, ADHD-friendly. No bullet points in the in-app message.
+          `You write warm, encouraging weekly wrap-up notifications. Celebrate wins. Be kind about misses. Casual, warm, ADHD-friendly. No bullet points in the in-app message.${weekSummaryEventNote}
 Return JSON: { "push_title": "short celebratory title (max 8 words)", "push_body": "one line summary (max 15 words)", "in_app_message": "warm wrap-up message (2-4 sentences, flowing prose)" }`,
           `${goalContext}\n\nThis week: ${completedThisWeek.length}/${dueThisWeek.length} steps (${pct}%)\n${completedTitles ? `Completed:\n${completedTitles}` : ''}\n${missedTitles ? `Missed:\n${missedTitles}` : ''}`
         );
@@ -387,8 +487,11 @@ Return JSON: { "push_title": "short celebratory title (max 8 words)", "push_body
         if (currentMonthSteps.length === 0) { results.skipped++; continue; }
         const stepList = currentMonthSteps.slice(0, 6).map(s => `- ${s.title}`).join('\n');
 
+        const monthPreviewEventNote = goal.event_format
+          ? `\nThis goal involves a recurring "${goal.event_format}" (${goal.event_cadence || 'recurring'}). Reference what this month's version of that activity could look like.`
+          : '';
         const msg = await generateMessage(openai,
-          `You write exciting, motivating monthly goal preview notifications for an ADHD productivity app. Fresh exciting chapter feel. Reference month theme if there is one. Personal and energizing.
+          `You write exciting, motivating monthly goal preview notifications for an ADHD productivity app. Fresh exciting chapter feel. Reference month theme if there is one. Personal and energizing.${monthPreviewEventNote}
 Return JSON: { "push_title": "exciting month kickoff title (max 8 words)", "push_body": "one line teaser (max 15 words)", "in_app_message": "motivating month preview (3-4 sentences, build excitement)" }`,
           `${goalContext}\n\nMonth ${currentMonthNum} steps (${currentMonthSteps.length} total):\n${stepList}${currentMonthSteps.length > 6 ? `\n+ ${currentMonthSteps.length - 6} more` : ''}`
         );
@@ -415,8 +518,11 @@ Return JSON: { "push_title": "exciting month kickoff title (max 8 words)", "push
         const pct = Math.round((completedThisMonth.length / dueThisMonth.length) * 100);
         const completedTitles = completedThisMonth.slice(0, 5).map(s => `- ${s.title}`).join('\n');
 
+        const monthSummaryEventNote = goal.event_format
+          ? `\nThis goal involves a recurring "${goal.event_format}" (${goal.event_cadence || 'recurring'}). Reflect on how many times they did the activity this month and encourage continuing.`
+          : '';
         const msg = await generateMessage(openai,
-          `You write deeply affirming, celebratory end-of-month notifications. Tone: you've been on a journey and should feel PROUD. Focus on growth, not metrics. Warm, personal, coach-like. Never harsh about missed steps.
+          `You write deeply affirming, celebratory end-of-month notifications. Tone: you've been on a journey and should feel PROUD. Focus on growth, not metrics. Warm, personal, coach-like. Never harsh about missed steps.${monthSummaryEventNote}
 Return JSON: { "push_title": "celebratory month-end title (max 8 words)", "push_body": "one line highlight (max 15 words)", "in_app_message": "warm month wrap-up (3-5 sentences, flowing prose)" }`,
           `${goalContext}\n\nMonth ${currentMonthNum}${monthTitle ? ` – "${monthTitle}"` : ''}: ${completedThisMonth.length}/${dueThisMonth.length} steps (${pct}%)\nCompleted:\n${completedTitles || '(none recorded)'}`
         );
