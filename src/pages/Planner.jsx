@@ -367,6 +367,9 @@ export default function Planner() {
         ));
       }
 
+      // Schedule notifications now — first 2 months are already saved, that's enough for week 1
+      base44.functions.invoke('scheduleGoalNotificationsOnCreate', { goal_id: goal.id, user_email: currentUser?.email, goal_start_date: createdGoal.target_date }).catch(err => console.error('Failed to schedule notifications:', err));
+
       // Save remaining months in background one by one, then clear building_months
       if (deferredMonthNums.length > 0) {
         (async () => {
@@ -379,11 +382,7 @@ export default function Planner() {
               building_months: remaining.length > 0 ? remaining : null
             });
           }
-          // All done — schedule notifications
-          base44.functions.invoke('scheduleGoalNotificationsOnCreate', { goal_id: goal.id, user_email: currentUser?.email, goal_start_date: createdGoal.target_date }).catch(err => console.error('Failed to schedule notifications:', err));
         })();
-      } else {
-        base44.functions.invoke('scheduleGoalNotificationsOnCreate', { goal_id: goal.id, user_email: currentUser?.email, goal_start_date: createdGoal.target_date }).catch(err => console.error('Failed to schedule notifications:', err));
       }
 
     } catch (err) {
