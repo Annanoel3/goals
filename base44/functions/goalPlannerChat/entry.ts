@@ -420,6 +420,37 @@ CRITICAL:
       return Response.json({ plan, month_titles: plan.month_titles || {} });
     }
 
+    // ── BULK INSERT STEPS: create steps for a goal in background ──────────────
+    if (mode === 'bulk_insert_steps') {
+      const stepRows = (steps || []).map((step, i) => ({
+        goal_id,
+        title: step.title,
+        description: step.description || "",
+        phase: step.phase || "",
+        priority: step.priority || "medium",
+        due_date: step.due_date || null,
+        order_index: step.order_index ?? i,
+        status: "pending",
+        step_resources: (step.step_resources || []).filter(r => r && r.type),
+        success_criteria: step.success_criteria || [],
+        tips_and_guidance: step.tips_and_guidance || "",
+        is_daily_habit: step.is_daily_habit === true,
+      }));
+
+      try {
+        let createdCount = 0;
+        for (const row of stepRows) {
+          await base44.asServiceRole.entities.GoalStep.create(row);
+          createdCount++;
+        }
+        console.log(`[goalPlannerChat] bulk_insert_steps: created ${createdCount} steps for goal ${goal_id}`);
+        return Response.json({ success: true, steps_created: createdCount });
+      } catch (err) {
+        console.error(`[goalPlannerChat] bulk_insert_steps error:`, err.message);
+        return Response.json({ error: err.message }, { status: 500 });
+      }
+    }
+
     // ── APPLY EDIT: commit approved edits to an existing goal ─────────────────
     if (mode === 'apply_edit') {
 
