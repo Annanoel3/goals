@@ -1,4 +1,4 @@
-import { createClientFromRequest } from "npm:@base44/sdk@0.8.25";
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 import { createClient } from "npm:@supabase/supabase-js@2.38.4";
 import OpenAI from "npm:openai";
 
@@ -73,14 +73,13 @@ Deno.serve(async (req) => {
   ? `- Use EXACTLY ${detectedMonths} months for this plan. Do NOT recalculate or shorten it. MANDATORY WEEKS: Each of the ${detectedMonths} months MUST have exactly 4 weeks (Week 1, Week 2, Week 3, Week 4). Total required week-phases: ${detectedMonths * 4}. Never combine or skip weeks.`
   : `- Identify the exact duration from the conversation (a deadline, date, or duration phrase). Use that many months — do NOT shorten it.`;
 
-    // ── BULK INSERT STEPS: fast single Supabase insert for all steps ─────────
+    // ── BULK INSERT STEPS: use Base44 SDK to insert all steps ─────────
     if (mode === 'bulk_insert_steps') {
       const { goal_id, steps } = body;
       if (!goal_id || !steps) return Response.json({ error: 'Missing goal_id or steps' }, { status: 400 });
 
       const stepRows = (steps || []).map((step, i) => ({
         goal_id,
-        created_by_id: user.id,
         title: step.title,
         description: step.description || "",
         phase: step.phase || "",
@@ -94,10 +93,14 @@ Deno.serve(async (req) => {
         is_daily_habit: step.is_daily_habit === true,
       }));
 
-      const { error: insertError } = await supabase.from('GoalStep').insert(stepRows);
-      if (insertError) return Response.json({ error: insertError.message }, { status: 500 });
-
-      return Response.json({ success: true, steps_created: stepRows.length });
+      try {
+        await base44.asServiceRole.entities.GoalStep.bulkCreate(stepRows);
+        console.log(`[goalPlannerChat] bulk_insert_steps: created ${stepRows.length} steps for goal ${goal_id}`);
+        return Response.json({ success: true, steps_created: stepRows.length });
+      } catch (err) {
+        console.error(`[goalPlannerChat] bulk_insert_steps error:`, err.message);
+        return Response.json({ error: err.message }, { status: 500 });
+      }
     }
 
     if (mode === 'extract_plan') {
