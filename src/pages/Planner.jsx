@@ -24,6 +24,7 @@ export default function Planner() {
   });
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isChatLoading, setIsChatLoading] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [canNavigateToGoal, setCanNavigateToGoal] = useState(false);
@@ -148,12 +149,12 @@ export default function Planner() {
   };
 
   const sendMessage = useCallback(async (content) => {
-    if (!content.trim() || isLoading) return;
+    if (!content.trim() || isChatLoading) return;
     const userMsg = { role: "user", content: content.trim() };
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
     setInput("");
-    setIsLoading(true);
+    setIsChatLoading(true);
     // Save progress to localStorage
     const sessionData = { startedAt: new Date().toISOString(), messages: newMessages, pendingAction, completed: false };
     localStorage.setItem('plannerInProgress', JSON.stringify(sessionData));
@@ -201,9 +202,9 @@ export default function Planner() {
     } catch (err) {
       setMessages(prev => [...prev, { role: "assistant", content: "Something went wrong. Please try again." }]);
     } finally {
-      setIsLoading(false);
+      setIsChatLoading(false);
     }
-  }, [isLoading, editingGoal, goals, userCity]);
+    }, [isChatLoading, editingGoal, goals, userCity]);
 
   const validatePlanSteps = (plan) => {
     if (!plan.steps || plan.steps.length === 0) {
@@ -506,14 +507,14 @@ export default function Planner() {
           </div>
           <div className="flex items-center gap-2">
             {(editingGoal || messages.length > 0) && (
-              <Button variant="ghost" size="sm" onClick={handleNewPlan} disabled={isSaving} className={`text-xs h-7 px-3 rounded-full ${isDark ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-500 hover:bg-gray-100'}`}>
+              <Button variant="ghost" size="sm" onClick={handleNewPlan} disabled={isSaving || isChatLoading} className={`text-xs h-7 px-3 rounded-full ${isDark ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-500 hover:bg-gray-100'}`}>
                 {editingGoal ? 'Back' : 'New'}
               </Button>
             )}
             <Button
               variant="ghost"
               size="sm"
-              disabled={isSaving}
+              disabled={isSaving || isChatLoading}
               className={`text-xs h-7 px-3 rounded-full ${isDark ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-500 hover:bg-gray-100'}`}
               onClick={() => navigate("/Goals")}
             >
@@ -535,19 +536,15 @@ export default function Planner() {
             {messages.map((msg, i) => (
               <MessageBubble key={i} msg={msg} onExampleClick={i === 0 ? sendMessage : null} />
             ))}
-            {isLoading && (
-        <div className="flex justify-center py-4">
-          {editingGoal ? (
-            <SavingProgressBar isEdit done={false} />
-          ) : (
+            {isChatLoading && (
+            <div className="flex justify-center py-4">
             <div className="flex gap-1.5 items-center">
-              <div className="w-2.5 h-2.5 bg-violet-400 rounded-full animate-bounce" style={{animationDelay:'0ms'}} />
-              <div className="w-2.5 h-2.5 bg-violet-400 rounded-full animate-bounce" style={{animationDelay:'150ms'}} />
-              <div className="w-2.5 h-2.5 bg-violet-400 rounded-full animate-bounce" style={{animationDelay:'300ms'}} />
+            <div className="w-2.5 h-2.5 bg-violet-400 rounded-full animate-bounce" style={{animationDelay:'0ms'}} />
+            <div className="w-2.5 h-2.5 bg-violet-400 rounded-full animate-bounce" style={{animationDelay:'150ms'}} />
+            <div className="w-2.5 h-2.5 bg-violet-400 rounded-full animate-bounce" style={{animationDelay:'300ms'}} />
             </div>
-          )}
-        </div>
-      )}
+            </div>
+            )}
 
             {/* Plan preview before approval — new goal */}
             {pendingAction === 'plan_proposed' && !isLoading && !saved && !editingGoal && !showCelebration && (
@@ -677,7 +674,7 @@ export default function Planner() {
         <div className="max-w-2xl mx-auto flex items-end gap-2">
           <button
             onClick={isRecording ? stopRecording : startRecording}
-            disabled={isLoading}
+            disabled={isChatLoading}
             className={`w-10 h-10 flex-shrink-0 rounded-full flex items-center justify-center transition-all ${isRecording ? 'bg-red-500 animate-pulse' : 'bg-gray-100 hover:bg-gray-200'} disabled:opacity-40`}
           >
             <Mic className={`w-4 h-4 ${isRecording ? 'text-white' : 'text-gray-600'}`} />
@@ -696,15 +693,15 @@ export default function Planner() {
                   : "Continue the conversation…"
             }
             className={`flex-1 min-h-[56px] max-h-64 text-sm resize-none rounded-2xl transition-colors ${isDark ? 'border-gray-700 focus:border-gray-600 bg-gray-800 focus:bg-gray-700 text-white placeholder-gray-500' : 'border-gray-200 focus:border-violet-300 bg-gray-50 focus:bg-white text-gray-900'}`}
-            disabled={isLoading}
+            disabled={isChatLoading}
             rows={1}
           />
           <button
             onClick={() => sendMessage(input)}
-            disabled={!input.trim() || isLoading}
+            disabled={!input.trim() || isChatLoading}
             className="w-10 h-10 flex-shrink-0 rounded-full bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-violet-200 hover:shadow-violet-300 transition-all disabled:opacity-40 disabled:shadow-none"
           >
-            {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+            {isChatLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
           </button>
         </div>
       </div>
