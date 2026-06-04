@@ -68,7 +68,7 @@ EVERY month MUST have a descriptive title that reflects its milestones or theme.
 Format in output: "Month 1 – Book Title" or "Month 1 – Introduction Phase" (with em dash or hyphen).
 This applies to ALL goal types. Users should see meaningful milestone titles, not just "Month 1".
 - For goals under 1 month, just use "Week 1", "Week 2" phases directly.
-READING GOALS — CRITICAL: You MUST select a specific, real book title for EVERY single month in month_titles, based on the user's stated genre and preferences. Draw on your knowledge of books in that genre. Placeholder titles (e.g. "Book Title", "Month 2 Book", "TBD") are a CRITICAL FAILURE — never output them.
+READING GOALS — CRITICAL: You MUST select a specific, real book title for EVERY single month in month_titles (months 1 through ${detectedMonths}), based on the user's stated genre and preferences. Draw on your knowledge of books in that genre. Placeholder titles (e.g. "Book Title", "Month 2 Book", "TBD") are a CRITICAL FAILURE — never output them. EVERY MONTH MUST HAVE A REAL BOOK TITLE. If ${detectedMonths} months have been specified, month_titles must contain entries for ALL ${detectedMonths} months. There are NO summary placeholders like "Month 7-12: I will continue..." — that is a CRITICAL FAILURE. Instead, you MUST generate a specific real book title for Month 7, Month 8, Month 9, Month 10, Month 11, and Month 12 individually.
 
 NOTIFICATION FREQUENCY DETECTION:
 Analyze the conversation for clues about how often the user wants to be reminded:
@@ -84,24 +84,29 @@ GRANULARITY RULES — choose the right level of detail per goal type:
 MULTI-MONTH GOALS (2+ months): ALWAYS use week-steps with rich descriptions. No daily breakdowns. 4 steps per month, each with 2-4 sentences in description. TYPE A and TYPE B granularity only applies to single-month goals.
 
 TYPE A — DAILY PRACTICE GOALS (single-month goals only) (instruments, language learning, fitness/exercise, meditation, journaling, coding practice, drawing, singing, martial arts, sport drills):
-  - Each week must include a DAILY breakdown: Monday through Sunday (or Day 1–7), each with a specific task.
-  - Example for "Learn Guitar, Month 1 Week 1":
-      Monday: Practice open chords G, C, D for 20 min
-      Tuesday: Repeat Monday's chords + practice transitions
-      Wednesday: Learn Em and Am chords
-      ...and so on through Sunday.
-  - Mark these steps as is_daily_habit: true.
-  - The step title should be the day (e.g. "Monday – Chord Practice") and description contains what to do.
+   - Each week must include a DAILY breakdown: Monday through Sunday (or Day 1–7), each with a specific task.
+   - Example for "Learn Guitar, Month 1 Week 1":
+       Monday: Practice open chords G, C, D for 20 min
+       Tuesday: Repeat Monday's chords + practice transitions
+       Wednesday: Learn Em and Am chords
+       ...and so on through Sunday.
+   - Mark these steps as is_daily_habit: true.
+   - The step title should be the day (e.g. "Monday – Chord Practice") and description contains what to do.
 
 TYPE B — MILESTONE/PROJECT GOALS (save money, find a job, start a business, write a book, improve relationships, mental health, happiness, productivity, home projects):
-  - Each week needs only 2-4 key actionable tasks — NOT a daily breakdown.
-  - Steps should be concrete milestones or actions, not daily habits.
-  - Example for "Be Happier, Month 2 Week 1":
-      Step: "Schedule one social activity this week"
-      Step: "Journal about 3 things you're grateful for (3x this week)"
-      Step: "Read Chapter 4 of The Happiness Advantage"
+   - For LONG PLANS (4+ months): Each week needs 2-4 key actionable tasks — NOT a daily breakdown. Steps should be concrete milestones or actions.
+   - For SHORT PLANS (3 months or fewer): Each week needs 5-7 detailed actionable tasks with checkboxes/granularity. Go deeper on each week since there are fewer of them. Example for "Be Happier, Month 1 Week 1" (short plan):
+       ✓ Schedule one social activity this week
+       ✓ Journal about 3 things you're grateful for (3x this week)
+       ✓ Read Chapter 1-2 of The Happiness Advantage
+       ✓ Identify one personal boundary to set
+       ✓ Practice 1 positive affirmation daily
+   - Example for "Be Happier, Month 2 Week 1" (long plan):
+       Step: "Schedule one social activity this week"
+       Step: "Journal about 3 things you're grateful for (3x this week)"
+       Step: "Read Chapter 4 of The Happiness Advantage"
 
-DECISION RULE: Look at the goal's category and description. If it involves a SKILL that requires daily repetition to build muscle memory or habit → TYPE A. If it's about achieving outcomes through periodic actions and milestones → TYPE B. When in doubt, lean TYPE B (fewer, clearer steps per week).
+DECISION RULE: Look at the goal's category and description. If it involves a SKILL that requires daily repetition to build muscle memory or habit → TYPE A. If it's about achieving outcomes through periodic actions and milestones → TYPE B. When in doubt, lean TYPE B (fewer, clearer steps per week). FOR SHORT PLANS (3 months or fewer): significantly increase the granularity/number of steps per week (5-7 per week minimum) to add useful detail and structure to the shorter timeline.
 
 GOAL-TYPE-SPECIFIC ENRICHMENT — EVERY goal needs depth tailored to its category:
 
@@ -123,7 +128,7 @@ LEARNING/SKILL GOALS (coding, design, public speaking): Each week: specific conc
 
 For reading/daily practice goals: set is_daily_habit: true. For milestone-based goals: set is_daily_habit: false.
 
-TOKEN PRIORITY RULE: Completing ALL ${detectedMonths} months x 4 weeks = ${detectedMonths * 4} total week-phases is the HIGHEST priority. Trade depth for coverage always. Use 2-4 steps per week-phase. Never sacrifice later weeks just to add detail to earlier ones.
+TOKEN PRIORITY RULE: Completing ALL ${detectedMonths} months x 4 weeks = ${detectedMonths * 4} total week-phases is the HIGHEST priority. Trade depth for coverage always. CRITICAL: EVERY month (Month 1 through Month ${detectedMonths}) MUST have FULL step detail and granularity. Do NOT create a summary for later months like "Months 7-12: I will continue...". Each month must have 4 weeks with concrete steps. For short plans (3 months or fewer), use 5-7 steps per week. For longer plans, use 2-4 steps per week. Never sacrifice later months just to add detail to earlier ones. EVERY MONTH gets the same treatment.
 
 IMPORTANT: Generate 2-4 specific, actionable tasks per week-phase. Keep descriptions to 1 sentence each. CRITICAL: If the user said "by end of year" or "by [month]", calculate the EXACT number of months from today (${today}) to that date and use that as the timeline. Do NOT use a generic number.
 {
@@ -972,7 +977,9 @@ Always be specific, warm, encouraging, and treat the plan as a living document t
            const isMonthLine = /^Month\s+\d+/i.test(candidate);
            // Skip lines that are just task bullets (very short or start with numbers like "1.")
            const isTaskBullet = /^\d+\.\s/.test(candidate) && candidate.length < 60;
-           if (!isWeekLine && !isMonthLine && !isDateOnly(candidate) && candidate.length <= 150 && !isTaskBullet) {
+           // Skip "continue to select" or generic placeholders
+           const isGenericPlaceholder = /continue\s+to\s+select|will\s+continue|for\s+these\s+months/i.test(candidate);
+           if (!isWeekLine && !isMonthLine && !isDateOnly(candidate) && !isGenericPlaceholder && candidate.length <= 150 && !isTaskBullet) {
              if (!chatMonthTitles[num]) chatMonthTitles[num] = candidate;
            }
            break;
