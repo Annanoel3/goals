@@ -320,7 +320,7 @@ export default function Planner() {
 
       // Schedule all notifications — short delay to ensure the goal record is fully persisted
       setTimeout(() => {
-        base44.functions.invoke('scheduleGoalNotifications', { goal_id: goal.id, preferred_time: plan.preferred_time, timezoneOffsetMinutes: -new Date().getTimezoneOffset() }).catch(err => console.error('scheduleGoalNotifications failed:', err));
+        base44.functions.invoke('scheduleGoalNotifications', { goal_id: goal.id, timezoneOffsetMinutes: -new Date().getTimezoneOffset() }).catch(err => console.error('scheduleGoalNotifications failed:', err));
       }, 2000);
     } catch (err) {
       setSaveError(true);
@@ -352,8 +352,7 @@ export default function Planner() {
 
       // Reschedule all notifications for this goal (cancels old ones first)
       if (gid) {
-        const currentGoal = goals.find(g => g.id === gid);
-        base44.functions.invoke('scheduleGoalNotifications', { goal_id: gid, preferred_time: currentGoal?.preferred_time, timezoneOffsetMinutes: -new Date().getTimezoneOffset() }).catch(err => console.error('scheduleGoalNotifications failed:', err));
+        base44.functions.invoke('scheduleGoalNotifications', { goal_id: gid, timezoneOffsetMinutes: -new Date().getTimezoneOffset() }).catch(err => console.error('scheduleGoalNotifications failed:', err));
       }
     } catch (err) {
       toast({ title: "Error applying changes", description: "Please try again.", variant: "destructive" });
