@@ -34,6 +34,7 @@ export default function Planner() {
   const [goals, setGoals] = useState([]);
   const [editingGoal, setEditingGoal] = useState(null); // goal being edited in current session
   const [userCity, setUserCity] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
   const [saveError, setSaveError] = useState(false);
   const messagesEndRef = useRef(null);
   const messagesRef = useRef(messages);
@@ -67,7 +68,7 @@ export default function Planner() {
       // pendingAction is intentionally NOT restored from localStorage.
       // It is only set live when the AI response contains a full plan in the current session.
     }).catch(() => { });
-    base44.auth.me().then(u => { if (u?.city) setUserCity(u.city); }).catch(() => { });
+    base44.auth.me().then(u => { setCurrentUser(u); if (u?.city) setUserCity(u.city); }).catch(() => { });
 
     // Subscribe to goal changes to catch pending goals being created
     const unsubscribe = base44.entities.Goal.subscribe((event) => {
@@ -290,6 +291,8 @@ export default function Planner() {
 
       const goal = createdGoal;
       if (!goal?.id) throw new Error('Goal creation returned no ID');
+      // Write goal_id back onto the record so it's visible in the dashboard
+      await base44.entities.Goal.update(goal.id, { goal_id: goal.id });
       // Immediately sync ref so any concurrent code uses the new ID
       pendingGoalIdRef.current = goal.id;
 

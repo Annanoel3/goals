@@ -2,6 +2,10 @@
   "name": "Goal",
   "type": "object",
   "properties": {
+    "goal_id": {
+      "type": "string",
+      "description": "Self-referencing goal ID (mirrors the built-in id field for easy reference)"
+    },
     "title": {
       "type": "string",
       "description": "The goal title, e.g. 'Learn Spanish'"
@@ -59,10 +63,11 @@
         "15min",
         "30min",
         "1hour",
-        "2hours"
+        "2hours",
+        "1day"
       ],
       "description": "Follow-up reminder interval if action not completed (for health goals)",
-      "default": "2hours"
+      "default": "1day"
     },
     "notification_frequency": {
       "type": "string",
