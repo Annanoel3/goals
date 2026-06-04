@@ -415,16 +415,23 @@ CRITICAL:
 
       // Extract the new plan from the conversation using AI
       const extractionResponse = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          {
-            role: "system",
-            content: `You extract the new goal plan proposed in a conversation. Return ONLY valid JSON, no markdown.
-CRITICAL RULES:
-1. Extract EVERY step the planner proposed in their latest plan. Do NOT omit any steps.
-2. ENFORCE WEEK ORDERING: For each month, steps MUST appear in order: Week 1, Week 2, Week 3, Week 4 (not scrambled or out of order).
-3. FOR READING GOALS: If the planner mentioned looking up chapter counts or specific chapter ranges (e.g. "Ch 1-15", "chapters 1-12"), you MUST include those exact chapter ranges in the step titles and descriptions. Do NOT use vague percentages like "~50%" when a chapter count is available. Use the actual chapter numbers.
-4. The output is used to completely replace all existing steps, so you must be exhaustive and complete.`
+         model: "gpt-4o-mini",
+         messages: [
+           {
+             role: "system",
+             content: `You extract the new goal plan proposed in a conversation. Return ONLY valid JSON, no markdown.
+      CRITICAL RULES:
+      1. Extract EVERY step the planner proposed in their latest plan. Do NOT omit any steps.
+      2. ENFORCE WEEK ORDERING: For each month, steps MUST appear in order: Week 1, Week 2, Week 3, Week 4 (not scrambled or out of order).
+      3. FOR READING GOALS: If the planner mentioned looking up chapter counts or specific chapter ranges (e.g. "Ch 1-15", "chapters 1-12"), you MUST include those exact chapter ranges in the step titles and descriptions. Do NOT use vague percentages like "~50%" when a chapter count is available. Use the actual chapter numbers.
+      4. The output is used to completely replace all existing steps, so you must be exhaustive and complete.
+      5. NOTIFICATION FREQUENCY DETECTION: Analyze the conversation for clues about how often the user wants to be reminded — infer from context:
+      - Daily tasks / practice / reading → "daily"
+      - Weekday focus only → "weekdays"
+      - Once per week → "weekly"
+      - Multiple times per week → "3x_per_week" or "2x_per_week"
+      Set "notification_frequency" in the returned JSON to one of: "daily", "weekdays", "weekly", "3x_per_week", "2x_per_week"
+      6. MONTH TITLES (if changed): Include "month_titles" in goal_updates with real, specific titles (not placeholders).`
           },
           {
             role: "user",
