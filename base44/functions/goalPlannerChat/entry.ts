@@ -97,13 +97,18 @@ Deno.serve(async (req) => {
         // Create steps one at a time for reliability
         let createdCount = 0;
         for (const row of stepRows) {
-          await base44.asServiceRole.entities.GoalStep.create(row);
-          createdCount++;
+          try {
+            await base44.asServiceRole.entities.GoalStep.create(row);
+            createdCount++;
+          } catch (stepErr) {
+            console.error(`[goalPlannerChat] Failed to create step:`, { stepTitle: row.title, error: stepErr.message, stepData: row });
+            throw stepErr;
+          }
         }
         console.log(`[goalPlannerChat] bulk_insert_steps: created ${createdCount} steps for goal ${goal_id}`);
         return Response.json({ success: true, steps_created: createdCount });
       } catch (err) {
-        console.error(`[goalPlannerChat] bulk_insert_steps error:`, err.message);
+        console.error(`[goalPlannerChat] bulk_insert_steps error:`, err.message, err);
         return Response.json({ error: err.message }, { status: 500 });
       }
     }
