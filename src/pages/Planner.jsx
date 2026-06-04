@@ -247,7 +247,7 @@ export default function Planner() {
       if (!plan.month_titles || Object.keys(plan.month_titles).length === 0) {
         plan.month_titles = {};
         const text = plan.plan_summary || '';
-        const stripMd = (s) => s.replace(/\*+/g, '').replace(/^[#>\s\-–—:]+/, '').trim();
+        const stripMd = (s) => s.replace(/\*+/g, '').replace(/^[#>\s\-\u2013\u2014:]+/, '').trim();
         const isDateStr = (s) => /^(January|February|March|April|May|June|July|August|September|October|November|December)(\s+\d{4})?$/i.test(s.trim());
 
         const lines = text.split('\n');
@@ -842,7 +842,7 @@ function parsePlanHierarchy(text, goalMonthTitles = {}) {
     } else {
       // If we're right after a month header and no subtitle yet, this non-task, non-week line might be the book title
       if (prevLineWasMonthHeader && currentMonth && !currentMonth.subtitle) {
-        const candidateSubtitle = line.replace(/\*+/g, '').replace(/^[-–—:#>\s]+/, '').trim();
+        const candidateSubtitle = line.replace(/\*+/g, '').replace(/^[-\u2013\u2014:#>\s]+/, '').trim();
         const isDateOnly = /^(January|February|March|April|May|June|July|August|September|October|November|December)(\s+\d{4})?$/i.test(candidateSubtitle.trim());
         const isTooLong = candidateSubtitle.length > 100;
         const isWeekLine = /^Week\s+\d+/i.test(candidateSubtitle);
@@ -902,7 +902,7 @@ function parsePlanHierarchy(text, goalMonthTitles = {}) {
   // This catches "Month 1 – Title", "**Month 1** – Title", "Month 1\n*Title*", etc.
   const scannedTitles = {};
   const textLines = text.split('\n');
-  const stripMd = (s) => s.replace(/\*+/g, '').replace(/^[#>\s\-–—:]+/, '').trim();
+  const stripMd = (s) => s.replace(/\*+/g, '').replace(/^[#>\s\-\u2013\u2014:]+/, '').trim();
   const isDateStr = (s) => /^(January|February|March|April|May|June|July|August|September|October|November|December)(\s+\d{4})?$/i.test(s.trim());
   for (let i = 0; i < textLines.length; i++) {
     const clean = stripMd(textLines[i]);
