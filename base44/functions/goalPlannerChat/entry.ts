@@ -255,6 +255,27 @@ CRITICAL:
         // notification_schedule comes from AI generation
         plan.notification_schedule = plan.notification_schedule || [];
 
+      // Extract habit metadata from the plan
+      const dailyHabitSteps = plan.steps?.filter(s => s.is_daily_habit === true) || [];
+      const hasAnyDailyHabit = dailyHabitSteps.length > 0;
+      
+      // Analyze steps to determine weekdays_only
+      let weekdaysOnly = false;
+      if (hasAnyDailyHabit) {
+        // Check if steps mention work/business/career context
+        const isWorkGoal = ['career', 'finance'].includes(plan.category);
+        const workKeywords = ['work', 'business', 'office', 'professional', 'job', 'client', 'employee', 'meeting'];
+        const conversationLower = conversationText.toLowerCase();
+        const mentionsWork = workKeywords.some(kw => conversationLower.includes(kw));
+        weekdaysOnly = isWorkGoal || mentionsWork;
+      }
+      
+      plan.requires_daily_action = hasAnyDailyHabit;
+      plan.weekdays_only = weekdaysOnly;
+      plan.habit_days_of_week = [];
+
+      console.log(`[goalPlannerChat] Extracted plan: requires_daily_action=${plan.requires_daily_action}, weekdays_only=${plan.weekdays_only}, daily_habit_steps=${dailyHabitSteps.length}`);
+
       // VALIDATE: ensure no gaps in phases/timeline with week structure for 3+ month goals
       const validatePlanCompleteness = (p) => {
         if (!p.steps || p.steps.length === 0) return { valid: false, error: "No steps generated" };
@@ -399,7 +420,8 @@ CRITICAL:
         plan.notification_frequency = 'daily';
       }
       
-      return Response.json({ plan, month_titles: plan.month_titles || {}, notification_schedule: plan.notification_schedule || [] });
+      console.log(`[goalPlannerChat] Returning plan with: requires_daily_action=${plan.requires_daily_action}, weekdays_only=${plan.weekdays_only}`);
+      return Response.json({ plan, month_titles: plan.month_titles || {}, notification_schedule: plan.notification_schedule || [], requires_daily_action: plan.requires_daily_action, weekdays_only: plan.weekdays_only, habit_days_of_week: plan.habit_days_of_week });
     }
 
     // ── APPLY EDIT: commit approved edits to an existing goal ─────────────────

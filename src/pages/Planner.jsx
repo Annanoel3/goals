@@ -267,7 +267,10 @@ export default function Planner() {
         notification_frequency: plan.notification_frequency || "daily",
         reminder_interval: plan.reminder_interval || "2hours",
         conversation_history: allMessages,
-        month_titles: plan.month_titles || {}
+        month_titles: plan.month_titles || {},
+        requires_daily_action: plan.requires_daily_action ?? false,
+        weekdays_only: plan.weekdays_only ?? false,
+        habit_days_of_week: plan.habit_days_of_week ?? []
       });
 
       if (plan.steps?.length > 0) {

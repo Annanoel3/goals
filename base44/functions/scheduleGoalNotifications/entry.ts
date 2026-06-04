@@ -78,6 +78,7 @@ Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
     const { goal_id, goal_data, timezoneOffsetMinutes } = await req.json();
+    console.log(`[scheduleGoalNotifications] Called with goal_id=${goal_id}, has_goal_data=${!!goal_data}, timezone=${timezoneOffsetMinutes}`);
     if (!goal_id) return Response.json({ error: 'goal_id required' }, { status: 400 });
 
     const tzOffset = typeof timezoneOffsetMinutes === 'number' ? timezoneOffsetMinutes : 0;
@@ -92,9 +93,11 @@ Deno.serve(async (req) => {
 
     const user = await base44.auth.me();
     const externalId = user?.email;
+    console.log(`[scheduleGoalNotifications] User: ${externalId}, Goal requires_daily_action=${goal.requires_daily_action}, weekdays_only=${goal.weekdays_only}`);
     if (!externalId) return Response.json({ error: 'No user email' }, { status: 400 });
     
     const steps = await base44.entities.GoalStep.filter({ goal_id });
+    console.log(`[scheduleGoalNotifications] Found ${steps.length} steps for goal ${goal_id}`);
 
     // Preferred notification time (default 9 AM)
     let prefHour = 9, prefMin = 0;
@@ -237,8 +240,10 @@ Deno.serve(async (req) => {
       onesignal_notification_ids: goalNotifIds,
     });
 
+    console.log(`[scheduleGoalNotifications] Complete: scheduled=${scheduled}, cancelled=${cancelled}, steps=${steps.length}`);
     return Response.json({ ok: true, scheduled, cancelled, steps_processed: steps.length });
   } catch (err) {
+    console.error(`[scheduleGoalNotifications] Error: ${err.message}`);
     return Response.json({ error: err.message }, { status: 500 });
   }
 });
