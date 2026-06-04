@@ -296,7 +296,13 @@ CRITICAL:
         response_format: { type: "json_object" }
       });
 
-      const plan = JSON.parse(extractionResponse.choices[0].message.content);
+      let plan;
+      try {
+        plan = JSON.parse(extractionResponse.choices[0].message.content);
+      } catch (parseErr) {
+        console.error('[extract_plan] JSON parse failed:', parseErr.message, 'Raw response:', extractionResponse.choices[0].message.content?.substring(0, 500));
+        return Response.json({ error: 'AI response was not valid JSON. Please try again.' }, { status: 400 });
+      }
 
       // Ensure all steps have required fields
        plan.steps = (plan.steps || []).map(step => ({
