@@ -38,6 +38,7 @@ export default function Planner() {
   const [editingGoal, setEditingGoal] = useState(null); // goal being edited in current session
   const [userCity, setUserCity] = useState(null);
   const [saveError, setSaveError] = useState(false);
+  const [pollForMonth2Complete, setPollForMonth2Complete] = useState(false);
   const messagesEndRef = useRef(null);
   const messagesRef = useRef(messages);
   const navigate = useNavigate();
@@ -298,8 +299,23 @@ export default function Planner() {
         }
 
         // Fill in the actual steps asynchronously in background
-        setCanNavigateToGoal(true);
         setPendingGoalId(goal.id);
+        setPollForMonth2Complete(true);
+        
+        // Poll for Month 2 completion
+        const pollInterval = setInterval(async () => {
+          try {
+            const steps = await base44.entities.GoalStep.filter({ goal_id: goal.id });
+            const month2Steps = steps.filter(s => s.phase?.includes('Month 2'));
+            if (month2Steps.length > 0) {
+              clearInterval(pollInterval);
+              setCanNavigateToGoal(true);
+              setPollForMonth2Complete(false);
+            }
+          } catch {}
+        }, 500); // Poll every 500ms
+        
+        // Start async step creation
         base44.functions.invoke('createRemainingGoalSteps', {
           goal_id: goal.id,
           steps: plan.steps
@@ -556,7 +572,7 @@ export default function Planner() {
             </div>
           ) : isSaving && (
            <div className="flex flex-col items-center gap-3">
-             <SavingProgressBar isEdit={!!editingGoal} done={!isSaving} />
+             <SavingProgressBar isEdit={!!editingGoal} done={!pollForMonth2Complete} />
              {canNavigateToGoal && (
                <Button
                  onClick={() => navigate(`/goal/${pendingGoalId}`)}
