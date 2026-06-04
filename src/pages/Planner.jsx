@@ -256,6 +256,27 @@ export default function Planner() {
       const plan = res.data.plan;
       validatePlanSteps(plan);
 
+      // Fallback: extract month titles from AI text if not in structured response
+      if (!plan.month_titles || Object.keys(plan.month_titles).length < 3) {
+        const monthTitlesFromText = {};
+        const lines = allMessages[allMessages.length - 1]?.content?.split('\n') || [];
+        let lastMonthNum = 0;
+        for (const line of lines) {
+          const monthMatch = line.match(/\*\*Month\s+(\d+)[:\s—–-]+(.+?)\*\*/);
+          if (monthMatch) {
+            const num = parseInt(monthMatch[1], 10);
+            const title = monthMatch[2].trim().replace(/\*+/g, '').trim();
+            if (title && !/^month/i.test(title)) {
+              monthTitlesFromText[num] = title;
+              lastMonthNum = num;
+            }
+          }
+        }
+        if (Object.keys(monthTitlesFromText).length > Object.keys(plan.month_titles || {}).length) {
+          plan.month_titles = { ...plan.month_titles, ...monthTitlesFromText };
+        }
+      }
+
       const goal = await base44.entities.Goal.create({
         title: plan.title,
         description: plan.description,
