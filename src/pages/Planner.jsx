@@ -26,6 +26,7 @@ export default function Planner() {
   const [isLoading, setIsLoading] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [canNavigateToGoal, setCanNavigateToGoal] = useState(false);
   const [pendingAction, setPendingAction] = useState(null); // 'plan_approved' | 'edit_approved'
   const [pendingGoalId, setPendingGoalId] = useState(null);
   const [saved, setSaved] = useState(false);
@@ -268,6 +269,7 @@ export default function Planner() {
       });
 
       if (plan.steps?.length > 0) {
+        let monthsCompleted = new Set();
         for (let i = 0; i < plan.steps.length; i++) {
           const step = plan.steps[i];
           const createdStep = await base44.entities.GoalStep.create({
@@ -284,6 +286,18 @@ export default function Planner() {
             tips_and_guidance: step.tips_and_guidance || "",
             is_daily_habit: step.is_daily_habit === true
           });
+
+          // Track months completed
+          const monthMatch = (step.phase || '').match(/Month (\d+)/i);
+          if (monthMatch) {
+            monthsCompleted.add(parseInt(monthMatch[1]));
+          }
+
+          // After first 2 months are created, enable "Go to Goal" button
+          if (monthsCompleted.size >= 2 && !canNavigateToGoal) {
+            setCanNavigateToGoal(true);
+            setPendingGoalId(goal.id);
+          }
 
           // Create sub-steps if provided
           if (step.sub_steps?.length > 0) {
@@ -537,9 +551,17 @@ export default function Planner() {
               </Button>
             </div>
           ) : isSaving && (
-            <div className="flex justify-center">
-              <SavingProgressBar isEdit={!!editingGoal} done={!isSaving} />
-            </div>
+           <div className="flex flex-col items-center gap-3">
+             <SavingProgressBar isEdit={!!editingGoal} done={!isSaving} />
+             {canNavigateToGoal && (
+               <Button
+                 onClick={() => navigate(`/goal/${pendingGoalId}`)}
+                 className={`rounded-2xl px-6 py-2.5 font-semibold ${isDark ? 'bg-violet-600 hover:bg-violet-700 text-white' : 'bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white'}`}
+               >
+                 Go to Goal →
+               </Button>
+             )}
+           </div>
           )}
         </>
       )}
