@@ -246,51 +246,7 @@ export default function Planner() {
       const plan = res.data.plan;
       validatePlanSteps(plan);
 
-      // If month_titles is empty, extract from plan_summary
-      if (!plan.month_titles || Object.keys(plan.month_titles).length === 0) {
-        plan.month_titles = {};
-        const text = plan.plan_summary || '';
-        const stripMd = (s) => s.replace(/\*+/g, '').replace(/^[#>\s\-\u2013\u2014:]+/, '').trim();
-        const isDateStr = (s) => /^(January|February|March|April|May|June|July|August|September|October|November|December)(\s+\d{4})?$/i.test(s.trim());
-
-        const lines = text.split('\n');
-        for (let i = 0; i < lines.length; i++) {
-          const clean = stripMd(lines[i]);
-          const inlineM = clean.match(/^Month\s+(\d+)\s*[–—:\-]+\s*(.+)/i);
-          if (inlineM) {
-            const t = stripMd(inlineM[2]);
-            if (t && !isDateStr(t) && t.length >= 2 && t.length <= 120) plan.month_titles[inlineM[1]] = t;
-          }
-          const monthM = clean.match(/^Month\s+(\d+)$/i);
-          if (monthM && !plan.month_titles[monthM[1]]) {
-            for (let j = i + 1; j < lines.length && j < i + 5; j++) {
-              const candidate = stripMd(lines[j]);
-              if (!candidate || /^(Week|Month)\s+\d+/i.test(candidate) || /^[-•*]\s/.test(lines[j].trim())) break;
-              if (!isDateStr(candidate) && candidate.length >= 2 && candidate.length <= 120) {
-                plan.month_titles[monthM[1]] = candidate;
-                break;
-              }
-            }
-          }
-        }
-      }
-
-      // Group steps by month number
-      const stepsByMonth = {};
-      (plan.steps || []).forEach((step, i) => {
-        const mMatch = (step.phase || '').match(/Month\s*(\d+)/i);
-        const mNum = mMatch ? parseInt(mMatch[1], 10) : 999;
-        if (!stepsByMonth[mNum]) stepsByMonth[mNum] = [];
-        stepsByMonth[mNum].push({ step, originalIndex: i });
-      });
-      const sortedMonthNums = Object.keys(stepsByMonth).map(Number).sort((a, b) => a - b);
-      const totalMonths = sortedMonthNums.length;
-
-      // Determine how many months to show in "building" state (months 3+)
-      const immediateMonths = Math.min(2, totalMonths);
-      const deferredMonthNums = sortedMonthNums.slice(immediateMonths);
-
-      // Create the goal with building_months flag so GoalDetail knows more are coming
+      // Create the goal record
       const createdGoal = await base44.entities.Goal.create({
         title: plan.title,
         description: plan.description,
@@ -304,7 +260,7 @@ export default function Planner() {
         reminder_interval: plan.reminder_interval || "2hours",
         conversation_history: allMessages,
         month_titles: plan.month_titles || {},
-        building_months: deferredMonthNums.length > 0 ? deferredMonthNums : null,
+        building_months: null,
       });
 
       const goal = createdGoal;
@@ -312,50 +268,13 @@ export default function Planner() {
       await base44.entities.Goal.update(goal.id, { goal_id: goal.id });
       pendingGoalIdRef.current = goal.id;
 
-      // Helper to save steps for a given month
-      const saveMonthSteps = async (monthNum) => {
-        const monthEntries = stepsByMonth[monthNum] || [];
-        const createdStepsMap = {};
-        await Promise.all(monthEntries.map(async ({ step, originalIndex }) => {
-          const validResources = (step.step_resources || []).filter(r => r && r.type);
-          const createdStep = await base44.entities.GoalStep.create({
-            goal_id: goal.id,
-            title: step.title,
-            description: step.description || "",
-            phase: step.phase || "",
-            priority: step.priority || "medium",
-            due_date: step.due_date || "",
-            order_index: step.order_index ?? originalIndex,
-            status: "pending",
-            step_resources: validResources,
-            success_criteria: step.success_criteria || [],
-            tips_and_guidance: step.tips_and_guidance || "",
-            is_daily_habit: step.is_daily_habit === true
-          });
-          createdStepsMap[originalIndex] = { step, createdStep };
-        }));
-        // Sub-steps
-        await Promise.all(Object.values(createdStepsMap).flatMap(({ step, createdStep }) =>
-          (step.sub_steps || []).map(subStep =>
-            base44.entities.GoalStep.create({
-              goal_id: goal.id,
-              parent_step_id: createdStep.id,
-              title: subStep.title,
-              description: subStep.description || "",
-              phase: step.phase || "",
-              priority: subStep.priority || "low",
-              due_date: subStep.due_date || "",
-              order_index: 0,
-              status: "pending"
-            })
-          )
-        ));
-      };
-
-      // Save first 2 months immediately
-      for (const mNum of sortedMonthNums.slice(0, immediateMonths)) {
-        await saveMonthSteps(mNum);
-      }
+      // Bulk-insert ALL steps at once via backend function (fast Supabase insert)
+      await base44.functions.invoke('goalPlannerChat', {
+        messages: [],
+        mode: 'bulk_insert_steps',
+        goal_id: goal.id,
+        steps: plan.steps || [],
+      });
 
       setSaved(true);
       setPendingGoalId(goal.id);
@@ -370,23 +289,8 @@ export default function Planner() {
         ));
       }
 
-      // Schedule notifications now — first 2 months are already saved, that's enough for week 1
+      // Schedule notifications
       base44.functions.invoke('scheduleGoalNotificationsOnCreate', { goal_id: goal.id, user_email: currentUser?.email, goal_start_date: createdGoal.target_date }).catch(err => console.error('Failed to schedule notifications:', err));
-
-      // Save remaining months in background one by one, then clear building_months
-      if (deferredMonthNums.length > 0) {
-        (async () => {
-          const remaining = [...deferredMonthNums];
-          for (const mNum of deferredMonthNums) {
-            await saveMonthSteps(mNum);
-            remaining.shift();
-            // Update building_months so GoalDetail can update spinners in real time
-            await base44.entities.Goal.update(goal.id, {
-              building_months: remaining.length > 0 ? remaining : null
-            });
-          }
-        })();
-      }
 
     } catch (err) {
       console.error('Goal save error:', err?.message || err);

@@ -73,6 +73,33 @@ Deno.serve(async (req) => {
   ? `- Use EXACTLY ${detectedMonths} months for this plan. Do NOT recalculate or shorten it. MANDATORY WEEKS: Each of the ${detectedMonths} months MUST have exactly 4 weeks (Week 1, Week 2, Week 3, Week 4). Total required week-phases: ${detectedMonths * 4}. Never combine or skip weeks.`
   : `- Identify the exact duration from the conversation (a deadline, date, or duration phrase). Use that many months — do NOT shorten it.`;
 
+    // ── BULK INSERT STEPS: fast single Supabase insert for all steps ─────────
+    if (mode === 'bulk_insert_steps') {
+      const { goal_id, steps } = body;
+      if (!goal_id || !steps) return Response.json({ error: 'Missing goal_id or steps' }, { status: 400 });
+
+      const stepRows = (steps || []).map((step, i) => ({
+        goal_id,
+        created_by_id: user.id,
+        title: step.title,
+        description: step.description || "",
+        phase: step.phase || "",
+        priority: step.priority || "medium",
+        due_date: step.due_date || null,
+        order_index: step.order_index ?? i,
+        status: "pending",
+        step_resources: (step.step_resources || []).filter(r => r && r.type),
+        success_criteria: step.success_criteria || [],
+        tips_and_guidance: step.tips_and_guidance || "",
+        is_daily_habit: step.is_daily_habit === true,
+      }));
+
+      const { error: insertError } = await supabase.from('GoalStep').insert(stepRows);
+      if (insertError) return Response.json({ error: insertError.message }, { status: 500 });
+
+      return Response.json({ success: true, steps_created: stepRows.length });
+    }
+
     if (mode === 'extract_plan') {
       const extractionResponse = await openai.chat.completions.create({
         model: "gpt-4o-mini",
