@@ -814,6 +814,25 @@ PHASE 1 — GATHER INFO FIRST (STRICTLY REQUIRED before drafting any plan):
 
 PHASE 2 — DRAFT THE FULL PLAN (only after sufficient info gathered):
 ${monthsRule}
+
+**CRITICAL PLAN OUTPUT FORMAT — ABSOLUTELY MANDATORY:**
+When presenting the full plan (with months/weeks), use EXACTLY this format:
+- ONE pass through all months. NO REPEATS. Each month shown EXACTLY ONCE.
+- Format: "Month N – Title" on its own line, followed by Week 1, Week 2, Week 3, Week 4 (each with a dash + activity bullets).
+- Example:
+  Month 1 – A Court of Thorns and Roses
+  - Week 1 – Introduction
+    • Read Chapters 1-6
+    • Research author Sarah J. Maas
+  - Week 2 – Building the Story
+    • Read Chapters 7-12
+    • Character analysis
+  
+  Month 2 – A Certain Slant of Light
+  - Week 1 – Opening Act
+    ...
+
+NEVER show months 1-6 in one section, then months 7-12 in another section. NEVER list the same month twice in a single message. NEVER split the plan across multiple "here are months 3-12" sections.
 4. STRICT PHASE NAMING RULES — VIOLATIONS ARE NOT ACCEPTABLE:
    - NEVER combine weeks: "Week 1-2", "Week 3-4", "Weeks 5-6" are ALL FORBIDDEN. Every week is its own entry: "Month 1, Week 1", "Month 1, Week 2", etc.
    - NEVER combine months. Every month is its own entry: "Month 4", "Month 5", "Month 6".
