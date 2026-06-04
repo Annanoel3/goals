@@ -9,8 +9,37 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'goal_id and steps required' }, { status: 400 });
     }
 
+    // Fetch goal to get timeline for calculating due_dates
+    const goal = await base44.asServiceRole.entities.Goal.get(goal_id);
+    if (!goal) {
+      return Response.json({ error: 'Goal not found' }, { status: 404 });
+    }
+
+    // Calculate start date and total days from timeline
+    const goalCreatedDate = new Date(goal.created_date);
+    const timelineMatch = goal.timeline?.match(/(\d+)\s*month/i);
+    const totalMonths = timelineMatch ? parseInt(timelineMatch[1]) : 3;
+    const totalDays = totalMonths * 30; // Approximate
+
+    // Calculate due_date for each step based on order_index distribution
+    const stepsWithDates = steps.map((step, idx) => {
+      // If step already has a due_date, keep it
+      if (step.due_date) return step;
+      
+      // Calculate due_date by distributing steps evenly across timeline
+      const progressRatio = (idx + 1) / steps.length;
+      const daysFromStart = Math.ceil(progressRatio * totalDays);
+      const dueDate = new Date(goalCreatedDate);
+      dueDate.setDate(dueDate.getDate() + daysFromStart);
+      
+      return {
+        ...step,
+        due_date: dueDate.toISOString().split('T')[0] // YYYY-MM-DD format
+      };
+    });
+
     let createdCount = 0;
-    for (const step of steps) {
+    for (const step of stepsWithDates) {
       try {
         const createdStep = await base44.asServiceRole.entities.GoalStep.create({
           goal_id,
