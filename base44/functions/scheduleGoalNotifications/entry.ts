@@ -116,6 +116,9 @@ Deno.serve(async (req) => {
       for (const nid of existingIds) { await cancelNotification(nid); cancelled++; }
 
       const newNotifIds = [];
+      const hasDueDate = !!step.due_date;
+      const isDailyHabit = step.is_daily_habit === true;
+      console.log(`[scheduleGoalNotifications] Step "${step.title}": due_date=${step.due_date}, is_daily_habit=${step.is_daily_habit}, will_schedule=${hasDueDate && !isDailyHabit}`);
 
       if (step.due_date && !step.is_daily_habit) {
         // Day-before reminder
