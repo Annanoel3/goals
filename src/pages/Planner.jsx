@@ -268,14 +268,7 @@ export default function Planner() {
       await base44.entities.Goal.update(goal.id, { goal_id: goal.id });
       pendingGoalIdRef.current = goal.id;
 
-      // Bulk-insert ALL steps at once via backend function (fast Supabase insert)
-      await base44.functions.invoke('goalPlannerChat', {
-        messages: [],
-        mode: 'bulk_insert_steps',
-        goal_id: goal.id,
-        steps: plan.steps || [],
-      });
-
+      // Show saved immediately — steps and notifications happen in background
       setSaved(true);
       setPendingGoalId(goal.id);
       localStorage.removeItem('plannerInProgress');
@@ -289,7 +282,14 @@ export default function Planner() {
         ));
       }
 
-      // Schedule notifications
+      // Bulk-insert steps + schedule notifications in background (don't await)
+      base44.functions.invoke('goalPlannerChat', {
+        messages: [],
+        mode: 'bulk_insert_steps',
+        goal_id: goal.id,
+        steps: plan.steps || [],
+      }).catch(err => console.error('Failed to insert steps:', err));
+
       base44.functions.invoke('scheduleGoalNotificationsOnCreate', { goal_id: goal.id, user_email: currentUser?.email, goal_start_date: createdGoal.target_date }).catch(err => console.error('Failed to schedule notifications:', err));
 
     } catch (err) {

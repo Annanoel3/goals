@@ -106,35 +106,31 @@ Deno.serve(async (req) => {
       { t: 'Week 1 wrap-up', b: "How did " + week1Focus + " go this week? Reflect and prep for Week 2." },
     ];
 
-    const results = [];
-    for (let i = 0; i < 7; i++) {
+    // Fire all 7 notifications in parallel
+    const results = await Promise.all(msgs.map(async (msg, i) => {
       const day = i + 1;
       const sendAt = buildSendAtISO(notifTime, day, tzOffset);
       const notifPayload = {
         app_id: appId,
         include_external_user_ids: [String(user_email)],
         channel_for_external_user_ids: 'push',
-        headings: { en: msgs[i].t },
-        contents: { en: msgs[i].b },
+        headings: { en: msg.t },
+        contents: { en: msg.b },
         send_after: sendAt,
         data: { goal_id: goal_id, type: 'goal_reminder', week: 1, day: day },
       };
-      console.log('[scheduleGoalNotificationsOnCreate] day ' + day + ' at ' + sendAt);
       const res = await fetch('https://onesignal.com/api/v1/notifications', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Basic ' + restApiKey },
         body: JSON.stringify(notifPayload),
       });
       const resData = await res.json();
-      console.log('[scheduleGoalNotificationsOnCreate] day ' + day + ' response status:', res.status, JSON.stringify(resData));
       if (!res.ok) {
         console.error('[scheduleGoalNotificationsOnCreate] day ' + day + ' error:', JSON.stringify(resData));
-        results.push({ day: day, success: false, error: resData });
-      } else {
-        console.log('[scheduleGoalNotificationsOnCreate] day ' + day + ' success, id:', resData.id);
-        results.push({ day: day, success: true, id: resData.id });
+        return { day, success: false, error: resData };
       }
-    }
+      return { day, success: true, id: resData.id };
+    }));
 
     const ok = results.filter(function(r) { return r.success; }).length;
     console.log('[scheduleGoalNotificationsOnCreate] Done:', ok + '/7 scheduled');
