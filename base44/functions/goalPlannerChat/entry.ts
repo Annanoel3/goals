@@ -405,21 +405,39 @@ CRITICAL:
       // Extract preferred time from conversation for health goals
       let preferredTime = null;
       if (plan.category === 'health') {
-        const conversationLower = conversationText.toLowerCase();
-        // Look for time patterns like "6 am", "6am", "18:00", "6:00 PM", etc.
-        const timeMatch = conversationText.match(/(\d{1,2}):?(\d{2})?\s*(am|pm|AM|PM)?|\b(morning|afternoon|evening|night)\b/i);
-        if (timeMatch) {
-          preferredTime = timeMatch[0].trim();
-        }
+       const conversationLower = conversationText.toLowerCase();
+       // Look for time patterns like "6 am", "6am", "18:00", "6:00 PM", etc.
+       const timeMatch = conversationText.match(/(\d{1,2}):?(\d{2})?\s*(am|pm|AM|PM)?|\b(morning|afternoon|evening|night)\b/i);
+       if (timeMatch) {
+         preferredTime = timeMatch[0].trim();
+       }
       }
-      
+
       plan.preferred_time = preferredTime;
-      
+
       // Ensure notification_frequency is set (fallback to daily if not detected)
       if (!plan.notification_frequency) {
-        plan.notification_frequency = 'daily';
+       plan.notification_frequency = 'daily';
       }
-      
+
+      // ASSIGN DUE DATES TO ALL STEPS based on timeline
+      const targetDate = plan.target_date ? new Date(plan.target_date) : null;
+      const todayDate = new Date(today);
+
+      if (targetDate && plan.steps && plan.steps.length > 0) {
+       // Calculate days per step
+       const daysAvailable = (targetDate - todayDate) / (1000 * 60 * 60 * 24);
+       const daysPerStep = daysAvailable / plan.steps.length;
+
+       // Assign due dates
+       plan.steps.forEach((step, idx) => {
+         const daysOffset = Math.round((idx + 1) * daysPerStep);
+         const stepDate = new Date(todayDate);
+         stepDate.setDate(stepDate.getDate() + daysOffset);
+         step.due_date = stepDate.toISOString().split('T')[0];
+       });
+      }
+
       console.log(`[goalPlannerChat] Returning plan with: requires_daily_action=${plan.requires_daily_action}, weekdays_only=${plan.weekdays_only}`);
       return Response.json({ plan, month_titles: plan.month_titles || {}, notification_schedule: plan.notification_schedule || [], requires_daily_action: plan.requires_daily_action, weekdays_only: plan.weekdays_only, habit_days_of_week: plan.habit_days_of_week });
     }
