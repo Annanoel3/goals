@@ -422,10 +422,7 @@ export default function GoalDetail() {
               </DialogDescription>
             </DialogHeader>
             <div className="flex gap-3 mt-2">
-              <Button variant="outline" className="flex-1 rounded-xl" onClick={() => setShowDeleteConfirm(false)} disabled={isDeleting}>
-                Cancel
-              </Button>
-              <Button onClick={deleteGoal} disabled={isDeleting} className="flex-1 rounded-xl bg-red-600 hover:bg-red-700 text-white">
+              <Button onClick={deleteGoal} disabled={isDeleting} className="w-full rounded-xl bg-red-600 hover:bg-red-700 text-white">
                 {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Delete"}
               </Button>
             </div>
