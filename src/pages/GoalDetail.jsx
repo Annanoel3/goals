@@ -103,20 +103,42 @@ export default function GoalDetail() {
   const [celebrationWeek, setCelebrationWeek] = useState(null);
 
   useEffect(() => { loadData(); }, [id]);
+  useEffect(() => {
+    // Poll for new steps every 5 seconds while months are still loading
+    if (!loading && steps.length > 0) {
+      const hasLoadingMonths = Object.keys(monthsMap).some(m => {
+        const monthNum = parseInt(m.match(/\d+/)?.[0] || 0);
+        const weeksMap = monthsMap[m];
+        const hasNoSteps = Object.values(weeksMap).flat().length === 0;
+        return monthNum > 2 && hasNoSteps;
+      });
+
+      if (hasLoadingMonths) {
+        const timer = setInterval(() => {
+          base44.entities.GoalStep.filter({ goal_id: id })
+            .then(stepsData => {
+              setSteps(stepsData.sort((a, b) => (a.order_index || 0) - (b.order_index || 0)));
+            })
+            .catch(e => console.error('Poll error:', e));
+        }, 5000);
+        return () => clearInterval(timer);
+      }
+    }
+  }, [steps, loading, id]);
 
   const loadData = async () => {
-    try {
-      const goalData = await base44.entities.Goal.list('-created_date');
-      const target = goalData.find(g => g.id === id);
-      if (!target) { navigate("/Goals"); return; }
-      setGoal(target);
-      const stepsData = await base44.entities.GoalStep.filter({ goal_id: id });
-      setSteps(stepsData.sort((a, b) => (a.order_index || 0) - (b.order_index || 0)));
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
+   try {
+     const goalData = await base44.entities.Goal.list('-created_date');
+     const target = goalData.find(g => g.id === id);
+     if (!target) { navigate("/Goals"); return; }
+     setGoal(target);
+     const stepsData = await base44.entities.GoalStep.filter({ goal_id: id });
+     setSteps(stepsData.sort((a, b) => (a.order_index || 0) - (b.order_index || 0)));
+   } catch (err) {
+     console.error(err);
+   } finally {
+     setLoading(false);
+   }
   };
 
   const toggleStepStatus = async (step) => {
@@ -292,13 +314,13 @@ export default function GoalDetail() {
         {/* Steps - Month/Week Hierarchy */}
         <div className="space-y-3">
           {sortedMonths.map(monthKey => {
-            const monthNum = parseInt(monthKey.match(/\d+/)?.[0] || 0);
-            const isLoadingMonth = monthNum > 2; // Months 3+ show loading spinner
-            const weeksMap = monthsMap[monthKey];
-            const allMonthSteps = Object.values(weeksMap).flat();
-            const isMonthOpen = expandedPhases[monthKey];
-            const sortedWeeks = Object.keys(weeksMap).filter(w => w !== '_month').sort(monthSort);
-            const monthOnlySteps = weeksMap['_month'] || [];
+             const monthNum = parseInt(monthKey.match(/\d+/)?.[0] || 0);
+             const weeksMap = monthsMap[monthKey];
+             const allMonthSteps = Object.values(weeksMap).flat();
+             const isLoadingMonth = allMonthSteps.length === 0; // Show loading only if no steps yet
+             const isMonthOpen = expandedPhases[monthKey];
+             const sortedWeeks = Object.keys(weeksMap).filter(w => w !== '_month').sort(monthSort);
+             const monthOnlySteps = weeksMap['_month'] || [];
 
             return (
               <div key={monthKey} className="rounded-xl border border-gray-200 overflow-hidden">
