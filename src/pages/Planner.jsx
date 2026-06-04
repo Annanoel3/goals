@@ -301,7 +301,13 @@ export default function Planner() {
       base44.functions.invoke('scheduleGoalNotificationsOnCreate', { goal_id: goal.id, user_email: currentUser?.email, goal_start_date: createdGoal.target_date }).catch(err => console.error('Failed to schedule notifications:', err));
 
     } catch (err) {
-      console.error('Goal save error:', err?.message || err);
+      console.error('Goal save error:', err);
+      console.error('Error details:', {
+        message: err?.message,
+        response: err?.response?.data,
+        status: err?.response?.status,
+        fullError: err
+      });
       setSaveError(true);
       saveInProgressRef.current = false;
     } finally {
