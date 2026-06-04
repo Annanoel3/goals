@@ -226,7 +226,7 @@ export default function Planner() {
   };
 
   const handleSaveNewGoal = async () => {
-    if (saveInProgressRef.current) return; // prevent double-save
+    if (saveInProgressRef.current) return;
     saveInProgressRef.current = true;
     setShowAdOverlay(true);
     await showInterstitialAd();
@@ -246,7 +246,16 @@ export default function Planner() {
       const plan = res.data.plan;
       validatePlanSteps(plan);
 
-      // Create the goal record
+      // Split steps: first 2 months now, rest in background
+      const stepsPerMonth = Math.ceil((plan.steps || []).length / (Object.keys(plan.month_titles || {}).length || 1));
+      const firstTwoMonthsSteps = (plan.steps || []).slice(0, stepsPerMonth * 2);
+      const remainingSteps = (plan.steps || []).slice(stepsPerMonth * 2);
+      
+      // Determine which months are still building
+      const totalMonths = Object.keys(plan.month_titles || {}).length || 1;
+      const buildingMonths = totalMonths > 2 ? Array.from({length: totalMonths - 2}, (_, i) => i + 3) : null;
+
+      // Create goal with building_months flag
       const createdGoal = await base44.entities.Goal.create({
         title: plan.title,
         description: plan.description,
@@ -263,20 +272,37 @@ export default function Planner() {
         event_format: plan.event_format || null,
         conversation_history: allMessages,
         month_titles: plan.month_titles || {},
-        building_months: null,
+        building_months: buildingMonths,
       });
 
       const goal = createdGoal;
       if (!goal?.id) throw new Error('Goal creation returned no ID');
       await base44.entities.Goal.update(goal.id, { goal_id: goal.id });
-      pendingGoalIdRef.current = goal.id;
 
-      // Show saved immediately — steps and notifications happen in background
+      // Create first 2 months of steps immediately
+      for (const step of firstTwoMonthsSteps) {
+        await base44.asServiceRole.entities.GoalStep.create({
+          goal_id: goal.id,
+          title: step.title,
+          description: step.description || "",
+          phase: step.phase || "",
+          priority: step.priority || "medium",
+          due_date: step.due_date || null,
+          order_index: step.order_index || 0,
+          status: "pending",
+          step_resources: (step.step_resources || []).filter(r => r && r.type),
+          success_criteria: step.success_criteria || [],
+          tips_and_guidance: step.tips_and_guidance || "",
+          is_daily_habit: step.is_daily_habit === true,
+        });
+      }
+
+      pendingGoalIdRef.current = goal.id;
       setSaved(true);
       setPendingGoalId(goal.id);
       localStorage.removeItem('plannerInProgress');
 
-      // Back-fill month_titles into the last assistant message
+      // Back-fill month_titles
       if (plan.month_titles && Object.keys(plan.month_titles).length > 0) {
         setMessages(prev => prev.map((m, i) =>
           i === prev.length - 1 && m.role === 'assistant'
@@ -285,21 +311,25 @@ export default function Planner() {
         ));
       }
 
-      // Bulk-insert steps + schedule notifications in background (don't await)
-      base44.functions.invoke('goalPlannerChat', {
-        messages: [],
-        mode: 'bulk_insert_steps',
-        goal_id: goal.id,
-        steps: plan.steps || [],
-      }).catch(err => console.error('Failed to insert steps:', err));
+      // Create remaining steps in background (don't await)
+      if (remainingSteps.length > 0) {
+        base44.functions.invoke('goalPlannerChat', {
+          messages: [],
+          mode: 'bulk_insert_steps',
+          goal_id: goal.id,
+          steps: remainingSteps,
+        }).then(() => {
+          // Clear building_months once done
+          base44.entities.Goal.update(goal.id, { building_months: null });
+        }).catch(err => console.error('Failed to insert remaining steps:', err));
+      }
 
       base44.functions.invoke('scheduleGoalNotificationsOnCreate', { goal_id: goal.id, user_email: currentUser?.email, goal_start_date: createdGoal.target_date }).catch(err => console.error('Failed to schedule notifications:', err));
 
     } catch (err) {
       console.error('Goal save error:', err?.message || err);
-      console.error('Goal save error detail:', JSON.stringify(err));
       setSaveError(true);
-      saveInProgressRef.current = false; // allow retry on error
+      saveInProgressRef.current = false;
     } finally {
       setIsSaving(false);
       setShowAdOverlay(false);
