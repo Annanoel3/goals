@@ -283,18 +283,16 @@ export default function Planner() {
             foundMonths2Boundary = true;
             setCanNavigateToGoal(true);
             setPendingGoalId(goal.id);
-            
-            // Schedule Week 1 notifications before the user navigates (should be fast)
-            await base44.functions.invoke('scheduleGoalNotifications', { goal_id: goal.id, goal_data: goal, timezoneOffsetMinutes: -new Date().getTimezoneOffset() }).catch(err => console.error('scheduleGoalNotifications failed:', err));
-            
-            // Background: create remaining steps without awaiting
-            // Fire backend function to create remaining steps asynchronously
+
+            // Fire background tasks without awaiting so user doesn't wait
             base44.functions.invoke('createRemainingGoalSteps', {
               goal_id: goal.id,
               steps: plan.steps.slice(i)
             }).catch(err => console.error('createRemainingGoalSteps failed:', err));
-            
-            break; // Exit main loop, backend task handles the rest
+
+            base44.functions.invoke('scheduleGoalNotifications', { goal_id: goal.id, goal_data: goal, timezoneOffsetMinutes: -new Date().getTimezoneOffset() }).catch(err => console.error('scheduleGoalNotifications failed:', err));
+
+            break; // Exit main loop, backend tasks handle the rest
           }
           
           // Create first 2 months synchronously (await)
@@ -331,11 +329,8 @@ export default function Planner() {
           }
         }
         
-        // If all steps were in months 1-2 (no background task started), schedule notifications now
+        // Schedule notifications in background regardless (never block user)
         if (!foundMonths2Boundary) {
-          base44.functions.invoke('scheduleGoalNotifications', { goal_id: goal.id, goal_data: goal, timezoneOffsetMinutes: -new Date().getTimezoneOffset() }).catch(err => console.error('scheduleGoalNotifications failed:', err));
-        } else {
-          // For longer goals, schedule notifications in the background (don't wait)
           base44.functions.invoke('scheduleGoalNotifications', { goal_id: goal.id, goal_data: goal, timezoneOffsetMinutes: -new Date().getTimezoneOffset() }).catch(err => console.error('scheduleGoalNotifications failed:', err));
         }
       }
