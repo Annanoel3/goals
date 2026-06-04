@@ -95,20 +95,54 @@ Deno.serve(async (req) => {
     const goalTitle = goal.title || 'your goal';
     console.log('[scheduleGoalNotificationsOnCreate] Week 1 focus:', week1Focus);
 
-    // 7-day schedule — each message references the specific Week 1 task
-    const msgs = [
+    // Build notification schedule based on goal's notification_frequency
+    const freq = goal.notification_frequency || 'daily';
+
+    // Determine which days of the week (0=Sun...6=Sat) to send notifications
+    // We spread them across the 7-day window starting from today
+    let daysToNotify = [];
+    if (freq === 'daily') {
+      daysToNotify = [1, 2, 3, 4, 5, 6, 7];
+    } else if (freq === 'weekdays') {
+      // Days 1-7 from now, pick only Mon-Fri
+      const today = new Date();
+      for (let d = 1; d <= 7; d++) {
+        const date = new Date(today);
+        date.setDate(today.getDate() + d);
+        const dow = date.getDay(); // 0=Sun, 6=Sat
+        if (dow >= 1 && dow <= 5) daysToNotify.push(d);
+      }
+    } else if (freq === '3x_per_week') {
+      daysToNotify = [1, 3, 5];
+    } else if (freq === '2x_per_week') {
+      daysToNotify = [1, 4];
+    } else if (freq === 'weekly' || freq === 'once_per_week') {
+      daysToNotify = [1];
+    } else {
+      // fallback to daily
+      daysToNotify = [1, 2, 3, 4, 5, 6, 7];
+    }
+
+    const allMessages = [
       { t: 'Day 1 of ' + goalTitle, b: 'Week 1 focus: ' + week1Focus + ". Let's make it happen!" },
-      { t: 'Day 2 — keep showing up', b: week1Focus + " takes consistency. You've got today — use it." },
+      { t: 'Keep showing up', b: week1Focus + " takes consistency. You've got today — use it." },
       { t: '3 days in on ' + goalTitle, b: "How's " + week1Focus + ' coming along? Small progress beats zero.' },
-      { t: 'Halfway through Week 1', b: '4 days strong. ' + week1Focus + ' is where the work is — stay on it.' },
-      { t: 'Day 5 — past the easy part', b: 'The new-goal energy fades now. Push through ' + week1Focus + ' anyway.' },
-      { t: 'Day 6 — one more push', b: 'Almost through Week 1 of ' + goalTitle + '. Finish ' + week1Focus + ' strong.' },
+      { t: 'Halfway through Week 1', b: week1Focus + ' is where the work is — stay on it.' },
+      { t: 'Past the easy part', b: 'The new-goal energy fades now. Push through ' + week1Focus + ' anyway.' },
+      { t: 'One more push', b: 'Almost through Week 1 of ' + goalTitle + '. Finish ' + week1Focus + ' strong.' },
       { t: 'Week 1 wrap-up', b: "How did " + week1Focus + " go this week? Reflect and prep for Week 2." },
     ];
 
-    // Fire all 7 notifications in parallel
-    const results = await Promise.all(msgs.map(async (msg, i) => {
-      const day = i + 1;
+    // Pick messages evenly spaced across the scheduled days
+    const msgs = daysToNotify.map((day, i) => ({
+      day,
+      msg: allMessages[Math.min(i, allMessages.length - 1)]
+    }));
+
+    console.log('[scheduleGoalNotificationsOnCreate] freq:', freq, '| sending', msgs.length, 'notifications on days:', daysToNotify);
+
+    // Fire all notifications in parallel
+    const results = await Promise.all(msgs.map(async ({ day, msg }) => {
       const sendAt = buildSendAtISO(notifTime, day, tzOffset);
       const notifPayload = {
         app_id: appId,
@@ -133,8 +167,8 @@ Deno.serve(async (req) => {
     }));
 
     const ok = results.filter(function(r) { return r.success; }).length;
-    console.log('[scheduleGoalNotificationsOnCreate] Done:', ok + '/7 scheduled');
-    return Response.json({ success: true, scheduled: ok, total: 7, week1_focus: week1Focus, results: results });
+    console.log('[scheduleGoalNotificationsOnCreate] Done:', ok + '/' + msgs.length + ' scheduled');
+    return Response.json({ success: true, scheduled: ok, total: msgs.length, frequency: freq, week1_focus: week1Focus, results: results });
 
   } catch (err) {
     console.error('[scheduleGoalNotificationsOnCreate] ERROR:', err.message);
