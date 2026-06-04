@@ -177,14 +177,17 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ── WEEK BEGIN + END NOTIFICATIONS ──
+    // ── WEEK NOTIFICATIONS (only Week 1 initially; subsequent weeks scheduled progressively) ──
+    // Only schedule Week 1 now — the entity automation handles scheduling future weeks based on progress
     for (const wData of Object.values(weekMap)) {
+      // Only schedule Week 1 of Month 1 upfront
+      if (wData.month !== 1 || wData.week !== 1) continue;
+
       const sortedDates = [...wData.dates].sort();
       const weekEndDate = sortedDates[sortedDates.length - 1];
       const weekStartDate = addDays(weekEndDate, -6);
 
       const monthTheme = goal.month_titles?.[wData.month];
-      // First 2 step titles for this week give the user something concrete to read
       const weekFocus = wData.titles.slice(0, 2).join(' & ') || monthTheme || goal.title;
 
       // Week begin — morning of week start
@@ -192,10 +195,10 @@ Deno.serve(async (req) => {
       if (weekBeginSendAt > now) {
         const nid = await scheduleNotification({
           externalId,
-          title: `📅 Month ${wData.month}, Week ${wData.week} begins`,
+          title: `Week 1 begins`,
           body: monthTheme
-            ? `This week is part of "${monthTheme}". Focus: ${weekFocus} 🚀`
-            : `Week ${wData.week} of "${goal.title}" starts now. This week: ${weekFocus} 🚀`,
+            ? `"${monthTheme}" is here. Focus: ${weekFocus}`
+            : `Week 1 of "${goal.title}" starts now. This week: ${weekFocus}`,
           data: { screen: 'GoalDetail', action: 'week_begin', goal_id: goal.id, month: wData.month, week: wData.week },
           sendAt: weekBeginSendAt.toISOString(),
         });
@@ -207,10 +210,10 @@ Deno.serve(async (req) => {
       if (weekEndSendAt > now) {
         const nid = await scheduleNotification({
           externalId,
-          title: `🏁 Week ${wData.week} wrap-up`,
+          title: `Week 1 wrap-up`,
           body: monthTheme
-            ? `Week ${wData.week} of "${monthTheme}" is done. How'd it go? Check your progress. 💪`
-            : `Week ${wData.week} of "${goal.title}" is wrapping up. Reflect on what you accomplished. 💪`,
+            ? `Week 1 of "${monthTheme}" is done. How did it go? Check your progress.`
+            : `Week 1 of "${goal.title}" is wrapping up. Reflect on what you accomplished.`,
           data: { screen: 'GoalDetail', action: 'week_end', goal_id: goal.id, month: wData.month, week: wData.week },
           sendAt: weekEndSendAt.toISOString(),
         });
@@ -218,53 +221,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ── MONTH BEGIN + END NOTIFICATIONS ──
-    for (const mData of Object.values(monthMap)) {
-      const sortedDates = [...mData.dates].sort();
-      const monthStartDate = sortedDates[0];
-      const monthEndDate = sortedDates[sortedDates.length - 1];
-      const monthTheme = goal.month_titles?.[mData.month];
-
-      // Month begin — morning of first step date in that month
-      const mBeginSendAt = localTimeOnDate(monthStartDate, prefHour, prefMin, tzOffset);
-      if (mBeginSendAt > now) {
-        const nid = await scheduleNotification({
-          externalId,
-          title: `📅 Month ${mData.month} begins`,
-          body: monthTheme
-            ? `Month ${mData.month} is all about "${monthTheme}" for "${goal.title}". Let's go! 🎯`
-            : `Month ${mData.month} of "${goal.title}" starts now. Make it count! 🎯`,
-          data: { screen: 'GoalDetail', action: 'month_begin', goal_id: goal.id, month: mData.month },
-          sendAt: mBeginSendAt.toISOString(),
-        });
-        if (nid) { goalNotifIds.push(nid); scheduled++; }
-      }
-
-      // Month end — evening of last step date in that month
-      // For milestone goals: carry trigger_celebration so tapping this notification fires the GIF + summary overlay.
-      // For daily habit goals: the celebration already fires when they mark week 4 done.
-      const mEndSendAt = localTimeOnDate(monthEndDate, 19, 0, tzOffset);
-      if (mEndSendAt > now) {
-        const nid = await scheduleNotification({
-          externalId,
-          title: monthTheme
-            ? `🌟 Month ${mData.month}: "${monthTheme}" — complete!`
-            : `🌟 Month ${mData.month} complete!`,
-          body: `How did Month ${mData.month} go for "${goal.title}"? Zoom out — see the full picture. 📊`,
-          data: {
-            screen: 'GoalDetail',
-            action: 'month_end',
-            goal_id: goal.id,
-            month: mData.month,
-            // Only milestone goals trigger the GIF from notification tap —
-            // habit goals get it from marking week 4 done
-            ...(isMilestoneGoal && { trigger_celebration: true }),
-          },
-          sendAt: mEndSendAt.toISOString(),
-        });
-        if (nid) { goalNotifIds.push(nid); scheduled++; }
-      }
-    }
+    // Month-level notifications removed — they're scheduled progressively via week automation for personalization
 
     // Save goal-level notification IDs
     await base44.asServiceRole.entities.Goal.update(goal.id, {
