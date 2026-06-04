@@ -90,10 +90,11 @@ Deno.serve(async (req) => {
       if (!goal) return Response.json({ error: 'Goal not found' }, { status: 404 });
     }
 
-    const user = await base44.asServiceRole.entities.User.get(goal.created_by_id);
-    const steps = await base44.asServiceRole.entities.GoalStep.filter({ goal_id });
+    const user = await base44.auth.me();
     const externalId = user?.email;
     if (!externalId) return Response.json({ error: 'No user email' }, { status: 400 });
+    
+    const steps = await base44.entities.GoalStep.filter({ goal_id });
 
     // Preferred notification time (default 9 AM)
     let prefHour = 9, prefMin = 0;
@@ -143,7 +144,7 @@ Deno.serve(async (req) => {
       }
 
       if (newNotifIds.length > 0 || existingIds.length > 0) {
-        await base44.asServiceRole.entities.GoalStep.update(step.id, {
+        await base44.entities.GoalStep.update(step.id, {
           onesignal_notification_ids: newNotifIds,
         });
       }
@@ -232,7 +233,7 @@ Deno.serve(async (req) => {
     // Month-level notifications removed — they're scheduled progressively via week automation for personalization
 
     // Save goal-level notification IDs
-    await base44.asServiceRole.entities.Goal.update(goal.id, {
+    await base44.entities.Goal.update(goal.id, {
       onesignal_notification_ids: goalNotifIds,
     });
 
