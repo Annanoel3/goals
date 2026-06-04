@@ -920,11 +920,11 @@ const COMIC_GIFS = [
 function GifCarousel({ gifs, onComplete }) {
   const [idx, setIdx] = React.useState(() => Math.floor(Math.random() * gifs.length));
   
-  // Rotate GIFs every 28 seconds indefinitely
-  React.useEffect(() => {
-    const rotateTimer = setInterval(() => {
-      setIdx(i => (i + 1) % gifs.length);
-    }, 28000);
+  // Rotate GIFs every 27 seconds indefinitely
+    React.useEffect(() => {
+      const rotateTimer = setInterval(() => {
+        setIdx(i => (i + 1) % gifs.length);
+      }, 27000);
     return () => clearInterval(rotateTimer);
   }, [gifs.length]);
   
