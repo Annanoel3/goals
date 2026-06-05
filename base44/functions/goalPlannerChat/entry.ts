@@ -48,18 +48,18 @@ Deno.serve(async (req) => {
       const planText = lastAssistantMessage?.content || conversationText;
 
       const extractionResponse = await openai.chat.completions.create({
-        model: "gpt-4o",
+        model: "gpt-4o-mini",
         messages: [
           {
             role: "system",
-            content: `You convert a goal plan markdown into structured JSON. Return ONLY valid JSON, no markdown.
+            content: `You convert an already-written goal plan (in markdown) into structured JSON. The plan is complete — do NOT add, remove, or change any content. Just reformat it. Return ONLY valid JSON, no markdown fences.
 
 Rules:
 - Each step = one week. phase = "Month X, Week Y". title = "Week N: [focus from plan]".
 - is_daily_habit: true for reading/fitness/language/music/meditation goals; false for milestone/project goals.
 - requires_daily_action: same logic as is_daily_habit.
 - notification_frequency: infer from goal type ("daily" for reading/fitness/language, "weekly" for career/finance/project).
-- month_titles: extract the descriptive title after each "Month N —" heading. For missing months, infer logical progression.
+- month_titles: extract the descriptive title after each "Month N —" heading.
 - notification_schedule: generate 2-3 simple check-in notifications for Week 1 only (dates starting from today ${today}).
 - due_dates: spread evenly from today ${today} across the full timeline.
 - weekdays_only: false unless goal is explicitly work/career focused.`
@@ -69,22 +69,11 @@ Rules:
             content: `Convert this plan to JSON:\n\n${planText}\n\nReturn this exact structure:\n{\n  "title": "...",\n  "description": "...",\n  "timeline": "X months",\n  "target_date": "YYYY-MM-DD",\n  "category": "learning|health|career|finance|relationships|personal|creative|other",\n  "plan_summary": "...",\n  "notification_frequency": "daily|weekly|weekdays|3x_per_week|2x_per_week",\n  "requires_daily_action": true|false,\n  "weekdays_only": false,\n  "habit_days_of_week": [],\n  "month_titles": { "1": "title", "2": "title" },\n  "notification_schedule": [{ "id": "week_1_begin", "type": "week_summary_begin", "phase": "Month 1, Week 1", "scheduled_date": "YYYY-MM-DD", "scheduled_time": "09:00", "teaser_text": "...", "full_message_text": "..." }],\n  "steps": [{ "title": "Week N: focus", "description": "...", "phase": "Month X, Week Y", "priority": "medium", "due_date": "YYYY-MM-DD", "order_index": 0, "step_resources": [], "success_criteria": [], "tips_and_guidance": "", "is_daily_habit": false }]\n}`
           }
         ],
-        max_tokens: 48000,
+        max_tokens: 16000,
         response_format: { type: "json_object" }
       });
 
-      const extractedText = extractionResponse.choices[0].message.content;
-      console.log(`[goalPlannerChat] extract_plan response length: ${extractedText.length} chars`);
-      
-      let plan;
-      try {
-        plan = JSON.parse(extractedText);
-        console.log(`[goalPlannerChat] extract_plan parsed successfully: ${plan.steps?.length || 0} steps`);
-      } catch (parseErr) {
-        console.error(`[goalPlannerChat] extract_plan JSON parse failed: ${parseErr.message}`);
-        console.error(`[goalPlannerChat] response preview: ${extractedText.substring(0, 500)}`);
-        throw new Error(`Failed to parse plan JSON: ${parseErr.message}`);
-      }
+      const plan = JSON.parse(extractionResponse.choices[0].message.content);
 
       plan.steps = (plan.steps || []).map(step => ({
         ...step,
@@ -507,22 +496,7 @@ PHASE 1 — GATHER INFO FIRST (STRICTLY REQUIRED before drafting any plan IF Pha
 PHASE 2 — DRAFT THE FULL PLAN (only after sufficient info gathered):
 ${monthsRule}
 
-██████████████████████████████████████████████████████████
-ABSOLUTELY CRITICAL — NEVER SAY "I'LL CONTINUE" OR GIVE PLACEHOLDERS
-██████████████████████████████████████████████████████████
-It is COMPLETELY UNACCEPTABLE to write:
-- "I'll continue constructing the detailed months..."
-- "I'll create and share the subsequent months..."
-- "If this formatting is good with you, I'll continue..."
-- "(Months 5-12 summary)" or any placeholder
-- Any promise to generate content later
-
-You MUST generate the COMPLETE markdown with EVERY SINGLE MONTH in this single response. All months, all weeks, all steps. UPFRONT. NO EXCEPTIONS.
-
-If you are low on space/tokens: shorten descriptions, but NEVER collapse months or promise to "continue later". Every month gets full detail or gets cut, but never hidden behind a promise.
-██████████████████████████████████████████████████████████
-
-MANDATORY MARKDOWN FORMAT — use this exact structure for however many months the user's timeline requires (infer from their stated duration like "12 months", "6 months", or a target date — NEVER add or remove months, NEVER use placeholders):
+MANDATORY MARKDOWN FORMAT — use this exact structure for however many months the user's timeline requires (3-month plan = 3 months, 7-month plan = 7 months — NEVER add or remove months from what the timeline dictates):
 
 **Month 1 — [Descriptive Title]**
 **Week 1**
@@ -598,7 +572,7 @@ CRITICAL FORMAT RULES:
    - If you needed to ask clarifying questions first and you received answers, THEN ask "I have everything I need! Ready for me to build your full plan?" ONLY if you actually asked questions in a previous turn. If no previous questions were asked, jump to building the plan.
    - Never ask "are you ready?" if it's redundant or delays the user's plan unnecessarily.
 10. When user approves (says "looks great", "perfect", "save it", "let's do it", "that works", "yes", "looks good"), FIRST verify your plan covers ALL months from Month 1 to the final month with no gaps. If the plan is incomplete (e.g. only 2 of 7 months covered), DO NOT say PLAN_APPROVED — instead present the missing months immediately. Only say PLAN_APPROVED when the COMPLETE plan has been presented in the conversation. Then start your response with EXACTLY "PLAN_APPROVED" and give a warm 2-3 sentence summary, then add: "Remember, this plan is a living document. Come back anytime to adjust the difficulty, add new resources, extend the timeline, skip ahead if you're crushing it, or completely restructure a phase. Just tell me what's working and what isn't — I'll update your plan instantly."
-10b. CRITICAL: When presenting the initial plan draft, you MUST present ALL months/weeks for the FULL timeline in a single response. Do NOT present only 1-2 months and stop. If the plan is 7 months, show all 7 months. If it's 12 months, show all 12. If it's 24 months, show all 24. Never truncate the plan — never say "I'll continue" or give placeholders — present the COMPLETE plan in full markdown before asking for approval.
+10b. CRITICAL: When presenting the initial plan draft, you MUST present ALL months/weeks for the FULL timeline in a single response. Do NOT present only 1-2 months and stop. If the plan is 7 months, show all 7 months. If it's 12 months, show all 12. Never truncate the plan — present the complete plan in full before asking for approval.
 10c. SEQUENTIAL MONTHS — NON-NEGOTIABLE: The plan MUST list months in sequential order with NO GAPS. If the plan is 7 months, you MUST have Month 1, Month 2, Month 3, Month 4, Month 5, Month 6, Month 7 — ALL of them. Jumping from Month 2 to Month 7 is a critical failure. Every single month between the first and last must appear with its own weeks and steps.
 
 10d. ABSOLUTELY FORBIDDEN — GROUPED MONTH SHORTCUTS: It is NEVER acceptable to write a section like "Month 6-12: Proposed Titles", "Months 7-12: Content List", "Months 4-6: Summary", or ANY grouped range of months as a bullet list or shortcut. This is a CRITICAL FAILURE regardless of goal type. Every single month MUST be formatted with its own full section — same level of detail as Month 1. If Month 1 has a title, reason, and plan, then Month 6 must also have a title, reason, and plan. If Month 1 has weekly steps, Month 6 must also have weekly steps. The structure of later months must match the structure of earlier months exactly. If you are running low on tokens — shorten each description, but NEVER collapse multiple months together. Every month gets its own section, every time, for every goal type.
