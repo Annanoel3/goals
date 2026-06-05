@@ -258,7 +258,7 @@ Extract every single step. If the planner listed 48 steps, return all 48.`
     if (isEditSession) {
       // Fetch current goal + steps for context
       const currentGoal = existingGoalsList.find(g => g.id === goal_id);
-      const currentSteps = await base44.asServiceRole.entities.GoalStep.filter({ goal_id });
+      const currentSteps = await base44.entities.GoalStep.filter({ goal_id });
       const stepsText = currentSteps
         .sort((a, b) => (a.order_index || 0) - (b.order_index || 0))
         .map(s => `  [${s.phase || 'No phase'}] ${s.title} (${s.priority}, due: ${s.due_date || 'TBD'}, status: ${s.status})`)
@@ -701,7 +701,7 @@ Always be specific, warm, encouraging, and treat the plan as a living document t
         const query = JSON.parse(call.function.arguments).query;
         let searchResult = '';
         try {
-          const searchRes = await base44.asServiceRole.integrations.Core.InvokeLLM({
+          const searchRes = await base44.integrations.Core.InvokeLLM({
             prompt: `Search the web and return a concise factual summary about: "${query}". Include specific facts, numbers, resources, and current best practices. Be specific and accurate.`,
             add_context_from_internet: true
           });
