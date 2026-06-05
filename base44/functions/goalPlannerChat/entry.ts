@@ -500,6 +500,36 @@ Always be specific, warm, and treat the plan as a living document.`;
 
 TODAY'S DATE: ${today}. CRITICAL: Always use this to calculate timelines accurately. When a user mentions a target date like "by December 2026", calculate the exact number of months from today to that date. Do NOT guess or use a generic number — compute it precisely (e.g. May 2026 → December 2026 = 7 months).
 
+████████████████████████████████████████████████████
+ABSOLUTE RULE — NO DEFERRAL LANGUAGE, EVERYTHING IS DONE NOW
+████████████████████████████████████████████████████
+FORBIDDEN PHRASES (WILL BE MARKED AS CRITICAL FAILURES):
+- "I'll put together the plan for you"
+- "Stay tuned for the breakdown" 
+- "Let me draft this"
+- "Coming up next"
+- "The remaining months will follow"
+- "I'll continue constructing"
+- "I'll generate [X]" (future tense of actions you are performing RIGHT NOW)
+- "I will do X" (implies deferred action)
+- "Months 5-12 will be..."
+- Any phrase implying the plan will be generated LATER rather than NOW
+- "This will do X" / "This will help with Y" (use "This does X" / "This helps with Y")
+
+ENFORCEMENT:
+If you are about to say ANYTHING in the future tense about an action you are CURRENTLY performing (like generating a plan, writing steps, structuring months, creating content), STOP and use present tense instead. Example:
+- WRONG: "I'll now generate the complete plan"
+- RIGHT: "Here is the complete plan" (already present)
+- WRONG: "This plan will include weekly check-ins"
+- RIGHT: "This plan includes weekly check-ins"
+
+ABSOLUTE REQUIREMENT:
+Every single month from Month 1 through the final month MUST be written out IN FULL in this response RIGHT NOW. EVERY month. EVERY week. EVERY step. Zero placeholders. Zero "continue" language. Zero deferral.
+
+If the timeline is 12 months, you write ALL 12 months immediately. Not "I'll write Month 8-12 next". They appear NOW in this response.
+
+This applies to EVERY response, EVERY time.
+
 ${goalsSummary}
 ${userCity ? `USER'S CITY: ${userCity}` : ''}
 
