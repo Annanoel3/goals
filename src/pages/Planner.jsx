@@ -218,7 +218,7 @@ export default function Planner() {
     }
   };
 
-  const handleSaveNewGoal = async () => {
+  const handleSaveNewGoal = async (retryCount = 0) => {
     setIsSaving(true);
     setSaveError(false);
     try {
@@ -303,13 +303,17 @@ export default function Planner() {
         }).catch(err => console.error('createRemainingGoalSteps failed:', err));
       }
     } catch (err) {
-      setSaveError(true);
-    } finally {
-      setIsSaving(false);
+      if (retryCount < 3) {
+        toast({ title: "Something went wrong", description: "Retrying in a moment...", variant: "default" });
+        setTimeout(() => handleSaveNewGoal(retryCount + 1), 2000);
+      } else {
+        toast({ title: "Error saving goal", description: "Please try again.", variant: "destructive" });
+        setIsSaving(false);
+      }
     }
   };
 
-  const handleApplyEdits = async () => {
+  const handleApplyEdits = async (retryCount = 0) => {
     setIsSaving(true);
     try {
       const allMessages = messagesRef.current.filter(m => m.role !== "system");
@@ -335,9 +339,13 @@ export default function Planner() {
         base44.functions.invoke('scheduleGoalNotifications', { goal_id: gid, timezoneOffsetMinutes: -new Date().getTimezoneOffset() }).catch(err => console.error('scheduleGoalNotifications failed:', err));
       }
     } catch (err) {
-      toast({ title: "Error applying changes", description: "Please try again.", variant: "destructive" });
-    } finally {
-      setIsSaving(false);
+      if (retryCount < 3) {
+        toast({ title: "Something went wrong", description: "Retrying in a moment...", variant: "default" });
+        setTimeout(() => handleApplyEdits(retryCount + 1), 2000);
+      } else {
+        toast({ title: "Error applying changes", description: "Please try again.", variant: "destructive" });
+        setIsSaving(false);
+      }
     }
   };
 
