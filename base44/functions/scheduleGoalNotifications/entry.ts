@@ -278,24 +278,37 @@ Deno.serve(async (req) => {
   const monthMap = {};
 
   for (const step of steps) {
-    if (!step.due_date) {
-      console.log(`[scheduleGoalNotifications] Skipping step "${step.title?.substring(0,40)}" — no due_date`);
-      continue;
-    }
     const p = parsePhase(step.phase);
     if (!p) {
       console.log(`[scheduleGoalNotifications] Skipping step "${step.title?.substring(0,40)}" — parsePhase returned null for phase="${step.phase}"`);
       continue;
     }
 
+    // Use step.due_date, or generate one for Month 1 Week 1 steps
+    let effectiveDueDate = step.due_date;
+    if (!effectiveDueDate && p.month === 1 && p.week === 1 && planStartDate) {
+      // Spread Month 1 Week 1 steps across the first week starting from planStartDate
+      const dayIndex = steps.filter(s => {
+        const sp = parsePhase(s.phase);
+        return sp && sp.month === 1 && sp.week === 1 && !s.due_date;
+      }).indexOf(step);
+      effectiveDueDate = addDays(planStartDate, dayIndex % 7);
+      console.log(`[scheduleGoalNotifications] Generated due_date for Month 1 Week 1 step "${step.title?.substring(0,40)}": ${effectiveDueDate}`);
+    }
+
+    if (!effectiveDueDate) {
+      console.log(`[scheduleGoalNotifications] Skipping step "${step.title?.substring(0,40)}" — no due_date and not Month 1 Week 1`);
+      continue;
+    }
+
     const mk = String(p.month);
     if (!monthMap[mk]) monthMap[mk] = { month: p.month, dates: [] };
-    monthMap[mk].dates.push(step.due_date);
+    monthMap[mk].dates.push(effectiveDueDate);
 
     if (p.week !== null) {
       const wk = `${p.month}-${p.week}`;
       if (!weekMap[wk]) weekMap[wk] = { month: p.month, week: p.week, dates: [], titles: [] };
-      weekMap[wk].dates.push(step.due_date);
+      weekMap[wk].dates.push(effectiveDueDate);
       if (step.title) weekMap[wk].titles.push(step.title);
     }
   }
