@@ -978,21 +978,35 @@ function WeekDropdown({ week }) {
 
 
 function MonthDropdown({ month }) {
-   const isDark = localStorage.getItem('adhd_theme') === 'dark';
-   const displayTitle = month.subtitle;
-   
-   return (
-     <div className={`rounded-xl mb-2 overflow-hidden ${isDark ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-violet-200'} shadow-sm hover:shadow-md transition-shadow`}>
-       <div className={`px-4 py-3 ${isDark ? 'hover:bg-gray-700' : 'hover:bg-violet-50'}`}>
-         <div className="flex items-baseline gap-3">
-           <span className={`font-bold text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>{month.title}</span>
-           {displayTitle && (
-             <span className={`text-sm font-medium ${isDark ? 'text-violet-400' : 'text-violet-600'}`}>— {displayTitle}</span>
-           )}
-         </div>
-         <p className={`text-xs mt-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{month.weeks.length} weeks</p>
-       </div>
-     </div>
+  const isDark = localStorage.getItem('adhd_theme') === 'dark';
+  const [open, setOpen] = React.useState(false);
+  const displayTitle = month.subtitle;
+
+  return (
+    <div className={`rounded-xl mb-2 overflow-hidden ${isDark ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-violet-200'} shadow-sm`}>
+      <button
+        onClick={() => setOpen(v => !v)}
+        className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${isDark ? 'hover:bg-gray-700' : 'hover:bg-violet-50'}`}
+      >
+        <div className="w-1.5 h-5 bg-violet-500 rounded-full flex-shrink-0" />
+        <div className="flex-1">
+          <div className="flex items-baseline gap-2 flex-wrap">
+            <span className={`font-bold text-sm ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{month.title}</span>
+            {displayTitle && (
+              <span className={`text-sm font-medium ${isDark ? 'text-violet-400' : 'text-violet-600'}`}>— {displayTitle}</span>
+            )}
+          </div>
+          <p className={`text-xs mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{month.weeks.length} weeks</p>
+        </div>
+        <ChevronDown className={`w-4 h-4 flex-shrink-0 transition-transform ${isDark ? 'text-gray-500' : 'text-gray-400'} ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <div className={`border-t px-3 py-2 space-y-1.5 ${isDark ? 'border-gray-700 bg-gray-900/40' : 'border-violet-100 bg-gray-50'}`}>
+          {month.weeks.map((week, i) => <WeekDropdown key={i} week={week} />)}
+        </div>
+      )}
+    </div>
   );
 }
 
