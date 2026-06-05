@@ -113,12 +113,20 @@ export default function Goals() {
               <p className="font-medium text-sm">Goal in progress...</p>
               <p className={`text-xs mt-1 ${isDark ? 'text-blue-300' : 'text-blue-700'}`}>A goal is being created. Go to Planner to continue or come back to see it appear here.</p>
             </div>
-            <button
-              onClick={() => navigate("/Planner")}
-              className={`px-3 py-1 rounded-lg text-xs font-semibold flex-shrink-0 transition-all ${isDark ? 'hover:bg-blue-800 text-blue-300' : 'hover:bg-blue-100 text-blue-600'}`}
-            >
-              Continue
-            </button>
+            <div className="flex gap-2 flex-shrink-0">
+              <button
+                onClick={() => navigate("/Planner")}
+                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${isDark ? 'hover:bg-blue-800 text-blue-300' : 'hover:bg-blue-100 text-blue-600'}`}
+              >
+                Continue
+              </button>
+              <button
+                onClick={() => { localStorage.removeItem('plannerInProgress'); setInProgress(false); }}
+                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-blue-100 text-blue-400'}`}
+              >
+                Dismiss
+              </button>
+            </div>
           </div>
         )}
 
