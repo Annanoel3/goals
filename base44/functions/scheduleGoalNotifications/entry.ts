@@ -30,7 +30,7 @@ async function scheduleNotification({ externalId, title, body, data, sendAt }) {
     contents: { en: body },
     data,
     channel_for_external_user_ids: 'push',
-    send_after: Math.floor(new Date(sendAt).getTime() / 1000),
+    send_after: new Date(sendAt).toISOString(),
     buttons: [
       { id: 'complete', text: '✅ Done' },
       { id: 'remind_later', text: '🔔 Remind Later' },
