@@ -202,6 +202,7 @@ export default function Planner() {
         }
       }
     } catch (err) {
+      console.error('[Planner] sendMessage error:', err);
       setMessages(prev => [...prev, { role: "assistant", content: "Something went wrong. Please try again." }]);
     } finally {
       setIsChatLoading(false);
