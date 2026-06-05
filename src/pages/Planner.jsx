@@ -843,40 +843,7 @@ function parsePlanHierarchy(text, goalMonthTitles = {}) {
   return { months, preamble: preamble.join('\n') };
 }
 
-const COMIC_GIFS = [
-  'https://rbxbrfewaxvhvlntxhuv.supabase.co/storage/v1/object/public/GIFs/Turtle.gif',
-  'https://rbxbrfewaxvhvlntxhuv.supabase.co/storage/v1/object/public/GIFs/bear.gif',
-  'https://rbxbrfewaxvhvlntxhuv.supabase.co/storage/v1/object/public/GIFs/bird.gif',
-  'https://rbxbrfewaxvhvlntxhuv.supabase.co/storage/v1/object/public/GIFs/Cat.gif',
-  'https://rbxbrfewaxvhvlntxhuv.supabase.co/storage/v1/object/public/GIFs/Dog.gif',
-  'https://rbxbrfewaxvhvlntxhuv.supabase.co/storage/v1/object/public/GIFs/mouse.gif',
-  'https://rbxbrfewaxvhvlntxhuv.supabase.co/storage/v1/object/public/GIFs/Squirrel.gif',
-  'https://rbxbrfewaxvhvlntxhuv.supabase.co/storage/v1/object/public/GIFs/Robot.gif',
-];
 
-function GifCarousel({ gifs, onComplete }) {
-  const [idx, setIdx] = React.useState(() => Math.floor(Math.random() * gifs.length));
-  
-  // Rotate GIFs every 27 seconds indefinitely
-    React.useEffect(() => {
-      const rotateTimer = setInterval(() => {
-        setIdx(i => (i + 1) % gifs.length);
-      }, 27000);
-    return () => clearInterval(rotateTimer);
-  }, [gifs.length]);
-  
-  return (
-    <div className="flex flex-col items-center justify-center py-6 animate-in fade-in duration-300">
-      <img
-        key={idx}
-        src={gifs[idx]}
-        alt="celebration"
-        className="w-52 h-52 object-contain rounded-2xl shadow-lg animate-in zoom-in duration-300"
-        style={{imageRendering:'auto'}}
-      />
-    </div>
-  );
-}
 
 function WeekDropdown({ week }) {
   const [open, setOpen] = React.useState(false);
