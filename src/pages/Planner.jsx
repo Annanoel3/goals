@@ -309,25 +309,23 @@ export default function Planner() {
         const upfrontSteps = hasMonthStructure ? [...month1Steps, ...month2Steps] : plan.steps;
         const backgroundSteps = hasMonthStructure ? remainingSteps : [];
 
-        // Create Month 1 & 2 steps NOW — user waits for these
-        let orderIdx = 0;
-        for (const step of upfrontSteps) {
-          await base44.entities.GoalStep.create({
-            goal_id: goal.id,
-            title: step.title,
-            description: step.description || "",
-            phase: step.phase || "",
-            priority: step.priority || "medium",
-            due_date: step.due_date || "",
-            order_index: step.order_index ?? orderIdx,
-            status: "pending",
-            step_resources: step.step_resources || [],
-            success_criteria: step.success_criteria || [],
-            tips_and_guidance: step.tips_and_guidance || "",
-            is_daily_habit: step.is_daily_habit === true
-          });
-          orderIdx++;
-        }
+        // Create Month 1 & 2 steps NOW — user waits for these (bulk for speed)
+        const upfrontPayload = upfrontSteps.map((step, idx) => ({
+          goal_id: goal.id,
+          title: step.title,
+          description: step.description || "",
+          phase: step.phase || "",
+          priority: step.priority || "medium",
+          due_date: step.due_date || "",
+          order_index: step.order_index ?? idx,
+          status: "pending",
+          step_resources: step.step_resources || [],
+          success_criteria: step.success_criteria || [],
+          tips_and_guidance: step.tips_and_guidance || "",
+          is_daily_habit: step.is_daily_habit === true
+        }));
+        await base44.entities.GoalStep.bulkCreate(upfrontPayload);
+        const orderIdx = upfrontSteps.length;
 
         // Unlock "Go to Goal" button — Month 1 & 2 are ready
         setPendingGoalId(goal.id);
