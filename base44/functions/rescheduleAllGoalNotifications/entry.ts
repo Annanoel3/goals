@@ -49,9 +49,14 @@ Deno.serve(async (req) => {
     
     let rescheduled = 0;
     for (const goal of goals) {
-      // Call scheduleGoalNotifications for each goal to reschedule with new time
+      // Call scheduleGoalNotifications with full goal object so preferences (include_weekend_reminders, etc.) are respected
       try {
-        await base44.functions.invoke('scheduleGoalNotifications', { goal_id: goal.id });
+        const tzOffsetMinutes = -new Date().getTimezoneOffset();
+        await base44.functions.invoke('scheduleGoalNotifications', { 
+          goal_id: goal.id, 
+          goal_data: goal,
+          timezoneOffsetMinutes: tzOffsetMinutes
+        });
         rescheduled++;
       } catch (err) {
         console.error(`Failed to reschedule notifications for goal ${goal.id}:`, err.message);
