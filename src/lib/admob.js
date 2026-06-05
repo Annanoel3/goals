@@ -27,11 +27,13 @@ export async function initAdMob() {
   }
 }
 
-export async function showInterstitialAd() {
+export async function showInterstitialAd({ skipIfShownThisLaunch = false } = {}) {
+  if (skipIfShownThisLaunch && hasShownAdThisLaunch) return false;
   if (!AdMob) return false;
   try {
     await AdMob.prepareInterstitial({ adId: AD_UNIT_ID, isTesting: false });
     await AdMob.showInterstitial();
+    hasShownAdThisLaunch = true;
     return true;
   } catch (e) {
     console.warn('[AdMob] interstitial failed:', e);
@@ -50,5 +52,6 @@ export async function maybeShowAdOnOpen() {
     // Don't interrupt if the user is actively typing or recording
     if (userIsActive) return;
     await showInterstitialAd();
+    hasShownAdThisLaunch = true;
   }
 }

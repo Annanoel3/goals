@@ -222,7 +222,7 @@ export default function Planner() {
     setIsSaving(true);
     setSaveError(false);
     // Show ad immediately in parallel with saving
-    const adPromise = showInterstitialAd();
+    const adPromise = showInterstitialAd({ skipIfShownThisLaunch: true });
     try {
       const allMessages = messagesRef.current.filter(m => m.role !== "system");
       const res = await base44.functions.invoke("goalPlannerChat", { messages: allMessages, mode: "extract_plan" });
