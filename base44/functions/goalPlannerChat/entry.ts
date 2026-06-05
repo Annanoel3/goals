@@ -69,7 +69,7 @@ Rules:
             content: `Convert this plan to JSON:\n\n${planText}\n\nReturn this exact structure:\n{\n  "title": "...",\n  "description": "...",\n  "timeline": "X months",\n  "target_date": "YYYY-MM-DD",\n  "category": "learning|health|career|finance|relationships|personal|creative|other",\n  "plan_summary": "...",\n  "notification_frequency": "daily|weekly|weekdays|3x_per_week|2x_per_week",\n  "requires_daily_action": true|false,\n  "weekdays_only": false,\n  "habit_days_of_week": [],\n  "month_titles": { "1": "title", "2": "title" },\n  "notification_schedule": [{ "id": "week_1_begin", "type": "week_summary_begin", "phase": "Month 1, Week 1", "scheduled_date": "YYYY-MM-DD", "scheduled_time": "09:00", "teaser_text": "...", "full_message_text": "..." }],\n  "steps": [{ "title": "Week N: focus", "description": "...", "phase": "Month X, Week Y", "priority": "medium", "due_date": "YYYY-MM-DD", "order_index": 0, "step_resources": [], "success_criteria": [], "tips_and_guidance": "", "is_daily_habit": false }]\n}`
           }
         ],
-        max_tokens: 16000,
+        max_tokens: 32000,
         response_format: { type: "json_object" }
       });
 
