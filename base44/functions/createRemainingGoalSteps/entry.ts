@@ -4,8 +4,10 @@ Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
     const { goal_id, steps, start_order_index = 0 } = await req.json();
+    console.log(`[createRemainingGoalSteps] Called: goal_id=${goal_id}, steps=${steps?.length}, start_order_index=${start_order_index}`);
 
     if (!goal_id || !steps || steps.length === 0) {
+      console.log(`[createRemainingGoalSteps] Missing required fields`);
       return Response.json({ error: 'goal_id and steps required' }, { status: 400 });
     }
 
@@ -44,11 +46,13 @@ Deno.serve(async (req) => {
           }
         }
         createdCount++;
+        if (i % 5 === 0) console.log(`[createRemainingGoalSteps] Progress: ${createdCount}/${steps.length} steps created`);
       } catch (stepErr) {
-        console.error(`Failed to create step "${step.title}":`, stepErr.message);
+        console.error(`[createRemainingGoalSteps] Failed step "${step.title}":`, stepErr.message);
       }
     }
 
+    console.log(`[createRemainingGoalSteps] Done: created=${createdCount}, total=${steps.length}`);
     return Response.json({ ok: true, created: createdCount, total: steps.length });
   } catch (err) {
     return Response.json({ error: err.message }, { status: 500 });

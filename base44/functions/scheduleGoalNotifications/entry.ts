@@ -49,7 +49,8 @@ async function scheduleNotification({ externalId, title, body, data, sendAt }) {
 // Parse "Month 3" -> { month: 3, week: null }
 function parsePhase(phase) {
   if (!phase) return null;
-  const full = phase.match(/Month\s+(\d+)\s+Week\s+(\d+)/i);
+  // Handle both "Month 1 Week 2" and "Month 1, Week 2"
+  const full = phase.match(/Month\s+(\d+)[,\s]+Week\s+(\d+)/i);
   if (full) return { month: parseInt(full[1]), week: parseInt(full[2]) };
   const monthOnly = phase.match(/Month\s+(\d+)/i);
   if (monthOnly) return { month: parseInt(monthOnly[1]), week: null };
@@ -57,13 +58,16 @@ function parsePhase(phase) {
 }
 
 // Return a UTC Date for localHour:localMin on the given YYYY-MM-DD string
+// tzOffsetMinutes is what JS returns from -new Date().getTimezoneOffset()
+// e.g. CST = UTC-5 → tzOffsetMinutes = -300
+// local time → UTC: subtract the offset (UTC = local - offset)
 function localTimeOnDate(dateStr, localHour, localMin, tzOffsetMinutes) {
   const d = new Date(dateStr + 'T00:00:00Z');
-  d.setUTCHours(
-    localHour + Math.floor(tzOffsetMinutes / 60),
-    localMin + (tzOffsetMinutes % 60),
-    0, 0
-  );
+  // Start at midnight UTC, then set to localHour:localMin in local time
+  // UTC equivalent = local time - tzOffset
+  const totalLocalMins = localHour * 60 + localMin;
+  const totalUTCMins = totalLocalMins - tzOffsetMinutes;
+  d.setUTCHours(Math.floor(totalUTCMins / 60), totalUTCMins % 60, 0, 0);
   return d;
 }
 
@@ -194,6 +198,7 @@ Deno.serve(async (req) => {
     // ── WEEK NOTIFICATIONS (only Week 1 initially; subsequent weeks scheduled progressively) ──
     // CRITICAL: Only schedule Week 1 notifications now — the automation handles scheduling future weeks
     // This keeps notifications personalized to the user's actual progress
+    console.log(`[scheduleGoalNotifications] weekMap keys: ${Object.keys(weekMap).join(', ')}`);
     for (const wData of Object.values(weekMap)) {
       // Only schedule Week 1 of Month 1 upfront — all other weeks are scheduled by automation
       if (wData.month !== 1 || wData.week !== 1) continue;
@@ -201,6 +206,7 @@ Deno.serve(async (req) => {
       const sortedDates = [...wData.dates].sort();
       const weekEndDate = sortedDates[sortedDates.length - 1];
       const weekStartDate = addDays(weekEndDate, -6);
+      console.log(`[scheduleGoalNotifications] Week 1 dates: start=${weekStartDate}, end=${weekEndDate}`);
 
       const monthTheme = goal.month_titles?.[wData.month];
       const weekFocus = wData.titles.slice(0, 2).join(' & ') || monthTheme || goal.title;

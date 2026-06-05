@@ -212,33 +212,9 @@ export default function Planner() {
     if (!plan.steps || plan.steps.length === 0) {
       throw new Error("No steps found in plan. Please try again.");
     }
-
-    // Check for month gaps
-    const timelineMatch = plan.timeline?.match(/(\d+)\s*month/i);
-    const expectedMonths = timelineMatch ? parseInt(timelineMatch[1], 10) : null;
-    
-    if (expectedMonths && expectedMonths >= 3) {
-      const monthCounts = {};
-      plan.steps.forEach(s => {
-        const monthMatch = (s.phase || '').match(/Month (\d+)/i);
-        if (monthMatch) {
-          monthCounts[parseInt(monthMatch[1], 10)] = true;
-        }
-      });
-      
-      const missing = [];
-      for (let i = 1; i <= expectedMonths; i++) {
-        if (!monthCounts[i]) missing.push(i);
-      }
-      
-      if (missing.length > 0) {
-        throw new Error(`Plan incomplete: missing Month ${missing.join(', Month ')}. Expected all ${expectedMonths} months.`);
-      }
-    }
-    
-    // Warn if too few steps
-    if (plan.steps.length < 15) {
-      console.warn(`Warning: Only ${plan.steps.length} steps for ${plan.timeline} goal (expected 15+). Plan may lack detail.`);
+    // Just warn — never throw for missing months. Background creation handles gaps.
+    if (plan.steps.length < 4) {
+      console.warn(`Warning: Only ${plan.steps.length} steps — plan may be very sparse.`);
     }
   };
 
@@ -297,12 +273,10 @@ export default function Planner() {
 
       if (plan.steps?.length > 0) {
         // Split steps: first 2 months created NOW (user waits), rest in background
-        const month1Steps = plan.steps.filter(s => /Month\s*1[,\s]/i.test(s.phase || '') || /^Month\s*1$/i.test(s.phase || ''));
-        const month2Steps = plan.steps.filter(s => /Month\s*2[,\s]/i.test(s.phase || '') || /^Month\s*2$/i.test(s.phase || ''));
-        const remainingSteps = plan.steps.filter(s => {
-          const mNum = parseInt((s.phase || '').match(/Month\s*(\d+)/i)?.[1] || '0');
-          return mNum >= 3;
-        });
+        const getMonthNum = (s) => parseInt((s.phase || '').match(/Month\s*(\d+)/i)?.[1] || '0');
+        const month1Steps = plan.steps.filter(s => getMonthNum(s) === 1);
+        const month2Steps = plan.steps.filter(s => getMonthNum(s) === 2);
+        const remainingSteps = plan.steps.filter(s => getMonthNum(s) >= 3);
 
         // If no month structure (short plan), just create all steps upfront
         const hasMonthStructure = month1Steps.length > 0 || month2Steps.length > 0;
