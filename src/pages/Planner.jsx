@@ -275,9 +275,10 @@ export default function Planner() {
         habit_days_of_week: plan.habit_days_of_week ?? []
       });
 
-      // Store goal ID for button
+      // Navigate immediately — don't wait for steps/notifications
       setPendingGoalId(goal.id);
       setSaved(true);
+      navigate(`/goal/${goal.id}`);
 
       // Clear the in-progress session
       localStorage.removeItem('plannerInProgress');
@@ -291,7 +292,7 @@ export default function Planner() {
         ));
       }
 
-      // Fire steps & notifications in background — don't block the UI
+      // Fire steps creation in background — don't block the UI
       if (plan.steps?.length > 0) {
         base44.functions.invoke('createRemainingGoalSteps', {
           goal_id: goal.id,
