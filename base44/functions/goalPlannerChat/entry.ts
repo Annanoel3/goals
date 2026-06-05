@@ -724,7 +724,7 @@ REMINDER: You can always come back here anytime to adjust your plan — change t
         }
       ],
       tool_choice: "auto",
-      max_tokens: 16000
+      max_tokens: 25000
     });
 
     // If the model wants to search the web, execute and continue
@@ -746,7 +746,7 @@ REMINDER: You can always come back here anytime to adjust your plan — change t
         }
         toolMessages.push({ role: "tool", tool_call_id: call.id, content: searchResult });
       }
-      const followUp = await openai.chat.completions.create({ model: "gpt-4o", messages: toolMessages, max_tokens: 16000 });
+      const followUp = await openai.chat.completions.create({ model: "gpt-4o", messages: toolMessages, max_tokens: 25000 });
       finalReply = followUp.choices[0].message.content;
     } else {
       finalReply = firstChoice.message.content;
