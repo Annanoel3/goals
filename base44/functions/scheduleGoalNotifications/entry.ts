@@ -334,65 +334,126 @@ Deno.serve(async (req) => {
     }
   }
 
-  // ── WEEK NOTIFICATIONS (Week 1 only) ──
-  console.log(`[scheduleGoalNotifications] --- Scheduling Week 1 notifications ---`);
-  for (const [wk, wData] of Object.entries(weekMap)) {
-    console.log(`[scheduleGoalNotifications] weekMap[${wk}]: month=${wData.month}, week=${wData.week}, dates=${wData.dates.join(',')}`);
-    if (wData.month !== 1 || wData.week !== 1) {
-      console.log(`[scheduleGoalNotifications] Skipping week ${wk} — not Month 1 Week 1`);
-      continue;
-    }
+  // ── DAILY HABIT NOTIFICATIONS (for requires_daily_action goals) ──
+  if (goal.requires_daily_action) {
+    console.log(`[scheduleGoalNotifications] --- Scheduling daily habit reminders for Week 1 ---`);
+    const dailyHabitSteps = steps.filter(s => s.is_daily_habit === true);
+    console.log(`[scheduleGoalNotifications] Found ${dailyHabitSteps.length} daily habit steps`);
 
-    const sortedDates = [...wData.dates].sort();
-    // Week 1 starts on the earliest due_date of Month 1 Week 1 steps (not 6 days before end)
-    const weekStartDate = sortedDates[0];
-    const weekEndDate = sortedDates[sortedDates.length - 1];
-    console.log(`[scheduleGoalNotifications] Week 1: startDate=${weekStartDate}, endDate=${weekEndDate}`);
+    if (dailyHabitSteps.length > 0 && planStartDate) {
+      // Generate week 1 dates respecting include_weekend_reminders preference
+      const weekStartDate = planStartDate;
+      const include_weekends = goal.include_weekend_reminders !== false;
+      const daysToSchedule = [];
 
-    const monthTheme = goal.month_titles?.[wData.month] || goal.month_titles?.[String(wData.month)];
-    const weekFocus = wData.titles.slice(0, 2).join(' & ') || monthTheme || goal.title;
-    console.log(`[scheduleGoalNotifications] Week 1 monthTheme="${monthTheme}", weekFocus="${weekFocus}"`);
+      // Collect dates for the first week (7 days from planStartDate)
+      for (let i = 0; i < 7; i++) {
+        const dateStr = addDays(weekStartDate, i);
+        const dateObj = new Date(dateStr + 'T00:00:00Z');
+        const dayOfWeek = dateObj.getUTCDay();
+        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
 
-    // Week begin — only schedule if it's in the future
-    const weekBeginSendAt = localTimeOnDate(weekStartDate, prefHour, prefMin, tzOffset);
-    console.log(`[scheduleGoalNotifications] Week begin sendAt=${weekBeginSendAt.toISOString()}, isFuture=${weekBeginSendAt > now}`);
-    if (weekBeginSendAt > now) {
-      try {
-        const nid = await scheduleNotification({
-          externalId,
-          title: `Week 1 begins! 🚀`,
-          body: monthTheme
-            ? `"${monthTheme}" starts now. Focus this week: ${weekFocus}`
-            : `Week 1 of "${goal.title}" starts now. This week: ${weekFocus}`,
-          data: { screen: 'GoalDetail', action: 'week_begin', goal_id: goal.id, month: wData.month, week: wData.week },
-          sendAt: weekBeginSendAt.toISOString(),
-        });
-        if (nid) { goalNotifIds.push(nid); scheduled++; }
-      } catch (nErr) {
-        console.error(`[scheduleGoalNotifications] Failed to schedule week begin: ${nErr.message}`);
+        // Include based on preference
+        if (!isWeekend || include_weekends) {
+          daysToSchedule.push(dateStr);
+        }
       }
-    }
 
-    // Week end
-    const weekEndSendAt = localTimeOnDate(weekEndDate, 19, 0, tzOffset);
-    console.log(`[scheduleGoalNotifications] Week end sendAt=${weekEndSendAt.toISOString()}, isFuture=${weekEndSendAt > now}`);
-    if (weekEndSendAt > now) {
-      try {
-        const nid = await scheduleNotification({
-          externalId,
-          title: `Week 1 wrap-up 🏁`,
-          body: monthTheme
-            ? `Week 1 of "${monthTheme}" is done. How did it go? Check your progress.`
-            : `Week 1 of "${goal.title}" is wrapping up. Reflect on what you accomplished.`,
-          data: { screen: 'GoalDetail', action: 'week_end', goal_id: goal.id, month: wData.month, week: wData.week },
-          sendAt: weekEndSendAt.toISOString(),
-        });
-        if (nid) { goalNotifIds.push(nid); scheduled++; }
-      } catch (nErr) {
-        console.error(`[scheduleGoalNotifications] Failed to schedule week end: ${nErr.message}`);
+      console.log(`[scheduleGoalNotifications] Daily reminders for week 1: ${daysToSchedule.join(', ')} (weekends=${include_weekends})`);
+
+      // Schedule one notification per day for each habit
+      for (const dateStr of daysToSchedule) {
+        // Skip July 4th (hardcoded for now, ideally would be configurable)
+        if (dateStr.endsWith('-07-04')) {
+          console.log(`[scheduleGoalNotifications] Skipping ${dateStr} (holiday)`);
+          continue;
+        }
+
+        for (const habit of dailyHabitSteps) {
+          const habitTime = habit.habit_time || `${prefHour}:${String(prefMin).padStart(2, '0')}`;
+          const [hh, mm] = habitTime.split(':').map(Number);
+          const sendAt = localTimeOnDate(dateStr, hh, mm, tzOffset);
+
+          if (sendAt > now) {
+            try {
+              const nid = await scheduleNotification({
+                externalId,
+                title: `${habit.title} 📖`,
+                body: `Time to: ${habit.description || habit.title}`,
+                data: { screen: 'GoalDetail', action: 'daily_habit', goal_id: goal.id, step_id: habit.id, date: dateStr },
+                sendAt: sendAt.toISOString(),
+              });
+              if (nid) { goalNotifIds.push(nid); scheduled++; }
+            } catch (nErr) {
+              console.error(`[scheduleGoalNotifications] Failed to schedule daily habit for ${dateStr}: ${nErr.message}`);
+            }
+          }
+        }
       }
     }
   }
+
+  // ── WEEK NOTIFICATIONS (Week 1 only) ──
+   console.log(`[scheduleGoalNotifications] --- Scheduling Week 1 notifications ---`);
+   for (const [wk, wData] of Object.entries(weekMap)) {
+     console.log(`[scheduleGoalNotifications] weekMap[${wk}]: month=${wData.month}, week=${wData.week}, dates=${wData.dates.join(',')}`);
+     if (wData.month !== 1 || wData.week !== 1) {
+       console.log(`[scheduleGoalNotifications] Skipping week ${wk} — not Month 1 Week 1`);
+       continue;
+     }
+
+     const sortedDates = [...wData.dates].sort();
+     // Week 1 starts on the earliest due_date of Month 1 Week 1 steps (not 6 days before end)
+     const weekStartDate = sortedDates[0];
+     const weekEndDate = sortedDates[sortedDates.length - 1];
+     console.log(`[scheduleGoalNotifications] Week 1: startDate=${weekStartDate}, endDate=${weekEndDate}`);
+
+     const monthTheme = goal.month_titles?.[wData.month] || goal.month_titles?.[String(wData.month)];
+     const weekFocus = wData.titles.slice(0, 2).join(' & ') || monthTheme || goal.title;
+     console.log(`[scheduleGoalNotifications] Week 1 monthTheme="${monthTheme}", weekFocus="${weekFocus}"`);
+
+     // Week begin — skip if goal requires daily action (plan start already covers it)
+     if (!goal.requires_daily_action) {
+       const weekBeginSendAt = localTimeOnDate(weekStartDate, prefHour, prefMin, tzOffset);
+       console.log(`[scheduleGoalNotifications] Week begin sendAt=${weekBeginSendAt.toISOString()}, isFuture=${weekBeginSendAt > now}`);
+       if (weekBeginSendAt > now) {
+         try {
+           const nid = await scheduleNotification({
+             externalId,
+             title: `Week 1 begins! 🚀`,
+             body: monthTheme
+               ? `"${monthTheme}" starts now. Focus this week: ${weekFocus}`
+               : `Week 1 of "${goal.title}" starts now. This week: ${weekFocus}`,
+             data: { screen: 'GoalDetail', action: 'week_begin', goal_id: goal.id, month: wData.month, week: wData.week },
+             sendAt: weekBeginSendAt.toISOString(),
+           });
+           if (nid) { goalNotifIds.push(nid); scheduled++; }
+         } catch (nErr) {
+           console.error(`[scheduleGoalNotifications] Failed to schedule week begin: ${nErr.message}`);
+         }
+       }
+     }
+
+     // Week end
+     const weekEndSendAt = localTimeOnDate(weekEndDate, 19, 0, tzOffset);
+     console.log(`[scheduleGoalNotifications] Week end sendAt=${weekEndSendAt.toISOString()}, isFuture=${weekEndSendAt > now}`);
+     if (weekEndSendAt > now) {
+       try {
+         const nid = await scheduleNotification({
+           externalId,
+           title: `Week 1 wrap-up 🏁`,
+           body: monthTheme
+             ? `Week 1 of "${monthTheme}" is done. How did it go? Check your progress.`
+             : `Week 1 of "${goal.title}" is wrapping up. Reflect on what you accomplished.`,
+           data: { screen: 'GoalDetail', action: 'week_end', goal_id: goal.id, month: wData.month, week: wData.week },
+           sendAt: weekEndSendAt.toISOString(),
+         });
+         if (nid) { goalNotifIds.push(nid); scheduled++; }
+       } catch (nErr) {
+         console.error(`[scheduleGoalNotifications] Failed to schedule week end: ${nErr.message}`);
+       }
+     }
+   }
 
   // Save goal-level notification IDs
   try {

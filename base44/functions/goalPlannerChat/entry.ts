@@ -101,7 +101,7 @@ Rules:
       }
 
       console.log(`[goalPlannerChat] extract_plan done: ${plan.steps.length} steps, ${plan.timeline}`);
-      return Response.json({ plan, month_titles: plan.month_titles, notification_schedule: plan.notification_schedule, requires_daily_action: plan.requires_daily_action, weekdays_only: plan.weekdays_only, habit_days_of_week: plan.habit_days_of_week });
+      return Response.json({ plan, month_titles: plan.month_titles, notification_schedule: plan.notification_schedule, requires_daily_action: plan.requires_daily_action, weekdays_only: plan.weekdays_only, include_weekend_reminders: plan.include_weekend_reminders, habit_days_of_week: plan.habit_days_of_week });
     }
 
     // ── APPLY EDIT: commit approved edits to an existing goal ─────────────────
@@ -481,7 +481,8 @@ PHASE 1 — GATHER INFO FIRST (STRICTLY REQUIRED before drafting any plan IF Pha
         - Any specific deadline or target date? — ONLY ask this if the user has NOT already mentioned a deadline or timeframe in their goal description. If they said "by end of 2026", "before Christmas", "in 6 months", etc., skip this question entirely and use that date.
         - CRITICAL NEW: When do you want to START this goal? (e.g. "immediately", "next month", "after my vacation", a specific date). I'll calculate the exact timeline from your start date to the end date, so your plan aligns with when you're actually ready to begin.
         - FOR HEALTH/FITNESS GOALS ONLY: What time of day do they prefer to work out/exercise?
-       - BUDGET QUESTION (ask for virtually ALL goals — books, courses, activities, tools, coaching, classes, experiences all cost money): Ask "Do you have a budget for things like books, courses, activities, or tools? Even a rough idea helps — or I can stick to free resources only." The ONLY exception: skip this question if the goal is purely about saving or paying off money (e.g. "save $5000", "pay off credit card debt") where spending on resources makes no sense. Use the answer to STRICTLY filter all resource recommendations:
+         - FOR DAILY ACTION GOALS ONLY (practice, reading, exercise, learning): "Do you want reminders on weekends too, or just weekdays?" This determines if your daily notifications run 7 days a week or Mon-Fri only.
+         - BUDGET QUESTION (ask for virtually ALL goals — books, courses, activities, tools, coaching, classes, experiences all cost money): Ask "Do you have a budget for things like books, courses, activities, or tools? Even a rough idea helps — or I can stick to free resources only." The ONLY exception: skip this question if the goal is purely about saving or paying off money (e.g. "save $5000", "pay off credit card debt") where spending on resources makes no sense. Use the answer to STRICTLY filter all resource recommendations:
          * If they say NO budget / free only → ONLY recommend free resources (YouTube, free apps, free articles via Google search, free PDFs). NEVER recommend paid books, paid courses, or paid tools.
          * If they give a budget → tailor recommendations to fit within it (e.g. one $15 book per month if budget is $15/month). Prioritize highest-value paid resources first.
          * If they don't answer or are vague → default to free resources only.
@@ -663,7 +664,9 @@ PROACTIVE COACHING — always watch for signals like:
 - "I finished early / ahead of schedule" → offer to add advanced content or a new related goal
 - "I need more resources / examples" → add specific links, books, videos to the relevant steps
 
-Always be specific, warm, encouraging, and treat the plan as a living document that evolves with the user.`;
+Always be specific, warm, encouraging, and treat the plan as a living document that evolves with the user.
+
+REMINDER: You can always come back here anytime to adjust your plan — change the difficulty, add resources, extend the timeline, skip ahead, or shift preferences like weekend reminders. Just tell me what you want to change and I'll update it instantly.`;
     }
 
     const completion = await openai.chat.completions.create({

@@ -63,6 +63,11 @@
       "default": false,
       "description": "If true, daily habits only on weekdays (Mon-Fri); if false, 7 days/week (AI-determined during plan creation)"
     },
+    "include_weekend_reminders": {
+      "type": "boolean",
+      "default": true,
+      "description": "For daily action goals: whether to include weekend reminders (only relevant if requires_daily_action is true)"
+    },
     "habit_days_of_week": {
       "type": "array",
       "items": {
