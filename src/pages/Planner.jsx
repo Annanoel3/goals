@@ -38,7 +38,7 @@ export default function Planner() {
   const [editingGoal, setEditingGoal] = useState(null); // goal being edited in current session
   const [userCity, setUserCity] = useState(null);
   const [saveError, setSaveError] = useState(false);
-  const [pollForMonth2Complete, setPollForMonth2Complete] = useState(false);
+  // pollForMonth2Complete removed — navigation unlocks as soon as Month 1+2 are written
   const messagesEndRef = useRef(null);
   const messagesRef = useRef(messages);
   const navigate = useNavigate();
@@ -296,51 +296,51 @@ export default function Planner() {
       });
 
       if (plan.steps?.length > 0) {
-        // Detect total months from plan
-        const totalMonthsMatch = plan.timeline?.match(/(\d+)\s*month/i);
-        const titlesMaxMonth = Object.keys(plan.month_titles || {}).length > 0
-          ? Math.max(...Object.keys(plan.month_titles).map(k => parseInt(k)).filter(n => !isNaN(n)))
-          : 0;
-        const totalMonths = Math.max(totalMonthsMatch ? parseInt(totalMonthsMatch[1]) : 0, titlesMaxMonth, 3);
+        // Split steps: first 2 months created NOW (user waits), rest in background
+        const month1Steps = plan.steps.filter(s => /Month\s*1[,\s]/i.test(s.phase || '') || /^Month\s*1$/i.test(s.phase || ''));
+        const month2Steps = plan.steps.filter(s => /Month\s*2[,\s]/i.test(s.phase || '') || /^Month\s*2$/i.test(s.phase || ''));
+        const remainingSteps = plan.steps.filter(s => {
+          const mNum = parseInt((s.phase || '').match(/Month\s*(\d+)/i)?.[1] || '0');
+          return mNum >= 3;
+        });
 
-        // Create stub months 1-N upfront with empty weeks (so they show in GoalDetail immediately)
-        for (let m = 1; m <= totalMonths; m++) {
-          for (let w = 1; w <= 4; w++) {
-            await base44.entities.GoalStep.create({
-              goal_id: goal.id,
-              title: `Month ${m} Week ${w}`,
-              description: "",
-              phase: `Month ${m}, Week ${w}`,
-              priority: "medium",
-              due_date: "",
-              order_index: (m - 1) * 4 + (w - 1),
-              status: "pending"
-            });
-          }
+        // If no month structure (short plan), just create all steps upfront
+        const hasMonthStructure = month1Steps.length > 0 || month2Steps.length > 0;
+        const upfrontSteps = hasMonthStructure ? [...month1Steps, ...month2Steps] : plan.steps;
+        const backgroundSteps = hasMonthStructure ? remainingSteps : [];
+
+        // Create Month 1 & 2 steps NOW — user waits for these
+        let orderIdx = 0;
+        for (const step of upfrontSteps) {
+          await base44.entities.GoalStep.create({
+            goal_id: goal.id,
+            title: step.title,
+            description: step.description || "",
+            phase: step.phase || "",
+            priority: step.priority || "medium",
+            due_date: step.due_date || "",
+            order_index: step.order_index ?? orderIdx,
+            status: "pending",
+            step_resources: step.step_resources || [],
+            success_criteria: step.success_criteria || [],
+            tips_and_guidance: step.tips_and_guidance || "",
+            is_daily_habit: step.is_daily_habit === true
+          });
+          orderIdx++;
         }
 
-        // Fill in the actual steps asynchronously in background
+        // Unlock "Go to Goal" button — Month 1 & 2 are ready
         setPendingGoalId(goal.id);
-        setPollForMonth2Complete(true);
-        
-        // Poll for Month 2 completion
-        const pollInterval = setInterval(async () => {
-          try {
-            const steps = await base44.entities.GoalStep.filter({ goal_id: goal.id });
-            const month2Steps = steps.filter(s => s.phase?.includes('Month 2'));
-            if (month2Steps.length > 0) {
-              clearInterval(pollInterval);
-              setCanNavigateToGoal(true);
-              setPollForMonth2Complete(false);
-            }
-          } catch {}
-        }, 500); // Poll every 500ms
-        
-        // Start async step creation
-        base44.functions.invoke('createRemainingGoalSteps', {
-          goal_id: goal.id,
-          steps: plan.steps
-        }).catch(err => console.error('createRemainingGoalSteps failed:', err));
+        setCanNavigateToGoal(true);
+
+        // Create remaining months (3+) in background — user sees spinners in GoalDetail
+        if (backgroundSteps.length > 0) {
+          base44.functions.invoke('createRemainingGoalSteps', {
+            goal_id: goal.id,
+            steps: backgroundSteps,
+            start_order_index: orderIdx
+          }).catch(err => console.error('createRemainingGoalSteps failed:', err));
+        }
 
         base44.functions.invoke('scheduleGoalNotifications', { goal_id: goal.id, goal_data: goal, timezoneOffsetMinutes: -new Date().getTimezoneOffset() }).catch(err => console.error('scheduleGoalNotifications failed:', err));
       }
@@ -593,11 +593,11 @@ export default function Planner() {
             </div>
           ) : isSaving && (
            <div className="flex flex-col items-center gap-3">
-             <SavingProgressBar isEdit={!!editingGoal} done={!pollForMonth2Complete} />
+             <SavingProgressBar isEdit={!!editingGoal} done={canNavigateToGoal} />
              {canNavigateToGoal && (
                <Button
                  onClick={() => navigate(`/goal/${pendingGoalId}`)}
-                 className={`rounded-2xl px-6 py-2.5 font-semibold ${isDark ? 'bg-violet-600 hover:bg-violet-700 text-white' : 'bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white'}`}
+                 className={`rounded-2xl px-6 py-2.5 font-semibold animate-in fade-in zoom-in duration-300 ${isDark ? 'bg-violet-600 hover:bg-violet-700 text-white' : 'bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white'}`}
                >
                  Go to Goal →
                </Button>
