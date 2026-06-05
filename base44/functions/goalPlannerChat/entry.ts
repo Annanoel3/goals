@@ -54,22 +54,23 @@ Deno.serve(async (req) => {
             role: "system",
             content: `You convert an already-written goal plan (in markdown) into structured JSON. The plan is complete — do NOT add, remove, or change any content. Just reformat it. Return ONLY valid JSON, no markdown fences.
 
-Rules:
-- Each step = one week. phase = "Month X, Week Y". title = "Week N: [focus from plan]".
-- is_daily_habit: true for reading/fitness/language/music/meditation goals; false for milestone/project goals.
-- requires_daily_action: same logic as is_daily_habit.
-- notification_frequency: infer from goal type ("daily" for reading/fitness/language, "weekly" for career/finance/project).
-- month_titles: extract the descriptive title after each "Month N —" heading.
-- notification_schedule: generate 2-3 simple check-in notifications for Week 1 only (dates starting from today ${today}).
-- due_dates: CRITICAL — MUST be calculated based on the step's phase (Month X, Week Y). Parse each step's phase, then calculate: due_date = start_date + (MonthNum-1)*30 + (WeekNum-1)*7 days. Use "target_date" from plan_summary to determine end date, then work backwards to find start date. Spread dates evenly across all steps from start to target end.
-- weekdays_only: false unless goal is explicitly work/career focused.
-- TIME PREFERENCE MAPPING (CRITICAL): Map natural language time preferences to actual times:
-  * "morning" or "early" → 06:00 or 07:00
-  * "afternoon" or "midday" → 12:00 or 14:00
-  * "evening" or "late afternoon" → 18:00 or 19:00
-  * "night" or "late evening" → 20:00 or 21:00
-  * If user mentioned a specific time (e.g. "6pm", "7:30am"), use that exact time.
-  * CRITICAL: Do NOT use times like "01:00 PM" for "evening" — that is wrong. Evening is 6-8 PM.`
+      Rules:
+      - Each step = one week. phase = "Month X, Week Y". title = "Week N: [focus from plan]".
+      - CRITICAL: Step descriptions MUST be detailed, thematic, and actionable — NOT just chapter ranges. For reading goals: do NOT just say "Read Chapters X-Y". Instead use the AI's original descriptive language: "Read and reflect on [theme/character/concept], paying attention to [specific element]", "Analyze how [author/character] develops [theme]", etc. Preserve the rich context and guidance from the plan.
+      - is_daily_habit: true for reading/fitness/language/music/meditation goals; false for milestone/project goals.
+      - requires_daily_action: same logic as is_daily_habit.
+      - notification_frequency: infer from goal type ("daily" for reading/fitness/language, "weekly" for career/finance/project).
+      - month_titles: extract the descriptive title after each "Month N —" heading.
+      - notification_schedule: generate 2-3 simple check-in notifications for Week 1 only (dates starting from today ${today}).
+      - due_dates: CRITICAL — MUST be calculated based on the step's phase (Month X, Week Y). Parse each step's phase, then calculate: due_date = start_date + (MonthNum-1)*30 + (WeekNum-1)*7 days. Use "target_date" from plan_summary to determine end date, then work backwards to find start date. Spread dates evenly across all steps from start to target end.
+      - weekdays_only: false unless goal is explicitly work/career focused.
+      - TIME PREFERENCE MAPPING (CRITICAL): Map natural language time preferences to actual times:
+      * "morning" or "early" → 06:00 or 07:00
+      * "afternoon" or "midday" → 12:00 or 14:00
+      * "evening" or "late afternoon" → 18:00 or 19:00
+      * "night" or "late evening" → 20:00 or 21:00
+      * If user mentioned a specific time (e.g. "6pm", "7:30am"), use that exact time.
+      * CRITICAL: Do NOT use times like "01:00 PM" for "evening" — that is wrong. Evening is 6-8 PM.`
           },
           {
             role: "user",
