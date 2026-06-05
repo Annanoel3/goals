@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Send, Loader2, Mic, Sparkles, Target, Plus, Check, ChevronDown, ChevronUp, ChevronRight } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
-import { setUserActive } from "@/lib/admob";
+import { setUserActive, showInterstitialAd } from "@/lib/admob";
 
 export default function Planner() {
   const [messages, setMessages] = useState(() => {
@@ -271,10 +271,6 @@ export default function Planner() {
         habit_days_of_week: plan.habit_days_of_week ?? []
       });
 
-      // Unlock "Go to Goal" immediately — all steps created in background
-      setPendingGoalId(goal.id);
-      setCanNavigateToGoal(true);
-
       if (plan.steps?.length > 0) {
         // Fire ALL steps in background — user doesn't wait for any of them
         base44.functions.invoke('createRemainingGoalSteps', {
@@ -286,8 +282,10 @@ export default function Planner() {
         base44.functions.invoke('scheduleGoalNotifications', { goal_id: goal.id, goal_data: goal, timezoneOffsetMinutes: -new Date().getTimezoneOffset() }).catch(err => console.error('scheduleGoalNotifications failed:', err));
       }
 
-      setSaved(true);
-      setPendingGoalId(goal.id);
+      // Show interstitial ad, then navigate to goal when dismissed
+      await showInterstitialAd();
+      navigate(`/goal/${goal.id}`);
+
       // Clear the in-progress session
       localStorage.removeItem('plannerInProgress');
 
@@ -518,35 +516,27 @@ export default function Planner() {
               </div>
             )}
 
-            {/* Celebration + saving animation (shared between new goal and edit) */}
+            {/* Saving state — new goal */}
             {pendingAction !== null && !isLoading && !saved && showCelebration && (
-        <>
-          <GifCarousel gifs={COMIC_GIFS} onComplete={() => {}} />
-          {saveError ? (
-            <div className="flex flex-col items-center gap-3 py-2">
-              <p className={`text-sm font-medium ${isDark ? 'text-red-400' : 'text-red-600'}`}>Something went wrong saving your goal.</p>
-              <Button
-                onClick={editingGoal ? handleApplyEdits : handleSaveNewGoal}
-                className={`rounded-2xl px-6 py-2.5 font-semibold ${isDark ? 'bg-violet-600 hover:bg-violet-700 text-white' : 'bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white'}`}
-              >
-                Retry
-              </Button>
-            </div>
-          ) : isSaving && (
-           <div className="flex flex-col items-center gap-3">
-             <SavingProgressBar isEdit={!!editingGoal} done={canNavigateToGoal} />
-             {canNavigateToGoal && (
-               <Button
-                 onClick={() => navigate(`/goal/${pendingGoalId}`)}
-                 className={`rounded-2xl px-6 py-2.5 font-semibold animate-in fade-in zoom-in duration-300 ${isDark ? 'bg-violet-600 hover:bg-violet-700 text-white' : 'bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white'}`}
-               >
-                 Go to Goal →
-               </Button>
-             )}
-           </div>
-          )}
-        </>
-      )}
+              <>
+                {saveError ? (
+                  <div className="flex flex-col items-center gap-3 py-2">
+                    <p className={`text-sm font-medium ${isDark ? 'text-red-400' : 'text-red-600'}`}>Something went wrong saving your goal.</p>
+                    <Button
+                      onClick={editingGoal ? handleApplyEdits : handleSaveNewGoal}
+                      className={`rounded-2xl px-6 py-2.5 font-semibold ${isDark ? 'bg-violet-600 hover:bg-violet-700 text-white' : 'bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white'}`}
+                    >
+                      Retry
+                    </Button>
+                  </div>
+                ) : isSaving && (
+                  <div className="flex flex-col items-center gap-3 py-6">
+                    <Loader2 className={`w-8 h-8 animate-spin ${isDark ? 'text-violet-400' : 'text-violet-500'}`} />
+                    <p className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>Creating your goal…</p>
+                  </div>
+                )}
+              </>
+            )}
 
             {/* Edit approval */}
             {pendingAction === 'edit_approved' && !saved && !showCelebration && (
