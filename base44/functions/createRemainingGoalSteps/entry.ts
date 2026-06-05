@@ -71,68 +71,45 @@ Deno.serve(async (req) => {
     return Response.json({ error: `Service role failed: ${srErr.message}` }, { status: 500 });
   }
 
+  // Build bulk payload — much faster than one-by-one and avoids timeouts for large plans
+  const bulkPayload = steps.map((step, i) => ({
+    goal_id,
+    title: step.title,
+    description: step.description || "",
+    phase: step.phase || "",
+    priority: step.priority || "medium",
+    due_date: step.due_date || "",
+    order_index: step.order_index ?? (start_order_index + i),
+    status: "pending",
+    step_resources: step.step_resources || [],
+    success_criteria: step.success_criteria || [],
+    tips_and_guidance: step.tips_and_guidance || "",
+    is_daily_habit: step.is_daily_habit === true
+  }));
+
+  console.log(`[createRemainingGoalSteps] Bulk creating ${bulkPayload.length} steps...`);
   let createdCount = 0;
-  const failedSteps = [];
+  let failedSteps = [];
 
-  for (let i = 0; i < steps.length; i++) {
-    const step = steps[i];
-    console.log(`[createRemainingGoalSteps] Creating step ${i + 1}/${steps.length}: phase="${step.phase}", title="${step.title?.substring(0, 60)}"`);
-
-    try {
-      const payload = {
-        goal_id,
-        title: step.title,
-        description: step.description || "",
-        phase: step.phase || "",
-        priority: step.priority || "medium",
-        due_date: step.due_date || "",
-        order_index: step.order_index ?? (start_order_index + i),
-        status: "pending",
-        step_resources: step.step_resources || [],
-        success_criteria: step.success_criteria || [],
-        tips_and_guidance: step.tips_and_guidance || "",
-        is_daily_habit: step.is_daily_habit === true
-      };
-      console.log(`[createRemainingGoalSteps] Step ${i + 1} payload (partial): goal_id=${payload.goal_id}, phase=${payload.phase}, order_index=${payload.order_index}`);
-
-      const createdStep = await base44.asServiceRole.entities.GoalStep.create(payload);
-      console.log(`[createRemainingGoalSteps] Step ${i + 1} CREATED with id=${createdStep?.id}`);
-
-      if (step.sub_steps?.length > 0) {
-        console.log(`[createRemainingGoalSteps] Step ${i + 1} has ${step.sub_steps.length} sub-steps`);
-        for (let j = 0; j < step.sub_steps.length; j++) {
-          const subStep = step.sub_steps[j];
-          try {
-            await base44.asServiceRole.entities.GoalStep.create({
-              goal_id,
-              parent_step_id: createdStep.id,
-              title: subStep.title,
-              description: subStep.description || "",
-              phase: step.phase || "",
-              priority: subStep.priority || "low",
-              due_date: subStep.due_date || "",
-              order_index: j,
-              status: "pending"
-            });
-            console.log(`[createRemainingGoalSteps] Sub-step ${j + 1}/${step.sub_steps.length} created`);
-          } catch (subErr) {
-            console.error(`[createRemainingGoalSteps] Sub-step ${j + 1} failed: ${subErr.message}`);
-          }
-        }
+  try {
+    await base44.asServiceRole.entities.GoalStep.bulkCreate(bulkPayload);
+    createdCount = bulkPayload.length;
+    console.log(`[createRemainingGoalSteps] Bulk create SUCCESS: ${createdCount} steps`);
+  } catch (bulkErr) {
+    console.error(`[createRemainingGoalSteps] Bulk create FAILED: ${bulkErr.message} — falling back to one-by-one`);
+    // Fall back to one-by-one if bulk fails
+    for (let i = 0; i < bulkPayload.length; i++) {
+      try {
+        await base44.asServiceRole.entities.GoalStep.create(bulkPayload[i]);
+        createdCount++;
+      } catch (stepErr) {
+        console.error(`[createRemainingGoalSteps] Step ${i + 1} FAILED: ${stepErr.message}`);
+        failedSteps.push({ index: i, title: steps[i].title, phase: steps[i].phase, error: stepErr.message });
       }
-
-      createdCount++;
-    } catch (stepErr) {
-      console.error(`[createRemainingGoalSteps] STEP ${i + 1} FAILED: "${step.title}" — ${stepErr.message}`);
-      console.error(`[createRemainingGoalSteps] STEP ${i + 1} FULL ERROR: ${JSON.stringify(stepErr)}`);
-      failedSteps.push({ index: i, title: step.title, phase: step.phase, error: stepErr.message });
     }
   }
 
   console.log(`[createRemainingGoalSteps] ===== DONE: created=${createdCount}/${steps.length}, failed=${failedSteps.length} =====`);
-  if (failedSteps.length > 0) {
-    console.error(`[createRemainingGoalSteps] FAILED STEPS: ${JSON.stringify(failedSteps)}`);
-  }
 
   return Response.json({ ok: true, created: createdCount, total: steps.length, failed: failedSteps.length, failed_details: failedSteps });
 });

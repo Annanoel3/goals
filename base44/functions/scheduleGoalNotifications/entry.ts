@@ -303,6 +303,37 @@ Deno.serve(async (req) => {
   console.log(`[scheduleGoalNotifications] weekMap keys: [${Object.keys(weekMap).join(', ')}]`);
   console.log(`[scheduleGoalNotifications] monthMap keys: [${Object.keys(monthMap).join(', ')}]`);
 
+  // ── DETECT PLAN START DATE (earliest due_date across all steps) ──
+  const allDueDates = steps.filter(s => s.due_date).map(s => s.due_date).sort();
+  const planStartDate = allDueDates[0] || null;
+  const todayStr = now.toISOString().split('T')[0];
+  const planStartsInFuture = planStartDate && planStartDate > todayStr;
+  console.log(`[scheduleGoalNotifications] planStartDate=${planStartDate}, todayStr=${todayStr}, planStartsInFuture=${planStartsInFuture}`);
+
+  // ── IMMEDIATE "PLAN STARTS SOON" NOTIFICATION (when plan starts in the future) ──
+  if (planStartsInFuture) {
+    const startDateObj = new Date(planStartDate + 'T00:00:00Z');
+    const monthName = startDateObj.toLocaleString('en-US', { month: 'long', timeZone: 'UTC' });
+    const monthTheme1 = goal.month_titles?.['1'] || goal.month_titles?.[1];
+    try {
+      // Send in 2 minutes so it feels like a real "plan created" confirmation
+      const soonAt = new Date(now.getTime() + 2 * 60 * 1000);
+      const nid = await scheduleNotification({
+        externalId,
+        title: `Your plan is ready! 🎉`,
+        body: monthTheme1
+          ? `"${goal.title}" starts in ${monthName}. First up: "${monthTheme1}". You'll hear from me then!`
+          : `"${goal.title}" kicks off in ${monthName}. Get ready — you'll hear from me when it's time to start!`,
+        data: { screen: 'GoalDetail', action: 'plan_ready', goal_id: goal.id },
+        sendAt: soonAt.toISOString(),
+      });
+      if (nid) { goalNotifIds.push(nid); scheduled++; }
+      console.log(`[scheduleGoalNotifications] Scheduled "plan starts in ${monthName}" notification`);
+    } catch (nErr) {
+      console.error(`[scheduleGoalNotifications] Failed to schedule plan-starts-soon notification: ${nErr.message}`);
+    }
+  }
+
   // ── WEEK NOTIFICATIONS (Week 1 only) ──
   console.log(`[scheduleGoalNotifications] --- Scheduling Week 1 notifications ---`);
   for (const [wk, wData] of Object.entries(weekMap)) {
@@ -313,24 +344,25 @@ Deno.serve(async (req) => {
     }
 
     const sortedDates = [...wData.dates].sort();
+    // Week 1 starts on the earliest due_date of Month 1 Week 1 steps (not 6 days before end)
+    const weekStartDate = sortedDates[0];
     const weekEndDate = sortedDates[sortedDates.length - 1];
-    const weekStartDate = addDays(weekEndDate, -6);
     console.log(`[scheduleGoalNotifications] Week 1: startDate=${weekStartDate}, endDate=${weekEndDate}`);
 
     const monthTheme = goal.month_titles?.[wData.month] || goal.month_titles?.[String(wData.month)];
     const weekFocus = wData.titles.slice(0, 2).join(' & ') || monthTheme || goal.title;
     console.log(`[scheduleGoalNotifications] Week 1 monthTheme="${monthTheme}", weekFocus="${weekFocus}"`);
 
-    // Week begin
+    // Week begin — only schedule if it's in the future
     const weekBeginSendAt = localTimeOnDate(weekStartDate, prefHour, prefMin, tzOffset);
     console.log(`[scheduleGoalNotifications] Week begin sendAt=${weekBeginSendAt.toISOString()}, isFuture=${weekBeginSendAt > now}`);
     if (weekBeginSendAt > now) {
       try {
         const nid = await scheduleNotification({
           externalId,
-          title: `Week 1 begins`,
+          title: `Week 1 begins! 🚀`,
           body: monthTheme
-            ? `"${monthTheme}" is here. Focus: ${weekFocus}`
+            ? `"${monthTheme}" starts now. Focus this week: ${weekFocus}`
             : `Week 1 of "${goal.title}" starts now. This week: ${weekFocus}`,
           data: { screen: 'GoalDetail', action: 'week_begin', goal_id: goal.id, month: wData.month, week: wData.week },
           sendAt: weekBeginSendAt.toISOString(),
@@ -348,7 +380,7 @@ Deno.serve(async (req) => {
       try {
         const nid = await scheduleNotification({
           externalId,
-          title: `Week 1 wrap-up`,
+          title: `Week 1 wrap-up 🏁`,
           body: monthTheme
             ? `Week 1 of "${monthTheme}" is done. How did it go? Check your progress.`
             : `Week 1 of "${goal.title}" is wrapping up. Reflect on what you accomplished.`,
