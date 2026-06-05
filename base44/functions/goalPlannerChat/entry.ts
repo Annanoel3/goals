@@ -515,7 +515,12 @@ MANDATORY MARKDOWN FORMAT — use this exact structure for however many months t
 - [specific task]
 - [specific task]
 
-(Repeat for every month the timeline requires — no more, no less.)
+**Month 2 — [Descriptive Title]**
+**Week 1**
+- [specific task]
+- [specific task]
+
+(Continue this exact pattern for EVERY SINGLE MONTH. Generate ALL months inline in this response. Do NOT say "I'll continue constructing" or "subsequent months will follow" — generate them now. Every month must be complete with all 4 weeks. This is a single response, not a placeholder.)
 
 CRITICAL FORMAT RULES:
 - Every month MUST start with "**Month N — Title**" on its own line
@@ -523,6 +528,7 @@ CRITICAL FORMAT RULES:
 - Tasks MUST be "- task" bullet points under each week
 - NEVER skip this structure for ANY month. Month 6 must look identical in structure to Month 1.
 - NEVER write a month without its 4 weeks immediately following it.
+- ABSOLUTELY FORBIDDEN: Placeholder language like "(Repeat for every month...)" or "(I'll continue constructing...)" — these are CRITICAL FAILURES. Generate the complete markdown for all months NOW in this single response. Every single month must be fully written out.
 
 4. STRICT PHASE NAMING RULES — VIOLATIONS ARE NOT ACCEPTABLE:
    - NEVER combine weeks: "Week 1-2", "Week 3-4", "Weeks 5-6" are ALL FORBIDDEN. Every week is its own entry: "Month 1, Week 1", "Month 1, Week 2", etc.
