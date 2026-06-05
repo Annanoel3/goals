@@ -112,11 +112,15 @@ export default function GoalDetail() {
     if (totalMonths <= 2) return; // Nothing to wait for
 
     let pollCount = 0;
-    const maxPolls = 150; // 150 × 2s = 5 minutes max (was 2min, increase for large plans)
+    const maxPolls = 90; // 90 × 2s = 3 minutes max
 
     const timer = setInterval(async () => {
       pollCount++;
-      if (pollCount > maxPolls) { clearInterval(timer); return; }
+      if (pollCount > maxPolls) {
+        console.warn(`[GoalDetail] Polling timeout after ${maxPolls * 2}s. Stopping.`);
+        clearInterval(timer);
+        return;
+      }
 
       const stepsData = await base44.entities.GoalStep.filter({ goal_id: id }).catch(() => null);
       if (!stepsData) return;

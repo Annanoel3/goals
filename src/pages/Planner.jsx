@@ -1108,7 +1108,7 @@ function SavingProgressBar({ isEdit = false, done = false }) {
       return;
     }
     // Each step advances to its target over its allotted time slice
-    const totalDuration = isEdit ? 10000 : 38000; // 38s for new goal (realistic AI time)
+    const totalDuration = isEdit ? 10000 : 12000; // 12s total (fast save + background creation notice)
     const sliceDuration = totalDuration / steps.length;
     
     let currentStep = 0;
