@@ -221,6 +221,8 @@ export default function Planner() {
   const handleSaveNewGoal = async () => {
     setIsSaving(true);
     setSaveError(false);
+    // Show ad immediately in parallel with saving
+    const adPromise = showInterstitialAd();
     try {
       const allMessages = messagesRef.current.filter(m => m.role !== "system");
       const res = await base44.functions.invoke("goalPlannerChat", { messages: allMessages, mode: "extract_plan" });
@@ -282,8 +284,8 @@ export default function Planner() {
         base44.functions.invoke('scheduleGoalNotifications', { goal_id: goal.id, goal_data: goal, timezoneOffsetMinutes: -new Date().getTimezoneOffset() }).catch(err => console.error('scheduleGoalNotifications failed:', err));
       }
 
-      // Show interstitial ad, then navigate to goal when dismissed
-      await showInterstitialAd();
+      // Wait for both the ad to be dismissed AND saving to complete, then navigate
+      await adPromise;
       navigate(`/goal/${goal.id}`);
 
       // Clear the in-progress session
