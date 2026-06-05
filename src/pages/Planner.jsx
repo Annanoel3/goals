@@ -275,17 +275,9 @@ export default function Planner() {
         habit_days_of_week: plan.habit_days_of_week ?? []
       });
 
-      if (plan.steps?.length > 0) {
-        // Fire ALL steps in background — user doesn't wait for any of them
-        base44.functions.invoke('createRemainingGoalSteps', {
-          goal_id: goal.id,
-          steps: plan.steps,
-          start_order_index: 0,
-          timezoneOffsetMinutes: -new Date().getTimezoneOffset()
-        }).catch(err => console.error('createRemainingGoalSteps failed:', err));
-      }
-
-      navigate(`/goal/${goal.id}`);
+      // Store goal ID for button
+      setPendingGoalId(goal.id);
+      setSaved(true);
 
       // Clear the in-progress session
       localStorage.removeItem('plannerInProgress');
@@ -297,6 +289,16 @@ export default function Planner() {
             ? { ...m, goalMonthTitles: { ...plan.month_titles } }
             : m
         ));
+      }
+
+      // Fire steps & notifications in background — don't block the UI
+      if (plan.steps?.length > 0) {
+        base44.functions.invoke('createRemainingGoalSteps', {
+          goal_id: goal.id,
+          steps: plan.steps,
+          start_order_index: 0,
+          timezoneOffsetMinutes: -new Date().getTimezoneOffset()
+        }).catch(err => console.error('createRemainingGoalSteps failed:', err));
       }
     } catch (err) {
       setSaveError(true);
@@ -532,7 +534,7 @@ export default function Planner() {
                   </div>
                 ) : isSaving && (
                   <div className="flex flex-col items-center gap-3 py-6">
-                    <SavingProgressBar isEdit={!!editingGoal} done={saved} />
+                    <SavingProgressBar isEdit={!!editingGoal} done={true} />
                   </div>
                 )}
               </>
