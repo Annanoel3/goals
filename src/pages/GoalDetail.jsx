@@ -111,27 +111,27 @@ export default function GoalDetail() {
     const totalMonths = timelineMatch ? parseInt(timelineMatch[1]) : 0;
     if (totalMonths <= 2) return; // Nothing to wait for
 
-    // Count how many distinct months have steps
-    const monthsWithSteps = new Set(
-      steps.map(s => s.phase?.match(/Month\s*(\d+)/i)?.[1]).filter(Boolean)
-    );
-    if (monthsWithSteps.size >= totalMonths) return; // All months loaded
-
     let pollCount = 0;
     const maxPolls = 40; // 40 × 3s = 2 minutes max
 
-    const timer = setInterval(() => {
+    const timer = setInterval(async () => {
       pollCount++;
-      if (pollCount > maxPolls) {
-        clearInterval(timer);
-        return;
-      }
-      base44.entities.GoalStep.filter({ goal_id: id })
-        .then(stepsData => setSteps(stepsData.sort((a, b) => (a.order_index || 0) - (b.order_index || 0))))
-        .catch(() => {});
+      if (pollCount > maxPolls) { clearInterval(timer); return; }
+
+      const stepsData = await base44.entities.GoalStep.filter({ goal_id: id }).catch(() => null);
+      if (!stepsData) return;
+
+      const sortedData = stepsData.sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
+      setSteps(sortedData);
+
+      // Stop polling once all months have steps
+      const monthsWithSteps = new Set(
+        stepsData.map(s => s.phase?.match(/Month\s*(\d+)/i)?.[1]).filter(Boolean)
+      );
+      if (monthsWithSteps.size >= totalMonths) clearInterval(timer);
     }, 3000);
     return () => clearInterval(timer);
-  }, [loading, goal, steps, id]);
+  }, [loading, goal?.id, id]);
 
   const loadData = async () => {
    try {
