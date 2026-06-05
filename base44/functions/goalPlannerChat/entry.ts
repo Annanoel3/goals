@@ -48,18 +48,21 @@ Deno.serve(async (req) => {
       const planText = lastAssistantMessage?.content || conversationText;
 
       const extractionResponse = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
+        model: "gpt-4o",
         messages: [
           {
             role: "system",
-            content: `You convert an already-written goal plan (in markdown) into structured JSON. The plan is complete — do NOT add, remove, or change any content. Just reformat it. Return ONLY valid JSON, no markdown fences.
+            content: `You convert a goal plan (possibly incomplete markdown) into complete structured JSON. Even if the input markdown is incomplete or has placeholders, you MUST:
+1. Generate steps for ALL months in the timeline (infer from "12 months", "6 months", goal title context, etc.)
+2. If months 5+ are missing from the markdown, create them using the pattern from months 1-4.
+3. Do NOT skip or abbreviate any months. Return ONLY valid JSON, no markdown fences.
 
 Rules:
 - Each step = one week. phase = "Month X, Week Y". title = "Week N: [focus from plan]".
 - is_daily_habit: true for reading/fitness/language/music/meditation goals; false for milestone/project goals.
 - requires_daily_action: same logic as is_daily_habit.
 - notification_frequency: infer from goal type ("daily" for reading/fitness/language, "weekly" for career/finance/project).
-- month_titles: extract the descriptive title after each "Month N —" heading.
+- month_titles: extract the descriptive title after each "Month N —" heading. For missing months, infer logical progression.
 - notification_schedule: generate 2-3 simple check-in notifications for Week 1 only (dates starting from today ${today}).
 - due_dates: spread evenly from today ${today} across the full timeline.
 - weekdays_only: false unless goal is explicitly work/career focused.`
@@ -69,11 +72,22 @@ Rules:
             content: `Convert this plan to JSON:\n\n${planText}\n\nReturn this exact structure:\n{\n  "title": "...",\n  "description": "...",\n  "timeline": "X months",\n  "target_date": "YYYY-MM-DD",\n  "category": "learning|health|career|finance|relationships|personal|creative|other",\n  "plan_summary": "...",\n  "notification_frequency": "daily|weekly|weekdays|3x_per_week|2x_per_week",\n  "requires_daily_action": true|false,\n  "weekdays_only": false,\n  "habit_days_of_week": [],\n  "month_titles": { "1": "title", "2": "title" },\n  "notification_schedule": [{ "id": "week_1_begin", "type": "week_summary_begin", "phase": "Month 1, Week 1", "scheduled_date": "YYYY-MM-DD", "scheduled_time": "09:00", "teaser_text": "...", "full_message_text": "..." }],\n  "steps": [{ "title": "Week N: focus", "description": "...", "phase": "Month X, Week Y", "priority": "medium", "due_date": "YYYY-MM-DD", "order_index": 0, "step_resources": [], "success_criteria": [], "tips_and_guidance": "", "is_daily_habit": false }]\n}`
           }
         ],
-        max_tokens: 32000,
+        max_tokens: 48000,
         response_format: { type: "json_object" }
       });
 
-      const plan = JSON.parse(extractionResponse.choices[0].message.content);
+      const extractedText = extractionResponse.choices[0].message.content;
+      console.log(`[goalPlannerChat] extract_plan response length: ${extractedText.length} chars`);
+      
+      let plan;
+      try {
+        plan = JSON.parse(extractedText);
+        console.log(`[goalPlannerChat] extract_plan parsed successfully: ${plan.steps?.length || 0} steps`);
+      } catch (parseErr) {
+        console.error(`[goalPlannerChat] extract_plan JSON parse failed: ${parseErr.message}`);
+        console.error(`[goalPlannerChat] response preview: ${extractedText.substring(0, 500)}`);
+        throw new Error(`Failed to parse plan JSON: ${parseErr.message}`);
+      }
 
       plan.steps = (plan.steps || []).map(step => ({
         ...step,
