@@ -342,11 +342,13 @@ Deno.serve(async (req) => {
 
     if (dailyHabitSteps.length > 0 && planStartDate) {
       // Generate week 1 dates respecting include_weekend_reminders preference
-      const weekStartDate = planStartDate;
+      const todayStr = now.toISOString().split('T')[0];
+      // Start from tomorrow to avoid scheduling past times
+      const weekStartDate = planStartDate <= todayStr ? addDays(todayStr, 1) : planStartDate;
       const include_weekends = goal.include_weekend_reminders !== false;
       const daysToSchedule = [];
 
-      // Collect dates for the first week (7 days from planStartDate)
+      // Collect dates for the first week (7 days from weekStartDate)
       for (let i = 0; i < 7; i++) {
         const dateStr = addDays(weekStartDate, i);
         const dateObj = new Date(dateStr + 'T00:00:00Z');
