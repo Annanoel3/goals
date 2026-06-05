@@ -271,48 +271,17 @@ export default function Planner() {
         habit_days_of_week: plan.habit_days_of_week ?? []
       });
 
+      // Unlock "Go to Goal" immediately — all steps created in background
+      setPendingGoalId(goal.id);
+      setCanNavigateToGoal(true);
+
       if (plan.steps?.length > 0) {
-        // Split steps: first 2 months created NOW (user waits), rest in background
-        const getMonthNum = (s) => parseInt((s.phase || '').match(/Month\s*(\d+)/i)?.[1] || '0');
-        const month1Steps = plan.steps.filter(s => getMonthNum(s) === 1);
-        const month2Steps = plan.steps.filter(s => getMonthNum(s) === 2);
-        const remainingSteps = plan.steps.filter(s => getMonthNum(s) >= 3);
-
-        // If no month structure (short plan), just create all steps upfront
-        const hasMonthStructure = month1Steps.length > 0 || month2Steps.length > 0;
-        const upfrontSteps = hasMonthStructure ? [...month1Steps, ...month2Steps] : plan.steps;
-        const backgroundSteps = hasMonthStructure ? remainingSteps : [];
-
-        // Create Month 1 & 2 steps NOW — user waits for these (bulk for speed)
-        const upfrontPayload = upfrontSteps.map((step, idx) => ({
+        // Fire ALL steps in background — user doesn't wait for any of them
+        base44.functions.invoke('createRemainingGoalSteps', {
           goal_id: goal.id,
-          title: step.title,
-          description: step.description || "",
-          phase: step.phase || "",
-          priority: step.priority || "medium",
-          due_date: step.due_date || "",
-          order_index: step.order_index ?? idx,
-          status: "pending",
-          step_resources: step.step_resources || [],
-          success_criteria: step.success_criteria || [],
-          tips_and_guidance: step.tips_and_guidance || "",
-          is_daily_habit: step.is_daily_habit === true
-        }));
-        await base44.entities.GoalStep.bulkCreate(upfrontPayload);
-        const orderIdx = upfrontSteps.length;
-
-        // Unlock "Go to Goal" button — Month 1 & 2 are ready
-        setPendingGoalId(goal.id);
-        setCanNavigateToGoal(true);
-
-        // Create remaining months (3+) in background — user sees spinners in GoalDetail
-        if (backgroundSteps.length > 0) {
-          base44.functions.invoke('createRemainingGoalSteps', {
-            goal_id: goal.id,
-            steps: backgroundSteps,
-            start_order_index: orderIdx
-          }).catch(err => console.error('createRemainingGoalSteps failed:', err));
-        }
+          steps: plan.steps,
+          start_order_index: 0
+        }).catch(err => console.error('createRemainingGoalSteps failed:', err));
 
         base44.functions.invoke('scheduleGoalNotifications', { goal_id: goal.id, goal_data: goal, timezoneOffsetMinutes: -new Date().getTimezoneOffset() }).catch(err => console.error('scheduleGoalNotifications failed:', err));
       }
