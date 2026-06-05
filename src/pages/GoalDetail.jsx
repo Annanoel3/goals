@@ -104,7 +104,7 @@ export default function GoalDetail() {
 
   useEffect(() => { loadData(); }, [id]);
 
-  // Poll every 3s while background months are still being created (max 2 minutes)
+  // Poll every 2s while background months are still being created (max 5 minutes)
   useEffect(() => {
     if (loading || !goal) return;
     const timelineMatch = goal.timeline?.match(/(\d+)\s*month/i);
@@ -112,7 +112,7 @@ export default function GoalDetail() {
     if (totalMonths <= 2) return; // Nothing to wait for
 
     let pollCount = 0;
-    const maxPolls = 40; // 40 × 3s = 2 minutes max
+    const maxPolls = 150; // 150 × 2s = 5 minutes max (was 2min, increase for large plans)
 
     const timer = setInterval(async () => {
       pollCount++;
@@ -128,8 +128,11 @@ export default function GoalDetail() {
       const monthsWithSteps = new Set(
         stepsData.map(s => s.phase?.match(/Month\s*(\d+)/i)?.[1]).filter(Boolean)
       );
-      if (monthsWithSteps.size >= totalMonths) clearInterval(timer);
-    }, 3000);
+      if (monthsWithSteps.size >= totalMonths) {
+        console.log(`[GoalDetail] All ${totalMonths} months loaded. Stopping poll.`);
+        clearInterval(timer);
+      }
+    }, 2000);
     return () => clearInterval(timer);
   }, [loading, goal?.id, id]);
 
