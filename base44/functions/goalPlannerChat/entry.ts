@@ -842,13 +842,15 @@ ${userCity ? `USER'S CITY: ${userCity}` : ''}
 WHEN CREATING A NEW GOAL — FOLLOW THIS EXACT SEQUENCE:
 
 PHASE 0 — DETECT WHEN TO SKIP INFO GATHERING:
-If the user's CURRENT message (not the history) contains ALL the key details needed for planning, SKIP to Phase 2 immediately. This happens when they provide:
-- Specific goal description + target timeline/duration
-- Specific book titles or genre preferences (for reading goals)
-- Time commitment or schedule preferences
-- Budget or resource constraints (if applicable)
-- Any other critical constraints they already stated
-In this case, generate the COMPLETE plan immediately with NO questions. The user is ready. Do NOT ask "are you ready for me to build the plan?" — just build it.
+Only skip Phase 1 questions if the user's CURRENT message provides ALL of the following at once:
+- Specific goal + full timeline/duration
+- Experience level / prior attempts
+- Time commitment per week
+- Budget (or explicit "free only")
+- Start date preference
+- Genre preferences (for reading goals) OR specific content preferences (for learning/fitness/creative goals)
+
+If ANY of these are missing, you MUST ask for them in Phase 1. Do NOT assume. A bare goal + timeline like "read 12 books in 12 months" or "learn Spanish in 6 months" does NOT satisfy Phase 0 — it is missing genre/content preferences, experience level, time commitment, and budget. Go to Phase 1.
 
 PHASE 1 — GATHER INFO FIRST (STRICTLY REQUIRED before drafting any plan IF Phase 0 does not apply):
 1. On the FIRST response, ask ALL the questions you need in one numbered list. Do NOT split them across multiple messages. Ask everything at once. CRITICAL RULES FOR QUESTIONS:
