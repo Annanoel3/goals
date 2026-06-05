@@ -1,0 +1,66 @@
+{
+  "name": "MilestoneTask",
+  "type": "object",
+  "properties": {
+    "goal_id": {
+      "type": "string",
+      "description": "Parent MilestoneGoal ID"
+    },
+    "milestone_id": {
+      "type": "string",
+      "description": "Parent Milestone ID"
+    },
+    "parent_task_id": {
+      "type": "string",
+      "description": "Parent task ID if this is a subtask"
+    },
+    "title": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "order_index": {
+      "type": "number",
+      "default": 0
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "in_progress",
+        "completed",
+        "skipped"
+      ],
+      "default": "pending"
+    },
+    "notes": {
+      "type": "string",
+      "description": "User notes on this task \u2014 used by AI for weekly/monthly recaps"
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "pictures": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    }
+  },
+  "required": [
+    "goal_id",
+    "milestone_id",
+    "title"
+  ],
+  "rls": {
+    "read": {
+      "created_by": "{{user.email}}"
+    },
+    "write": {
+      "created_by": "{{user.email}}"
+    }
+  }
+}

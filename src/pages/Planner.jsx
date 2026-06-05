@@ -1163,24 +1163,24 @@ function MessageBubble({ msg, onExampleClick }) {
 
 function SavingProgressBar({ isEdit = false, done = false }) {
   const newGoalSteps = [
-    "Laying out the timeline…",
-    "Structuring your milestones…",
-    "Making sure the goal is achievable…",
-    "Adding resources and guidance…",
-    "Setting up success criteria…",
-    "Building your step-by-step plan…",
-    "Almost there…",
+    { label: "Classifying your goal…", target: 8 },
+    { label: "Structuring the timeline…", target: 18 },
+    { label: "Building monthly milestones…", target: 32 },
+    { label: "Adding resources and guidance…", target: 48 },
+    { label: "Setting up success criteria…", target: 62 },
+    { label: "Writing your step-by-step plan…", target: 76 },
+    { label: "Finalizing all phases…", target: 88 },
+    { label: "Almost done…", target: 94 },
   ];
   const editSteps = [
-    "Reading your requested changes…",
-    "Updating the milestones…",
-    "Making sure everything fits together…",
-    "Applying your edits…",
-    "Almost done…",
+    { label: "Reading your requested changes…", target: 15 },
+    { label: "Updating milestones…", target: 40 },
+    { label: "Applying your edits…", target: 70 },
+    { label: "Almost done…", target: 90 },
   ];
   const steps = isEdit ? editSteps : newGoalSteps;
   const [stepIndex, setStepIndex] = React.useState(0);
-  const [progress, setProgress] = React.useState(5);
+  const [progress, setProgress] = React.useState(2);
 
   React.useEffect(() => {
     if (done) {
@@ -1188,15 +1188,27 @@ function SavingProgressBar({ isEdit = false, done = false }) {
       setStepIndex(steps.length - 1);
       return;
     }
-    // Crawl to max 90% while still saving — never reaches 100 until done
-    const totalDuration = isEdit ? 8000 : 50000;
-    const interval = totalDuration / steps.length;
+    // Each step advances to its target over its allotted time slice
+    const totalDuration = isEdit ? 10000 : 38000; // 38s for new goal (realistic AI time)
+    const sliceDuration = totalDuration / steps.length;
+    
+    let currentStep = 0;
     const stepTimer = setInterval(() => {
-      setStepIndex(i => Math.min(i + 1, steps.length - 1));
-    }, interval);
+      currentStep = Math.min(currentStep + 1, steps.length - 1);
+      setStepIndex(currentStep);
+    }, sliceDuration);
+
+    // Smooth progress that tracks toward each step's target
     const progressTimer = setInterval(() => {
-      setProgress(p => Math.min(p + 1, 90));
-    }, totalDuration / 90);
+      setProgress(p => {
+        const targetP = steps[Math.min(currentStep, steps.length - 1)].target;
+        if (p >= targetP) return p;
+        // Move ~2% per tick, slowing near target
+        const gap = targetP - p;
+        return Math.min(p + Math.max(0.5, gap * 0.08), targetP);
+      });
+    }, 300);
+
     return () => { clearInterval(stepTimer); clearInterval(progressTimer); };
   }, [done]);
 
@@ -1205,7 +1217,7 @@ function SavingProgressBar({ isEdit = false, done = false }) {
     <div className={`w-full max-w-sm border rounded-2xl px-5 py-4 shadow-md ${isDark ? 'bg-gray-800 border-gray-700 shadow-gray-900/30' : 'bg-white border-violet-100 shadow-violet-50'}`}>
       <div className="flex items-center gap-2 mb-3">
         <Loader2 className={`w-4 h-4 animate-spin flex-shrink-0 ${isDark ? 'text-violet-500' : 'text-violet-500'}`} />
-        <p className={`text-sm font-medium transition-all duration-500 ${isDark ? 'text-violet-400' : 'text-violet-800'}`}>{steps[stepIndex]}</p>
+        <p className={`text-sm font-medium transition-all duration-500 ${isDark ? 'text-violet-400' : 'text-violet-800'}`}>{steps[stepIndex].label}</p>
       </div>
       <div className={`h-2 rounded-full overflow-hidden ${isDark ? 'bg-gray-700' : 'bg-violet-100'}`}>
         <div

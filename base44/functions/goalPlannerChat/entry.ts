@@ -42,13 +42,29 @@ Deno.serve(async (req) => {
   : `- Identify the exact duration from the conversation (a deadline, date, or duration phrase). Use that many months — do NOT shorten it.`;
 
     if (mode === 'extract_plan') {
-      // First: classify the goal type to drive downstream extraction rules
-      const classifyRes = await base44.asServiceRole.functions.invoke('classifyGoalType', {
-        conversation_text: conversationText,
-        title: '',
-        description: ''
-      });
-      const goalClassification = classifyRes?.data || classifyRes || {};
+      // Inline fast classification — no extra API round-trip
+      const inlineClassify = (text) => {
+        const t = text.toLowerCase();
+        if (/\bread\b|\breading\b|book|novel|fiction|chapter|author|genre|story|stories|nonfiction/i.test(t))
+          return { goal_type: 'reading', is_daily_habit: true, notification_frequency: 'daily' };
+        if (/workout|exercise|gym|fitness|run(?:ning)?|training|cardio|strength|weight.?lift|squat|deadlift|bench press|marathon|5k|10k|push.?up|pull.?up/i.test(t))
+          return { goal_type: 'fitness', is_daily_habit: true, notification_frequency: 'daily' };
+        if (/\bspanish\b|\bfrench\b|\bgerman\b|\bchinese\b|\bjapanese\b|\bkorean\b|\barabic\b|\bitalian\b|\bportugese\b|language|fluent|speak|duolingo|vocabulary|grammar practice/i.test(t))
+          return { goal_type: 'language', is_daily_habit: true, notification_frequency: 'daily' };
+        if (/guitar|piano|violin|drums|singing|voice lesson|instrument|music theory|chord|scale|melody/i.test(t))
+          return { goal_type: 'creative', is_daily_habit: true, notification_frequency: 'daily' };
+        if (/meditat|journal|mindful|anxiety|stress|mental health|sleep|nutrition|diet|habit|wellness|gratitude/i.test(t))
+          return { goal_type: 'health', is_daily_habit: true, notification_frequency: 'daily' };
+        if (/coding|programming|software|developer|learn.*code|javascript|python|react|design|ux|ui|course/i.test(t))
+          return { goal_type: 'learning', is_daily_habit: false, notification_frequency: 'weekly' };
+        if (/job|career|resume|interview|promotion|salary|professional|certification|linkedin/i.test(t))
+          return { goal_type: 'career', is_daily_habit: false, notification_frequency: 'weekly' };
+        if (/save|saving|invest|budget|debt|mortgage|financial|money|income|fund/i.test(t))
+          return { goal_type: 'finance', is_daily_habit: false, notification_frequency: 'weekly' };
+        return { goal_type: 'other', is_daily_habit: false, notification_frequency: 'weekly' };
+      };
+      const goalClassification = inlineClassify(conversationText);
+      console.log(`[goalPlannerChat] Inline classified as: ${goalClassification.goal_type}, is_daily_habit=${goalClassification.is_daily_habit}`);
       
       const classificationRules = {
         reading: { is_daily_habit: true, notification_frequency: 'daily', requires_daily_breakdown: false },

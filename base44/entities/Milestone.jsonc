@@ -1,0 +1,50 @@
+{
+  "name": "Milestone",
+  "type": "object",
+  "properties": {
+    "goal_id": {
+      "type": "string",
+      "description": "Parent MilestoneGoal ID"
+    },
+    "title": {
+      "type": "string",
+      "description": "Milestone title (e.g. 'Ship MVP', 'Get First Client')"
+    },
+    "description": {
+      "type": "string",
+      "description": "What achieving this milestone means"
+    },
+    "order_index": {
+      "type": "number",
+      "default": 0
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "in_progress",
+        "completed"
+      ],
+      "default": "pending"
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "goal_id",
+    "title"
+  ],
+  "rls": {
+    "read": {
+      "created_by": "{{user.email}}"
+    },
+    "write": {
+      "created_by": "{{user.email}}"
+    }
+  }
+}

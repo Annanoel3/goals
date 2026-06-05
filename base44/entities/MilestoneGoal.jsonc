@@ -1,0 +1,67 @@
+{
+  "name": "MilestoneGoal",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Goal title"
+    },
+    "description": {
+      "type": "string",
+      "description": "What the user wants to achieve"
+    },
+    "plan_summary": {
+      "type": "string",
+      "description": "AI-generated summary of the plan"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "learning",
+        "health",
+        "career",
+        "finance",
+        "relationships",
+        "personal",
+        "creative",
+        "other"
+      ],
+      "default": "personal"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "completed",
+        "paused"
+      ],
+      "default": "active"
+    },
+    "conversation_history": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "default": []
+    },
+    "notes": {
+      "type": "string",
+      "description": "Personal notes about this goal"
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "title"
+  ],
+  "rls": {
+    "read": {
+      "created_by": "{{user.email}}"
+    },
+    "write": {
+      "created_by": "{{user.email}}"
+    }
+  }
+}
