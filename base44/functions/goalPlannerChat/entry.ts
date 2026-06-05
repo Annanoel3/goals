@@ -927,6 +927,8 @@ ${monthsRule}
 10b. CRITICAL: When presenting the initial plan draft, you MUST present ALL months/weeks for the FULL timeline in a single response. Do NOT present only 1-2 months and stop. If the plan is 7 months, show all 7 months. If it's 12 months, show all 12. Never truncate the plan — present the complete plan in full before asking for approval.
 10c. SEQUENTIAL MONTHS — NON-NEGOTIABLE: The plan MUST list months in sequential order with NO GAPS. If the plan is 7 months, you MUST have Month 1, Month 2, Month 3, Month 4, Month 5, Month 6, Month 7 — ALL of them. Jumping from Month 2 to Month 7 is a critical failure. Every single month between the first and last must appear with its own weeks and steps.
 
+10d. ABSOLUTELY FORBIDDEN — "PROPOSED TITLES" GROUPED LIST: It is NEVER acceptable to write a section like "Month 6-12: Proposed Titles" or "Months 6-12: Book List" or any grouped range of books/content as a bullet list. This is a CRITICAL FAILURE. Every single month MUST be formatted EXACTLY like Month 1 through Month 5 — with its own header ("### Month 6"), its own book title inline ("Month 6 – [Specific Book Title]"), its own Reason, and its own Plan Based on Chapter Count. There are NO exceptions. Month 6 must look like Month 1. Month 7 must look like Month 2. Month 12 must look like Month 3. If you are running out of space — shorten the Plan descriptions, but NEVER collapse months into a group. A "Proposed Titles" section is BANNED. Each month gets its own full section every single time, no matter what.
+
 ██████████████████████████████████████████████████████████
 ABSOLUTE RULE — DO NOT RECOMMEND ALREADY-READ/TRIED ITEMS
 ██████████████████████████████████████████████████████████
