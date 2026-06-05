@@ -104,7 +104,7 @@ export default function GoalDetail() {
 
   useEffect(() => { loadData(); }, [id]);
 
-  // Poll every 3s while background months are still being created
+  // Poll every 3s while background months are still being created (max 2 minutes)
   useEffect(() => {
     if (loading || !goal) return;
     const timelineMatch = goal.timeline?.match(/(\d+)\s*month/i);
@@ -117,7 +117,15 @@ export default function GoalDetail() {
     );
     if (monthsWithSteps.size >= totalMonths) return; // All months loaded
 
+    let pollCount = 0;
+    const maxPolls = 40; // 40 × 3s = 2 minutes max
+
     const timer = setInterval(() => {
+      pollCount++;
+      if (pollCount > maxPolls) {
+        clearInterval(timer);
+        return;
+      }
       base44.entities.GoalStep.filter({ goal_id: id })
         .then(stepsData => setSteps(stepsData.sort((a, b) => (a.order_index || 0) - (b.order_index || 0))))
         .catch(() => {});

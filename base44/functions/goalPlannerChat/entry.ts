@@ -467,22 +467,32 @@ CRITICAL:
       }
 
       // ASSIGN DUE DATES TO ALL STEPS based on timeline
+      // Determine plan start date: use AI-assigned due_date on first step if it's in the future,
+      // otherwise use the first day of next month if any step has a future-looking date, else today.
       const targetDate = plan.target_date ? new Date(plan.target_date) : null;
+
+      // Find the plan's intended start date by scanning for the earliest AI-assigned due_date
+      // If AI already assigned sensible due_dates (in the future), respect them and skip recalculation
+      const aiDueDates = plan.steps.filter(s => s.due_date).map(s => s.due_date).sort();
+      const earliestAiDate = aiDueDates[0];
       const todayDate = new Date(today);
 
-      if (targetDate && plan.steps && plan.steps.length > 0) {
-       // Calculate days per step
-       const daysAvailable = (targetDate - todayDate) / (1000 * 60 * 60 * 24);
-       const daysPerStep = daysAvailable / plan.steps.length;
+      // Only recalculate if AI didn't assign any due_dates or they're all in the past
+      const aiDatesAreValid = earliestAiDate && new Date(earliestAiDate) > todayDate;
 
-       // Assign due dates
-       plan.steps.forEach((step, idx) => {
-         const daysOffset = Math.round((idx + 1) * daysPerStep);
-         const stepDate = new Date(todayDate);
-         stepDate.setDate(stepDate.getDate() + daysOffset);
-         step.due_date = stepDate.toISOString().split('T')[0];
-       });
+      if (!aiDatesAreValid && targetDate && plan.steps && plan.steps.length > 0) {
+        // Fallback: spread evenly from today to target_date
+        const daysAvailable = (targetDate - todayDate) / (1000 * 60 * 60 * 24);
+        const daysPerStep = daysAvailable / plan.steps.length;
+
+        plan.steps.forEach((step, idx) => {
+          const daysOffset = Math.round((idx + 1) * daysPerStep);
+          const stepDate = new Date(todayDate);
+          stepDate.setDate(stepDate.getDate() + daysOffset);
+          step.due_date = stepDate.toISOString().split('T')[0];
+        });
       }
+      // If aiDatesAreValid, keep the AI's dates as-is — they already reflect the user's start date
 
       console.log(`[goalPlannerChat] Returning plan with: requires_daily_action=${plan.requires_daily_action}, weekdays_only=${plan.weekdays_only}`);
       return Response.json({ plan, month_titles: plan.month_titles || {}, notification_schedule: plan.notification_schedule || [], requires_daily_action: plan.requires_daily_action, weekdays_only: plan.weekdays_only, habit_days_of_week: plan.habit_days_of_week });
