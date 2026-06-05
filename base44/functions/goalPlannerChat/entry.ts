@@ -520,12 +520,12 @@ It is COMPLETELY UNACCEPTABLE to write:
 - "(Months 5-12 summary)" or any placeholder
 - Any promise to generate content later
 
-You MUST generate the COMPLETE markdown with EVERY SINGLE MONTH (${detectedMonths ? detectedMonths : '?'}) in this single response. All months, all weeks, all steps. UPFRONT. NO EXCEPTIONS.
+You MUST generate the COMPLETE markdown with EVERY SINGLE MONTH in this single response. All months, all weeks, all steps. UPFRONT. NO EXCEPTIONS.
 
 If you are low on space/tokens: shorten descriptions, but NEVER collapse months or promise to "continue later". Every month gets full detail or gets cut, but never hidden behind a promise.
 ██████████████████████████████████████████████████████████
 
-MANDATORY MARKDOWN FORMAT — use this exact structure for however many months the user's timeline requires (${detectedMonths ? `${detectedMonths} months` : 'inferred from timeline'} — NEVER add or remove months, NEVER use placeholders):
+MANDATORY MARKDOWN FORMAT — use this exact structure for however many months the user's timeline requires (infer from their stated duration like "12 months", "6 months", or a target date — NEVER add or remove months, NEVER use placeholders):
 
 **Month 1 — [Descriptive Title]**
 **Week 1**
