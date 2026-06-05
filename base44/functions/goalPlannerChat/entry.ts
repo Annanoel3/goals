@@ -42,248 +42,31 @@ Deno.serve(async (req) => {
   : `- Identify the exact duration from the conversation (a deadline, date, or duration phrase). Use that many months — do NOT shorten it.`;
 
     if (mode === 'extract_plan') {
-      // Inline fast classification — no extra API round-trip
-      const inlineClassify = (text) => {
-        const t = text.toLowerCase();
-        if (/\bread\b|\breading\b|book|novel|fiction|chapter|author|genre|story|stories|nonfiction/i.test(t))
-          return { goal_type: 'reading', is_daily_habit: true, notification_frequency: 'daily' };
-        if (/workout|exercise|gym|fitness|run(?:ning)?|training|cardio|strength|weight.?lift|squat|deadlift|bench press|marathon|5k|10k|push.?up|pull.?up/i.test(t))
-          return { goal_type: 'fitness', is_daily_habit: true, notification_frequency: 'daily' };
-        if (/\bspanish\b|\bfrench\b|\bgerman\b|\bchinese\b|\bjapanese\b|\bkorean\b|\barabic\b|\bitalian\b|\bportugese\b|language|fluent|speak|duolingo|vocabulary|grammar practice/i.test(t))
-          return { goal_type: 'language', is_daily_habit: true, notification_frequency: 'daily' };
-        if (/guitar|piano|violin|drums|singing|voice lesson|instrument|music theory|chord|scale|melody/i.test(t))
-          return { goal_type: 'creative', is_daily_habit: true, notification_frequency: 'daily' };
-        if (/meditat|journal|mindful|anxiety|stress|mental health|sleep|nutrition|diet|habit|wellness|gratitude/i.test(t))
-          return { goal_type: 'health', is_daily_habit: true, notification_frequency: 'daily' };
-        if (/coding|programming|software|developer|learn.*code|javascript|python|react|design|ux|ui|course/i.test(t))
-          return { goal_type: 'learning', is_daily_habit: false, notification_frequency: 'weekly' };
-        if (/job|career|resume|interview|promotion|salary|professional|certification|linkedin/i.test(t))
-          return { goal_type: 'career', is_daily_habit: false, notification_frequency: 'weekly' };
-        if (/save|saving|invest|budget|debt|mortgage|financial|money|income|fund/i.test(t))
-          return { goal_type: 'finance', is_daily_habit: false, notification_frequency: 'weekly' };
-        return { goal_type: 'other', is_daily_habit: false, notification_frequency: 'weekly' };
-      };
-      const goalClassification = inlineClassify(conversationText);
-      console.log(`[goalPlannerChat] Inline classified as: ${goalClassification.goal_type}, is_daily_habit=${goalClassification.is_daily_habit}`);
-      
-      const classificationRules = {
-        reading: { is_daily_habit: true, notification_frequency: 'daily', requires_daily_breakdown: false },
-        fitness: { is_daily_habit: true, notification_frequency: 'daily', requires_daily_breakdown: true },
-        language: { is_daily_habit: true, notification_frequency: 'daily', requires_daily_breakdown: true },
-        creative: { is_daily_habit: true, notification_frequency: 'daily', requires_daily_breakdown: true },
-        learning: { is_daily_habit: false, notification_frequency: 'weekly', requires_daily_breakdown: false },
-        health: { is_daily_habit: true, notification_frequency: 'daily', requires_daily_breakdown: false },
-        career: { is_daily_habit: false, notification_frequency: 'weekly', requires_daily_breakdown: false },
-        finance: { is_daily_habit: false, notification_frequency: 'weekly', requires_daily_breakdown: false },
-        personal: { is_daily_habit: false, notification_frequency: 'weekly', requires_daily_breakdown: false },
-        project: { is_daily_habit: false, notification_frequency: 'weekly', requires_daily_breakdown: false },
-        other: { is_daily_habit: false, notification_frequency: 'weekly', requires_daily_breakdown: false }
-      };
-      
-      const rules = classificationRules[goalClassification.goal_type] || classificationRules.other;
-      
-      const granularityInstructions = rules.requires_daily_breakdown 
-        ? `TYPE A — DAILY PRACTICE: Break each week into daily tasks (Monday–Sunday). Mark as is_daily_habit: true.`
-        : `TYPE B — MILESTONE GOALS: Use 2-4 specific actions per week. Mark is_daily_habit: false UNLESS this is a ${goalClassification.goal_type} goal that naturally requires daily engagement (in which case, the classification already set it to true).`;
-      
+      // The plan text already exists in the conversation — just reformat it into JSON.
+      // Use gpt-4o-mini (fast) since we're only restructuring already-written content.
+      const lastAssistantMessage = [...messages].reverse().find(m => m.role === 'assistant');
+      const planText = lastAssistantMessage?.content || conversationText;
+
       const extractionResponse = await openai.chat.completions.create({
-        model: "gpt-4o",
+        model: "gpt-4o-mini",
         messages: [
           {
             role: "system",
-            content: `You are extracting a structured goal plan from a planning conversation. This is a ${goalClassification.goal_type} goal. Return ONLY valid JSON, no markdown fences. ${monthsHint} CRITICAL: Even if the conversation only briefly mentions later months without weekly detail, you MUST still generate EXACTLY 4 weeks for EVERY month. Generate EXACTLY 4 steps per month. Each step IS one week. phase must be 'Month X, Week Y' (e.g. 'Month 1, Week 1', 'Month 2, Week 3'). title starts with 'Week 1:', 'Week 2:', 'Week 3:', or 'Week 4:' followed by a brief focus. description = 2-4 sentences. tips_and_guidance = 3-5 activities as a newline-separated list; if daily practice ALWAYS include 'Do [specific action] every day'. step_resources = [{title, specific_details}] main book/resource. ${granularityInstructions} CRITICAL: Set is_daily_habit=${rules.is_daily_habit} for ALL steps in this ${goalClassification.goal_type} goal.`
+            content: `You convert an already-written goal plan (in markdown) into structured JSON. The plan is complete — do NOT add, remove, or change any content. Just reformat it. Return ONLY valid JSON, no markdown fences.
+
+Rules:
+- Each step = one week. phase = "Month X, Week Y". title = "Week N: [focus from plan]".
+- is_daily_habit: true for reading/fitness/language/music/meditation goals; false for milestone/project goals.
+- requires_daily_action: same logic as is_daily_habit.
+- notification_frequency: infer from goal type ("daily" for reading/fitness/language, "weekly" for career/finance/project).
+- month_titles: extract the descriptive title after each "Month N —" heading.
+- notification_schedule: generate 2-3 simple check-in notifications for Week 1 only (dates starting from today ${today}).
+- due_dates: spread evenly from today ${today} across the full timeline.
+- weekdays_only: false unless goal is explicitly work/career focused.`
           },
           {
             role: "user",
-            content: `Extract the FINAL agreed plan from this conversation:
-
-${conversationText}
-
-${monthsHint}
-
-Return JSON (no markdown) in EXACTLY this structure. CRITICAL STRUCTURAL RULE FOR ALL GOALS 1+ MONTHS:
-        ${monthsRule}
-- EVERY SINGLE MONTH must have EXACTLY 4 steps (Week 1, Week 2, Week 3, Week 4). phase='Month X'. title='Week N: focus'. 4 steps × 12 months = 48 total steps.
-- REQUIRED: phase must be 'Month X, Week Y' (e.g. 'Month 1, Week 1', 'Month 2, Week 3'). ALWAYS include both month AND week number in phase.
-- NEVER combine weeks or months: "Week 1-2", "Weeks 3-4", "Months 4-6" are STRICTLY FORBIDDEN. Each STEP = exactly ONE week. phase='Month X' (month only). title='Week N: brief focus'. Exactly 4 steps per month.
-
-MONTH TITLES (CRITICAL FOR ALL GOALS):
-EVERY month MUST have a descriptive title that reflects its milestones or theme. For a reading goal: a REAL, SPECIFIC book title (e.g. 'Atomic Habits', 'The Power of Now') — NEVER a placeholder like 'Book Title', 'TBD', or 'Month X Book'. For fitness: training phase. For learning: skill phase. For business: growth stage.
-Format in output: "Month 1 – Book Title" or "Month 1 – Introduction Phase" (with em dash or hyphen).
-This applies to ALL goal types. Users should see meaningful milestone titles, not just "Month 1".
-- For goals under 1 month, just use "Week 1", "Week 2" phases directly.
-READING GOALS — CRITICAL: You MUST select a specific, real book title for EVERY single month in month_titles (months 1 through ${detectedMonths}), based on the user's stated genre and preferences. Draw on your knowledge of books in that genre. Placeholder titles (e.g. "Book Title", "Month 2 Book", "TBD") are a CRITICAL FAILURE — never output them. EVERY MONTH MUST HAVE A REAL BOOK TITLE. If ${detectedMonths} months have been specified, month_titles must contain entries for ALL ${detectedMonths} months. There are NO summary placeholders like "Month 7-12: I will continue..." or "Month 9-12: Other Selections" — those are CRITICAL FAILURES. Instead, you MUST generate a specific real book title for EACH month individually (Month 7, Month 8, Month 9, Month 10, Month 11, Month 12 — each as their own separate entry). NEVER group multiple months together under a single heading or range.
-
-NOTIFICATION FREQUENCY DETECTION:
-Analyze the conversation for clues about how often the user wants to be reminded — this varies PER GOAL:
-- Daily tasks / morning routine / meditation / exercise / practice / reading → "daily" (7 notifications Week 1)
-- Weekday focus only (Mon-Fri) / work-related goals → "weekdays" (5 notifications Week 1: Mon-Fri)
-- Once per week check-in / milestone goals → "weekly" (1 notification Week 1)
-- Multiple times per week → "3x_per_week" (3 notifications), "2x_per_week" (2 notifications)
-- Recurring social/work activities (weekly lunch, monthly outing) → determine the exact cadence from conversation, e.g. "weekly" for weekly lunch, "monthly" for monthly outing
-- If unclear or they're doing daily actions → default to "daily"
-Set "notification_frequency" in the returned JSON to one of: "daily", "weekdays", "weekly", "3x_per_week", "2x_per_week", "once_per_week"
-
-GENERATE NOTIFICATION SCHEDULE:
-After extracting the plan, generate a "notification_schedule" array with AI-determined notifications for Week 1 ONLY (subsequent weeks handled by automation).
-The AI MUST determine:
-1. How many check-in notifications for Week 1 based on notification_frequency and goal type (e.g., 7 for daily reading, 3 for fitness 3x/week, 1 for weekly check-in)
-2. Dates for each notification spread across Week 1
-3. Teaser text (short push notification)
-4. Full message text (what appears in-app when tapped or displayed same-day)
-5. Type: "check_in" for regular notifications, "week_summary_begin" for Week 1 start, "week_summary_end" for Week 1 end
-6. Week/month summaries ALWAYS included (beginning and end of Week 1)
-
-GRANULARITY RULES — choose the right level of detail per goal type:
-
-MULTI-MONTH GOALS (2+ months): ALWAYS use week-steps with rich descriptions. No daily breakdowns. 4 steps per month, each with 2-4 sentences in description. TYPE A and TYPE B granularity only applies to single-month goals.
-
-TYPE A — DAILY PRACTICE GOALS (single-month goals only) (instruments, language learning, fitness/exercise, meditation, journaling, coding practice, drawing, singing, martial arts, sport drills):
-   - Each week must include a DAILY breakdown: Monday through Sunday (or Day 1–7), each with a specific task.
-   - Example for "Learn Guitar, Month 1 Week 1":
-       Monday: Practice open chords G, C, D for 20 min
-       Tuesday: Repeat Monday's chords + practice transitions
-       Wednesday: Learn Em and Am chords
-       ...and so on through Sunday.
-   - Mark these steps as is_daily_habit: true.
-   - The step title should be the day (e.g. "Monday – Chord Practice") and description contains what to do.
-
-TYPE B — MILESTONE/PROJECT GOALS (save money, find a job, start a business, write a book, improve relationships, mental health, happiness, productivity, home projects):
-   - For LONG PLANS (4+ months): Each week needs 2-4 key actionable tasks — NOT a daily breakdown. Steps should be concrete milestones or actions.
-   - For SHORT PLANS (3 months or fewer): Each week needs 5-7 detailed actionable tasks with checkboxes/granularity. Go deeper on each week since there are fewer of them. Example for "Be Happier, Month 1 Week 1" (short plan):
-       ✓ Schedule one social activity this week
-       ✓ Journal about 3 things you're grateful for (3x this week)
-       ✓ Read Chapter 1-2 of The Happiness Advantage
-       ✓ Identify one personal boundary to set
-       ✓ Practice 1 positive affirmation daily
-   - Example for "Be Happier, Month 2 Week 1" (long plan):
-       Step: "Schedule one social activity this week"
-       Step: "Journal about 3 things you're grateful for (3x this week)"
-       Step: "Read Chapter 4 of The Happiness Advantage"
-
-DECISION RULE: Look at the goal's category and description. If it involves a SKILL that requires daily repetition to build muscle memory or habit → TYPE A. If it's about achieving outcomes through periodic actions and milestones → TYPE B. When in doubt, lean TYPE B (fewer, clearer steps per week). FOR SHORT PLANS (3 months or fewer): significantly increase the granularity/number of steps per week (5-7 per week minimum) to add useful detail and structure to the shorter timeline.
-
-GOAL-TYPE-SPECIFIC ENRICHMENT — EVERY goal needs depth tailored to its category:
-
-READING GOALS: Each month = 1 book split into 4 week-phases. NEVER guess chapter counts—use web_search first. Divide chapters evenly: chapters ÷ 4 = per week. ALWAYS include chapter/page ranges in titles (e.g., "Read Ch 1-6"). Week 1: Reading + curiosity prompt. Week 2: Reading + research (author background, historical context). Week 3: Reading + analysis ("What's the turning point?"). Week 4: Finish + reflection/discussion activity. Include in tips_and_guidance.
-
-FITNESS GOALS: Each week: specific exercises + form/technique tips + progression strategy + recovery guidelines. Week 1-2: Foundation (proper form, warm-ups, baseline assessment). Week 3-4: Progressive increase (reps, weight, duration). Include: metrics to track, injury prevention, rest days.
-
-LANGUAGE LEARNING: Each week: vocabulary target + real-world scenarios + cultural context. Week 1-2: Survival phrases, grammar fundamentals. Week 3-4: Practical usage (ordering food, asking directions, conversation). Include: podcasts, shows, news in target language + speaking practice suggestions.
-
-CREATIVE GOALS (art, music, writing, dance): Each week: specific technique/skill + creative challenge + feedback/showcase. Week 1-2: Fundamentals (tools, techniques, practice pieces). Week 3-4: Style exploration (experiment, get feedback, build portfolio). Include: critique opportunities, peer feedback, portfolio activities.
-
-CAREER & PROFESSIONAL: Each week: specific skill target + real-world application + networking. Week 1-2: Foundational knowledge (certifications, concepts, industry research). Week 3-4: Practical application (projects, case studies, portfolio, job prep). Include: industry trends, people to network with, certifications.
-
-FINANCE GOALS (saving, investing, budgeting): Each week: specific action + education + tracking. Week 1-2: Knowledge (research products, fees, strategies). Week 3-4: Action (open accounts, set transfers, review progress). Include: budget breakdowns, investment research, comparisons.
-
-HEALTH & WELLNESS: Each week: specific habit target + educational context + measurement. Week 1-2: Baseline & education (track current state, learn why, research best practices). Week 3-4: Implementation & adjustment (gradual changes, measure, refine). Include: why it matters, obstacles/solutions, metrics.
-
-LEARNING/SKILL GOALS (coding, design, public speaking): Each week: specific concept/skill + hands-on project + real-world application. Week 1-2: Core concepts (tutorials, theory, foundational projects). Week 3-4: Application (build real thing, solve problems, portfolio piece). Include: example projects, debugging tips, resources.
-
-READING GOALS ARE ALWAYS DAILY HABIT GOALS: If the goal title or description contains "read", "book", "novel", "story", or any reference to reading content — EVERY reading step (including all weekly phases) MUST have is_daily_habit: true, REGARDLESS of other factors. Reading goals require consistent daily engagement to hit the target, so each week's reading activities are daily habits.
-
-For other daily practice goals (instruments, languages, fitness, coding, art, meditation, exercise routines): set is_daily_habit: true.
-For milestone-based goals (save money, find job, start business, complete project): set is_daily_habit: false UNLESS daily action is required.
-
-NEVER GROUP MONTHS — ABSOLUTE ZERO TOLERANCE: It is NEVER acceptable to write "Month 9-12", "Months 3-6", or any grouped range. If you are running low on tokens, shorten step descriptions — NEVER collapse months together. Each of the ${detectedMonths} months MUST appear individually as "Month 1", "Month 2", ... "Month ${detectedMonths}". Writing "Month 9-12: I'll select books" is a critical failure. Write "Month 9: [Book]", "Month 10: [Book]", "Month 11: [Book]", "Month 12: [Book]" separately.
-
-TOKEN PRIORITY RULE: Completing ALL ${detectedMonths} months x 4 weeks = ${detectedMonths * 4} total week-phases is the HIGHEST priority. Trade depth for coverage always. CRITICAL: EVERY month (Month 1 through Month ${detectedMonths}) MUST have FULL step detail and granularity. Do NOT create a summary for later months like "Months 7-12: I will continue...". Each month must have 4 weeks with concrete steps. For short plans (3 months or fewer), use 5-7 steps per week. For longer plans, use 2-4 steps per week. Never sacrifice later months just to add detail to earlier ones. EVERY MONTH gets the same treatment.
-
-IMPORTANT: Generate 2-4 specific, actionable tasks per week-phase. Keep descriptions to 1 sentence each. CRITICAL: If the user said "by end of year" or "by [month]", calculate the EXACT number of months from today (${today}) to that date and use that as the timeline. Do NOT use a generic number.
-{
-  "title": "concise goal title",
-  "description": "what the user wants to achieve",
-  "timeline": "e.g. 5 months",
-  "target_date": "YYYY-MM-DD calculated from today ${today}",
-  "category": "one of: learning, health, career, finance, relationships, personal, creative, other",
-  "notification_frequency": "daily|weekdays|weekly|3x_per_week|2x_per_week|once_per_week — inferred from conversation",
-  "plan_summary": "2-3 sentence summary of the overall plan",
-  "month_titles": {
-    "1": "Descriptive title for Month 1 (e.g. book title, phase name, milestone name)",
-    "2": "Descriptive title for Month 2",
-    "N": "Continue for every month in the plan"
-  },
-  "notification_schedule": [
-    {
-      "id": "week_1_begin",
-      "type": "week_summary_begin",
-      "phase": "Month 1, Week 1",
-      "scheduled_date": "YYYY-MM-DD (first day of Week 1)",
-      "scheduled_time": "09:00",
-      "teaser_text": "Short push notification text",
-      "full_message_text": "Full message shown when user taps or opens app on the same day"
-    },
-    {
-      "id": "week_1_checkin_1",
-      "type": "check_in",
-      "phase": "Month 1, Week 1",
-      "scheduled_date": "YYYY-MM-DD",
-      "scheduled_time": "HH:MM",
-      "teaser_text": "Daily/recurring check-in teaser",
-      "full_message_text": "Full check-in message"
-    }
-  ],
-  "steps": [
-    {
-      "title": "specific, granular subtask (e.g., 'Complete Lesson 2: Present Tense Conjugation')",
-      "description": "detailed explanation of what to do and why",
-      "phase": "REQUIRED format: 'Month X, Week Y' — e.g. 'Month 1, Week 1', 'Month 1, Week 2', 'Month 3, Week 4'. Always include both month AND week.",
-      "priority": "low|medium|high|critical",
-      "due_date": "YYYY-MM-DD (spread across the timeline, realistic pacing)",
-      "order_index": 0,
-      "step_resources": [
-        {
-          "type": "video|book|article|tool|course|website|other",
-          "title": "exact name of resource",
-          "url": "direct link if available",
-          "description": "how to use this resource for this step",
-          "specific_details": "specific sections/times/pages/instructions (e.g., 'watch 2:30-5:45', 'read pages 45-52', 'use filter XYZ')"
-        }
-      ],
-      "success_criteria": [
-        "measurable indicator (e.g., 'Can play scales at 60 bpm with correct form')",
-        "another criterion"
-      ],
-      "tips_and_guidance": "specific advice, common pitfalls, best practices for this step",
-      "is_daily_habit": false,
-      "sub_steps": [
-        {
-          "title": "granular sub-step (optional — use if step needs 2-3 detailed actions)",
-          "description": "what specifically to do",
-          "priority": "low|medium|high",
-          "due_date": "YYYY-MM-DD"
-        }
-      ]
-    }
-  ]
-}
-
-CRITICAL:
-0b. CRITICAL — For each step, set "is_daily_habit": true if the step is something the user must DO EVERY DAY (e.g. morning affirmations, daily meditation, daily journaling, daily gratitude, daily exercise, daily reading, morning routine, nightly review, practice, rehearsal). The words "daily", "every day", "each morning", "each night", "routine", "practice", "affirmation", "habit" are strong signals. ALSO: if the goal is something like "read 12 books in 12 months", "read X books this year", or any goal requiring consistent daily reading to hit the target — each weekly reading step MUST be is_daily_habit: true. Set it false only for one-time tasks or milestones.
-0. NEVER skip weeks or phases. If you have Month 1 Week 1, Month 1 Week 2, Month 1 Week 3 — ALL must appear. No gaps. If a month has 4 weeks, all 4 weeks must have steps. Do not jump from Week 1 to Week 3.
-1. Generate 2-4 specific steps per week-phase. Coverage of ALL week-phases is the top priority. Keep descriptions brief (1 sentence each).
-2. FOR EVERY STEP, include step_resources with specific links and guidance (videos, books, articles, tools, websites, local venues/clubs if discussed)
-3. FOR EVERY STEP, include measurable success_criteria so users know exactly when they've completed it
-4. FOR EVERY STEP, include tips_and_guidance with specific advice and common pitfalls to avoid
-5. CRITICAL: Any resource, link, app, book, local class, club, or tool mentioned ANYWHERE in the conversation must appear in the step_resources of the most relevant step. Do not drop anything that was discussed.
-5c. BUDGET ENFORCEMENT: Check the conversation for whether the user indicated a budget or said "free only". If the user said no budget / free only → every step_resource must be free (YouTube, free apps, Google search links, free PDFs). NEVER include paid books or paid courses. If the user gave a budget, respect it. If unclear, default to free only.
-5b. RESOURCE LINK RULES — CRITICAL — BROKEN LINKS ARE WORSE THAN NO LINKS:
-   - NEVER guess or fabricate article URLs (e.g. additudemag.com/some-article, psychologytoday.com/blog/...). These will 404. FORBIDDEN.
-   - NEVER construct a URL by guessing a path on a domain you know exists. Only use URLs you are certain work.
-   - SAFE URL FORMATS (always use these — replace ALL CAPS placeholders with real, specific values):
-     * YouTube search: https://www.youtube.com/results?search_query=beginner+guitar+chords (use the actual topic, not "TOPIC")
-     * Amazon book search: https://www.amazon.com/s?k=Atomic+Habits+James+Clear (use the actual title and author)
-     * Google search fallback: https://www.google.com/search?q=CHADD+ADHD+support+groups+Austin+TX (use specific real terms)
-     * Udemy search: https://www.udemy.com/courses/search/?q=python+for+beginners (use actual topic)
-     * Coursera search: https://www.coursera.org/search?query=data+science (use actual topic)
-     * App root domain only (e.g. https://www.duolingo.com) — ONLY if 100% certain.
-   - FORBIDDEN: Google Maps search links (https://www.google.com/maps/search/...) — lazy and unhelpful. For local resources, describe them specifically in the description field (e.g. "Search Psychology Today therapist finder at https://www.psychologytoday.com/us/therapists for ADHD coaches in Austin") and leave url as "".
-   - FORBIDDEN: Placeholder text in URLs like "TOPIC", "RESOURCE+NAME", "RESOURCE+TYPE", "NEAR+CITY". Every URL must use real specific values.
-   - FORBIDDEN: Any invented URL path (e.g. /blog/article-name, /adhd-tips). If unsure of the exact path, leave url as "".
-   - If you have no real URL: leave url as "" — blank is far better than a broken or lazy link.
-6. If local resources were discussed (clubs, classes, meetups, venues), describe them specifically in the description field of the step_resource. Do NOT use Google Maps search URLs.
-7. This removes all excuses — users have everything they need to execute.`
+            content: `Convert this plan to JSON:\n\n${planText}\n\nReturn this exact structure:\n{\n  "title": "...",\n  "description": "...",\n  "timeline": "X months",\n  "target_date": "YYYY-MM-DD",\n  "category": "learning|health|career|finance|relationships|personal|creative|other",\n  "plan_summary": "...",\n  "notification_frequency": "daily|weekly|weekdays|3x_per_week|2x_per_week",\n  "requires_daily_action": true|false,\n  "weekdays_only": false,\n  "habit_days_of_week": [],\n  "month_titles": { "1": "title", "2": "title" },\n  "notification_schedule": [{ "id": "week_1_begin", "type": "week_summary_begin", "phase": "Month 1, Week 1", "scheduled_date": "YYYY-MM-DD", "scheduled_time": "09:00", "teaser_text": "...", "full_message_text": "..." }],\n  "steps": [{ "title": "Week N: focus", "description": "...", "phase": "Month X, Week Y", "priority": "medium", "due_date": "YYYY-MM-DD", "order_index": 0, "step_resources": [], "success_criteria": [], "tips_and_guidance": "", "is_daily_habit": false }]\n}`
           }
         ],
         max_tokens: 16000,
@@ -292,210 +75,33 @@ CRITICAL:
 
       const plan = JSON.parse(extractionResponse.choices[0].message.content);
 
-      // Ensure all steps have required fields
-        plan.steps = (plan.steps || []).map(step => ({
-          ...step,
-          step_resources: step.step_resources || [],
-          success_criteria: step.success_criteria || [],
-          tips_and_guidance: step.tips_and_guidance || ""
-        }));
-        // month_titles comes directly from the top-level JSON field
-        plan.month_titles = plan.month_titles || {};
-        // notification_schedule comes from AI generation
-        plan.notification_schedule = plan.notification_schedule || [];
+      plan.steps = (plan.steps || []).map(step => ({
+        ...step,
+        step_resources: step.step_resources || [],
+        success_criteria: step.success_criteria || [],
+        tips_and_guidance: step.tips_and_guidance || ""
+      }));
+      plan.month_titles = plan.month_titles || {};
+      plan.notification_schedule = plan.notification_schedule || [];
+      plan.habit_days_of_week = plan.habit_days_of_week || [];
 
-      // Use classification to set daily habit metadata
-      plan.requires_daily_action = rules.is_daily_habit;
-      
-      // Determine weekdays_only based on goal type
-      let weekdaysOnly = false;
-      if (rules.is_daily_habit && goalClassification.goal_type === 'career') {
-        weekdaysOnly = true;
-      }
-      plan.weekdays_only = weekdaysOnly;
-      plan.habit_days_of_week = [];
-      
-      // Apply classification notification frequency if not already set
-      if (!plan.notification_frequency) {
-        plan.notification_frequency = rules.notification_frequency;
-      }
-
-      console.log(`[goalPlannerChat] Extracted plan: requires_daily_action=${plan.requires_daily_action}, weekdays_only=${plan.weekdays_only}, goal_type=${goalClassification.goal_type}`);
-
-      // VALIDATE: ensure no gaps in phases/timeline with week structure for 3+ month goals
-      const validatePlanCompleteness = (p) => {
-        if (!p.steps || p.steps.length === 0) return { valid: false, error: "No steps generated" };
-        
-        // Parse timeline to determine expected number of months
-        const timelineMatch = p.timeline?.match(/(\d+)\s*month/i);
-        const expectedMonths = timelineMatch ? parseInt(timelineMatch[1], 10) : null;
-        
-        if (!expectedMonths) return { valid: true }; // Can't validate without timeline
-        
-        // Count phases present
-        const phases = new Set(p.steps.map(s => s.phase || 'Uncategorized').filter(ph => ph !== 'Uncategorized'));
-        const phaseArray = Array.from(phases).sort();
-        
-        // For 1+ month goals: enforce week structure (Month X Week Y)
-        if (expectedMonths >= 1) {
-          const monthWeekCounts = {};
-          let hasWeekStructure = false;
-          
-          phaseArray.forEach(phase => {
-            const weekMatch = phase.match(/Month (\d+)[\s,].*Week (\d+)/i);
-            const monthMatch = phase.match(/Month (\d+)/i);
-            
-            if (weekMatch) {
-              hasWeekStructure = true;
-              const monthNum = parseInt(weekMatch[1], 10);
-              const weekNum = parseInt(weekMatch[2], 10);
-              if (!monthWeekCounts[monthNum]) monthWeekCounts[monthNum] = new Set();
-              monthWeekCounts[monthNum].add(weekNum);
-            } else if (monthMatch && !weekMatch) {
-              // Has month but no week structure — this is a problem for 3+ month goals
-              const monthNum = parseInt(monthMatch[1], 10);
-              if (!monthWeekCounts[monthNum]) monthWeekCounts[monthNum] = new Set();
-              monthWeekCounts[monthNum].add(0); // Placeholder for "no week"
-            }
-          });
-          
-          // ALL months MUST use week structure (weeks are required for every month)
-          for (let month = 1; month <= expectedMonths; month++) {
-            if (!monthWeekCounts[month]) {
-              return {
-                valid: false,
-                error: `Plan structure incomplete: Month ${month} is missing entirely (expected all months 1-${expectedMonths} with 4 weeks each).`
-              };
-            }
-          }
-          
-        } else if (expectedMonths < 1) {
-          // For goals under 1 month, just use weeks (Week 1, Week 2, etc.)
-          const weekCounts = {};
-          phaseArray.forEach(phase => {
-            const weekMatch = phase.match(/Week (\d+)/i);
-            if (weekMatch) {
-              const weekNum = parseInt(weekMatch[1], 10);
-              weekCounts[weekNum] = true;
-            }
-          });
-          
-          if (Object.keys(weekCounts).length === 0) {
-            return {
-              valid: false,
-              error: `Plan structure missing: expected week-based phases for goals under 1 month.`
-            };
-          }
-        }
-        
-        // Check minimum step count
-        const stepsPerPhase = {};
-        p.steps.forEach(s => {
-          const phase = s.phase || 'Uncategorized';
-          stepsPerPhase[phase] = (stepsPerPhase[phase] || 0) + 1;
-        });
-        
-        const avgStepsPerMonth = expectedMonths ? p.steps.length / expectedMonths : 0;
-        if (avgStepsPerMonth < 3) {
-          return {
-            valid: false,
-            error: `Insufficient detail: generated only ${p.steps.length} total steps for ${expectedMonths} months (~${Math.round(avgStepsPerMonth)} per month). Expected 15-20+ per month.`
-          };
-        }
-        
-        return { valid: true };
-      };
-      
-      const validation = validatePlanCompleteness(plan);
-      if (!validation.valid) {
-        // Regenerate with stricter instructions
-        const retryResponse = await openai.chat.completions.create({
-           model: "gpt-4o",
-           messages: [
-             {
-               role: "system",
-               content: `You are extracting a structured goal plan. CRITICAL RULES: Every month MUST be expanded into exactly 4 weeks (Week 1, Week 2, Week 3, Week 4). Never output a bare 'Month X' phase — always use 'Month X Week Y' format.
-        1. EVERY MONTH from Month 1 through the final month MUST have steps. NO GAPS.
-        2. EVERY MONTH must have EXACTLY 4 steps — one per week. phase='Month X, Week Y' format required.
-        3. For a ${plan.timeline} goal, generate steps for ALL ${detectedMonths} months.
-        4. Return ONLY valid JSON, no markdown fences.
-        5. If previous extraction failed: "${validation.error}", you MUST fix it now.`
-            },
-            {
-              role: "user",
-              content: `Extract the plan from this conversation. CRITICAL — the previous extraction was incomplete or had gaps. Fix it now by including EVERY month and week with full detail:\n\n${conversationText}\n\n${monthsHint}\n\nReturn the SAME JSON structure, but with complete phases and steps for ALL ${detectedMonths || 'stated'} months.`
-            }
-          ],
-          max_tokens: 16000,
-        response_format: { type: "json_object" }
-        });
-        
-        const retryPlan = JSON.parse(retryResponse.choices[0].message.content);
-        retryPlan.steps = (retryPlan.steps || []).map(step => ({
-          ...step,
-          step_resources: step.step_resources || [],
-          success_criteria: step.success_criteria || [],
-          tips_and_guidance: step.tips_and_guidance || ""
-        }));
-        
-        const retryValidation = validatePlanCompleteness(retryPlan);
-        if (!retryValidation.valid) {
-          return Response.json({ 
-            error: `Plan generation failed validation: ${retryValidation.error}. Please try again with a clearer timeline or fewer goals.` 
-          }, { status: 400 });
-        }
-        
-        return Response.json({ plan: retryPlan });
-      }
-
-      // Extract preferred time from conversation for health goals
-      let preferredTime = null;
-      if (plan.category === 'health') {
-       const conversationLower = conversationText.toLowerCase();
-       // Look for time patterns like "6 am", "6am", "18:00", "6:00 PM", etc.
-       const timeMatch = conversationText.match(/(\d{1,2}):?(\d{2})?\s*(am|pm|AM|PM)?|\b(morning|afternoon|evening|night)\b/i);
-       if (timeMatch) {
-         preferredTime = timeMatch[0].trim();
-       }
-      }
-
-      plan.preferred_time = preferredTime;
-
-      // Ensure notification_frequency is set (fallback to daily if not detected)
-      if (!plan.notification_frequency) {
-       plan.notification_frequency = 'daily';
-      }
-
-      // ASSIGN DUE DATES TO ALL STEPS based on timeline
-      // Determine plan start date: use AI-assigned due_date on first step if it's in the future,
-      // otherwise use the first day of next month if any step has a future-looking date, else today.
-      const targetDate = plan.target_date ? new Date(plan.target_date) : null;
-
-      // Find the plan's intended start date by scanning for the earliest AI-assigned due_date
-      // If AI already assigned sensible due_dates (in the future), respect them and skip recalculation
-      const aiDueDates = plan.steps.filter(s => s.due_date).map(s => s.due_date).sort();
-      const earliestAiDate = aiDueDates[0];
+      // Fallback due dates if AI didn't assign valid ones
       const todayDate = new Date(today);
-
-      // Only recalculate if AI didn't assign any due_dates or they're all in the past
-      const aiDatesAreValid = earliestAiDate && new Date(earliestAiDate) > todayDate;
-
-      if (!aiDatesAreValid && targetDate && plan.steps && plan.steps.length > 0) {
-        // Fallback: spread evenly from today to target_date
+      const targetDate = plan.target_date ? new Date(plan.target_date) : null;
+      const aiDueDates = plan.steps.filter(s => s.due_date).map(s => s.due_date).sort();
+      const aiDatesAreValid = aiDueDates[0] && new Date(aiDueDates[0]) > todayDate;
+      if (!aiDatesAreValid && targetDate && plan.steps.length > 0) {
         const daysAvailable = (targetDate - todayDate) / (1000 * 60 * 60 * 24);
         const daysPerStep = daysAvailable / plan.steps.length;
-
         plan.steps.forEach((step, idx) => {
-          const daysOffset = Math.round((idx + 1) * daysPerStep);
-          const stepDate = new Date(todayDate);
-          stepDate.setDate(stepDate.getDate() + daysOffset);
-          step.due_date = stepDate.toISOString().split('T')[0];
+          const d = new Date(todayDate);
+          d.setDate(d.getDate() + Math.round((idx + 1) * daysPerStep));
+          step.due_date = d.toISOString().split('T')[0];
         });
       }
-      // If aiDatesAreValid, keep the AI's dates as-is — they already reflect the user's start date
 
-      console.log(`[goalPlannerChat] Returning plan with: requires_daily_action=${plan.requires_daily_action}, weekdays_only=${plan.weekdays_only}`);
-      return Response.json({ plan, month_titles: plan.month_titles || {}, notification_schedule: plan.notification_schedule || [], requires_daily_action: plan.requires_daily_action, weekdays_only: plan.weekdays_only, habit_days_of_week: plan.habit_days_of_week });
+      console.log(`[goalPlannerChat] extract_plan done: ${plan.steps.length} steps, ${plan.timeline}`);
+      return Response.json({ plan, month_titles: plan.month_titles, notification_schedule: plan.notification_schedule, requires_daily_action: plan.requires_daily_action, weekdays_only: plan.weekdays_only, habit_days_of_week: plan.habit_days_of_week });
     }
 
     // ── APPLY EDIT: commit approved edits to an existing goal ─────────────────
