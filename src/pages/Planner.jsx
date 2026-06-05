@@ -493,7 +493,7 @@ export default function Planner() {
               <div className="flex flex-col items-center gap-3 pt-4 pb-4 border-t-2 border-dashed mt-4">
                 <p className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Ready to create your plan?</p>
                 <Button
-                  onClick={() => { setShowCelebration(true); handleSaveNewGoal(); }}
+                  onClick={() => { setShowCelebration(true); handleSaveNewGoal().catch(err => console.error('handleSaveNewGoal error:', err)); }}
                   className={`rounded-2xl px-6 py-2.5 font-semibold ${isDark ? 'bg-violet-600 hover:bg-violet-700 text-white shadow-lg shadow-violet-900/30' : 'bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white shadow-lg shadow-violet-100'}`}
                 >
                   <Check className="w-4 h-4 mr-2" />
