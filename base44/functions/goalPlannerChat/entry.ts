@@ -53,9 +53,9 @@ Deno.serve(async (req) => {
           {
             role: "system",
             content: `You convert a goal plan (possibly incomplete markdown) into complete structured JSON. Even if the input markdown is incomplete or has placeholders, you MUST:
-1. Generate steps for ALL months in the timeline — detected timeline is ${detectedMonths ? `${detectedMonths} months` : 'INFER from conversation'}.
-2. CRITICAL: This plan MUST span every single month from Month 1 through Month ${detectedMonths || '?'}. If any months are missing from the markdown, create them using the pattern from the earliest months.
-3. Do NOT skip or abbreviate any months. Do NOT stop early. Return ONLY valid JSON, no markdown fences.
+1. Generate steps for ALL months in the timeline (infer from "12 months", "6 months", goal title context, etc.)
+2. If any months are missing from the markdown, create them using the pattern from the earliest months.
+3. Do NOT skip or abbreviate any months. Return ONLY valid JSON, no markdown fences.
 
 Rules:
 - Each step = one week. phase = "Month X, Week Y". title = "Week N: [focus from plan]".
