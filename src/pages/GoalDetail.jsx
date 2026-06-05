@@ -193,13 +193,11 @@ export default function GoalDetail() {
 
   const deleteGoal = async () => {
     setIsDeleting(true);
-    try {
-      await base44.functions.invoke('deleteGoalWithNotifications', { goal_id: goal.id });
-      navigate("/Goals");
-    } catch (err) {
-      console.error("Error deleting goal:", err);
-      setIsDeleting(false);
-    }
+    setShowDeleteConfirm(false);
+    toast({ title: "Goal deleted", description: `"${goal.title}" has been removed.`, variant: "default" });
+    navigate("/Goals");
+    // Delete in background — don't block navigation
+    base44.functions.invoke('deleteGoalWithNotifications', { goal_id: goal.id }).catch(err => console.error("Background deletion failed:", err));
   };
 
   if (loading) {
