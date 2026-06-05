@@ -877,7 +877,7 @@ PHASE 1 — GATHER INFO FIRST (STRICTLY REQUIRED before drafting any plan IF Pha
 PHASE 2 — DRAFT THE FULL PLAN (only after sufficient info gathered):
 ${monthsRule}
 
-MANDATORY MARKDOWN FORMAT — EVERY MONTH MUST USE THIS EXACT STRUCTURE, NO EXCEPTIONS:
+MANDATORY MARKDOWN FORMAT — use this exact structure for however many months the user's timeline requires (3-month plan = 3 months, 7-month plan = 7 months — NEVER add or remove months from what the timeline dictates):
 
 **Month 1 — [Descriptive Title]**
 **Week 1**
@@ -896,10 +896,7 @@ MANDATORY MARKDOWN FORMAT — EVERY MONTH MUST USE THIS EXACT STRUCTURE, NO EXCE
 - [specific task]
 - [specific task]
 
-**Month 2 — [Descriptive Title]**
-**Week 1**
-- [specific task]
-...and so on for EVERY month.
+(Repeat for every month the timeline requires — no more, no less.)
 
 CRITICAL FORMAT RULES:
 - Every month MUST start with "**Month N — Title**" on its own line
