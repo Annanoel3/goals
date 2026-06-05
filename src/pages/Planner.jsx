@@ -828,6 +828,7 @@ function parsePlanHierarchy(text, goalMonthTitles = {}) {
 
 
   // Post-process: if a month has no explicit Week headers, auto-split into 4 weeks
+  // Also enforce max 4 weeks per month regardless (cap any extras from parsing)
   for (const month of months) {
     const hasExplicitWeeks = month.weeks.some(w => /^Week\s+\d+/i.test(w.title));
     if (!hasExplicitWeeks) {
@@ -838,6 +839,11 @@ function parsePlanHierarchy(text, goalMonthTitles = {}) {
         tasks: allTasks.filter((_, i) => i % 4 === idx),
         description: idx === 0 ? desc : ''
       }));
+    } else {
+      // Cap at 4 weeks max (in case parsing picked up extra weeks)
+      if (month.weeks.length > 4) {
+        month.weeks = month.weeks.slice(0, 4);
+      }
     }
   }
 
