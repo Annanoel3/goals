@@ -95,7 +95,7 @@ EVERY month MUST have a descriptive title that reflects its milestones or theme.
 Format in output: "Month 1 – Book Title" or "Month 1 – Introduction Phase" (with em dash or hyphen).
 This applies to ALL goal types. Users should see meaningful milestone titles, not just "Month 1".
 - For goals under 1 month, just use "Week 1", "Week 2" phases directly.
-READING GOALS — CRITICAL: You MUST select a specific, real book title for EVERY single month in month_titles (months 1 through ${detectedMonths}), based on the user's stated genre and preferences. Draw on your knowledge of books in that genre. Placeholder titles (e.g. "Book Title", "Month 2 Book", "TBD") are a CRITICAL FAILURE — never output them. EVERY MONTH MUST HAVE A REAL BOOK TITLE. If ${detectedMonths} months have been specified, month_titles must contain entries for ALL ${detectedMonths} months. There are NO summary placeholders like "Month 7-12: I will continue..." — that is a CRITICAL FAILURE. Instead, you MUST generate a specific real book title for Month 7, Month 8, Month 9, Month 10, Month 11, and Month 12 individually.
+READING GOALS — CRITICAL: You MUST select a specific, real book title for EVERY single month in month_titles (months 1 through ${detectedMonths}), based on the user's stated genre and preferences. Draw on your knowledge of books in that genre. Placeholder titles (e.g. "Book Title", "Month 2 Book", "TBD") are a CRITICAL FAILURE — never output them. EVERY MONTH MUST HAVE A REAL BOOK TITLE. If ${detectedMonths} months have been specified, month_titles must contain entries for ALL ${detectedMonths} months. There are NO summary placeholders like "Month 7-12: I will continue..." or "Month 9-12: Other Selections" — those are CRITICAL FAILURES. Instead, you MUST generate a specific real book title for EACH month individually (Month 7, Month 8, Month 9, Month 10, Month 11, Month 12 — each as their own separate entry). NEVER group multiple months together under a single heading or range.
 
 NOTIFICATION FREQUENCY DETECTION:
 Analyze the conversation for clues about how often the user wants to be reminded — this varies PER GOAL:
@@ -168,6 +168,8 @@ READING GOALS ARE ALWAYS DAILY HABIT GOALS: If the goal title or description con
 
 For other daily practice goals (instruments, languages, fitness, coding, art, meditation, exercise routines): set is_daily_habit: true.
 For milestone-based goals (save money, find job, start business, complete project): set is_daily_habit: false UNLESS daily action is required.
+
+NEVER GROUP MONTHS — ABSOLUTE ZERO TOLERANCE: It is NEVER acceptable to write "Month 9-12", "Months 3-6", or any grouped range. If you are running low on tokens, shorten step descriptions — NEVER collapse months together. Each of the ${detectedMonths} months MUST appear individually as "Month 1", "Month 2", ... "Month ${detectedMonths}". Writing "Month 9-12: I'll select books" is a critical failure. Write "Month 9: [Book]", "Month 10: [Book]", "Month 11: [Book]", "Month 12: [Book]" separately.
 
 TOKEN PRIORITY RULE: Completing ALL ${detectedMonths} months x 4 weeks = ${detectedMonths * 4} total week-phases is the HIGHEST priority. Trade depth for coverage always. CRITICAL: EVERY month (Month 1 through Month ${detectedMonths}) MUST have FULL step detail and granularity. Do NOT create a summary for later months like "Months 7-12: I will continue...". Each month must have 4 weeks with concrete steps. For short plans (3 months or fewer), use 5-7 steps per week. For longer plans, use 2-4 steps per week. Never sacrifice later months just to add detail to earlier ones. EVERY MONTH gets the same treatment.
 
@@ -859,8 +861,9 @@ PHASE 2 — DRAFT THE FULL PLAN (only after sufficient info gathered):
 ${monthsRule}
 4. STRICT PHASE NAMING RULES — VIOLATIONS ARE NOT ACCEPTABLE:
    - NEVER combine weeks: "Week 1-2", "Week 3-4", "Weeks 5-6" are ALL FORBIDDEN. Every week is its own entry: "Month 1, Week 1", "Month 1, Week 2", etc.
-   - NEVER combine months. Every month is its own entry: "Month 4", "Month 5", "Month 6".
-   - NEVER use ranges. Each phase = exactly ONE week.
+   - NEVER combine months: "Month 9-12", "Months 3-6", "Month 7-10", "Months 4-12" are ALL FORBIDDEN. Every month is its own entry: "Month 9", "Month 10", "Month 11", "Month 12".
+   - NEVER write a summary placeholder for a range of months (e.g. "Month 9-12: I'll continue selecting books each month" or "Months 5-12: Other Selections" — these are CRITICAL FAILURES).
+   - NEVER use ranges of any kind. Each phase = exactly ONE month OR one week.
    - EVERY month must have all 4 weeks. Never give Month 1 four weeks and then just "Month 2" with no weeks.
 
    GRANULARITY — choose the right level based on goal type:
