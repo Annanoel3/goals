@@ -62,7 +62,14 @@ Rules:
 - month_titles: extract the descriptive title after each "Month N —" heading.
 - notification_schedule: generate 2-3 simple check-in notifications for Week 1 only (dates starting from today ${today}).
 - due_dates: spread evenly from today ${today} across the full timeline.
-- weekdays_only: false unless goal is explicitly work/career focused.`
+- weekdays_only: false unless goal is explicitly work/career focused.
+- TIME PREFERENCE MAPPING (CRITICAL): Map natural language time preferences to actual times:
+  * "morning" or "early" → 06:00 or 07:00
+  * "afternoon" or "midday" → 12:00 or 14:00
+  * "evening" or "late afternoon" → 18:00 or 19:00
+  * "night" or "late evening" → 20:00 or 21:00
+  * If user mentioned a specific time (e.g. "6pm", "7:30am"), use that exact time.
+  * CRITICAL: Do NOT use times like "01:00 PM" for "evening" — that is wrong. Evening is 6-8 PM.`
           },
           {
             role: "user",
@@ -380,6 +387,15 @@ PROACTIVE COACHING — watch for these signals and respond accordingly:
 - "I finished early" → propose adding advanced phases or a follow-on goal (OPTION B new content)
 - "I need more resources" → add specific links, videos, books to relevant steps
 - "a week/phase got skipped / is missing" → look at surrounding weeks/phases in the plan above and fill the gap logically
+
+TIME PREFERENCE MAPPING (CRITICAL):
+When extracting preferred_time or habit_time from the conversation:
+- "morning" or "early" → 06:00 or 07:00
+- "afternoon" or "midday" → 12:00 or 14:00
+- "evening" or "late afternoon" → 18:00 or 19:00
+- "night" or "late evening" → 20:00 or 21:00
+- If user mentioned a specific time (e.g. "6pm", "7:30am"), use that exact time
+- CRITICAL: Do NOT use times like "01:00 PM" for "evening" — evening is 6-8 PM, not 1 PM
 
 READING/BOOK GOALS — CRITICAL: NEVER guess or invent chapter/page counts. You MUST use web_search to look up the exact number of chapters in each specific book before dividing into weekly reading chunks. Divide evenly: total chapters ÷ 4 = chapters per week (balanced across all 4 weeks).
 
