@@ -280,10 +280,9 @@ export default function Planner() {
         base44.functions.invoke('createRemainingGoalSteps', {
           goal_id: goal.id,
           steps: plan.steps,
-          start_order_index: 0
+          start_order_index: 0,
+          timezoneOffsetMinutes: -new Date().getTimezoneOffset()
         }).catch(err => console.error('createRemainingGoalSteps failed:', err));
-
-        base44.functions.invoke('scheduleGoalNotifications', { goal_id: goal.id, goal_data: goal, timezoneOffsetMinutes: -new Date().getTimezoneOffset() }).catch(err => console.error('scheduleGoalNotifications failed:', err));
       }
 
       navigate(`/goal/${goal.id}`);
