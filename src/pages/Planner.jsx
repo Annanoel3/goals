@@ -978,9 +978,9 @@ function WeekDropdown({ week }) {
 
 
 function MonthDropdown({ month }) {
-  const isDark = localStorage.getItem('adhd_theme') === 'dark';
-  const [open, setOpen] = React.useState(false);
-  const displayTitle = month.subtitle;
+   const isDark = localStorage.getItem('adhd_theme') === 'dark';
+   const [open, setOpen] = React.useState(false);
+   const displayTitle = month.subtitle;
 
   return (
     <div className={`rounded-xl mb-2 overflow-hidden ${isDark ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-violet-200'} shadow-sm`}>
