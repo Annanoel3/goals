@@ -521,7 +521,7 @@ export default function Planner() {
             {pendingAction !== null && !isLoading && !saved && showCelebration && (
               <>
                 {saveError ? (
-                  <div className="flex flex-col items-center gap-3 py-2">
+                   <div className="flex flex-col items-center gap-3 py-2">
                     <p className={`text-sm font-medium ${isDark ? 'text-red-400' : 'text-red-600'}`}>Something went wrong saving your goal.</p>
                     <Button
                       onClick={editingGoal ? handleApplyEdits : handleSaveNewGoal}
@@ -532,8 +532,7 @@ export default function Planner() {
                   </div>
                 ) : isSaving && (
                   <div className="flex flex-col items-center gap-3 py-6">
-                    <Loader2 className={`w-8 h-8 animate-spin ${isDark ? 'text-violet-400' : 'text-violet-500'}`} />
-                    <p className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>Creating your goal…</p>
+                    <SavingProgressBar isEdit={!!editingGoal} done={saved} />
                   </div>
                 )}
               </>
