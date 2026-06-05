@@ -212,8 +212,19 @@ Deno.serve(async (req) => {
     const p = parsePhase(step.phase);
     const isWeek1 = p && p.month === 1 && p.week === 1;
     if (!isWeek1) {
-      console.log(`[scheduleGoalNotifications] Skipping step "${step.title?.substring(0,40)}" — not Week 1`);
+      console.log(`[scheduleGoalNotifications] Skipping step "${step.title?.substring(0,40)}" (phase="${step.phase}") — not Week 1`);
       continue;
+    }
+    
+    // Ensure Week 1 steps have due_dates anchored to planStartDate
+    if (!step.due_date && planStartDate) {
+      const dayIndex = steps.filter(s => {
+        const sp = parsePhase(s.phase);
+        return sp && sp.month === 1 && sp.week === 1 && !s.due_date;
+      }).indexOf(step);
+      const generatedDueDate = addDays(planStartDate, dayIndex % 7);
+      console.log(`[scheduleGoalNotifications] Week 1 step "${step.title?.substring(0,40)}" has no due_date — using generated date: ${generatedDueDate}`);
+      step.due_date = generatedDueDate;
     }
     const existingIds = step.onesignal_notification_ids || [];
     if (existingIds.length > 0) {
