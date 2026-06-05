@@ -111,18 +111,12 @@ Deno.serve(async (req) => {
 
   console.log(`[createRemainingGoalSteps] ===== DONE: created=${createdCount}/${steps.length}, failed=${failedSteps.length} =====`);
 
-  // Now that steps exist in DB, schedule notifications
+  // Now that steps exist in DB, schedule notifications in background (don't await)
   if (createdCount > 0) {
-    try {
-      console.log(`[createRemainingGoalSteps] Triggering scheduleGoalNotifications...`);
-      await base44.functions.invoke('scheduleGoalNotifications', {
-        goal_id,
-        timezoneOffsetMinutes: timezoneOffsetMinutes ?? 0
-      });
-      console.log(`[createRemainingGoalSteps] scheduleGoalNotifications triggered OK`);
-    } catch (notifErr) {
-      console.error(`[createRemainingGoalSteps] scheduleGoalNotifications failed: ${notifErr.message}`);
-    }
+    base44.functions.invoke('scheduleGoalNotifications', {
+      goal_id,
+      timezoneOffsetMinutes: timezoneOffsetMinutes ?? 0
+    }).catch(notifErr => console.error(`[createRemainingGoalSteps] scheduleGoalNotifications failed: ${notifErr.message}`));
   }
 
   return Response.json({ ok: true, created: createdCount, total: steps.length, failed: failedSteps.length, failed_details: failedSteps });
