@@ -61,7 +61,7 @@ Rules:
 - notification_frequency: infer from goal type ("daily" for reading/fitness/language, "weekly" for career/finance/project).
 - month_titles: extract the descriptive title after each "Month N —" heading.
 - notification_schedule: generate 2-3 simple check-in notifications for Week 1 only (dates starting from today ${today}).
-- due_dates: spread evenly from today ${today} across the full timeline.
+- due_dates: CRITICAL — MUST be calculated based on the step's phase (Month X, Week Y). Parse each step's phase, then calculate: due_date = start_date + (MonthNum-1)*30 + (WeekNum-1)*7 days. Use "target_date" from plan_summary to determine end date, then work backwards to find start date. Spread dates evenly across all steps from start to target end.
 - weekdays_only: false unless goal is explicitly work/career focused.
 - TIME PREFERENCE MAPPING (CRITICAL): Map natural language time preferences to actual times:
   * "morning" or "early" → 06:00 or 07:00
@@ -73,7 +73,7 @@ Rules:
           },
           {
             role: "user",
-            content: `Convert this plan to JSON:\n\n${planText}\n\nReturn this exact structure:\n{\n  "title": "...",\n  "description": "...",\n  "timeline": "X months",\n  "target_date": "YYYY-MM-DD",\n  "category": "learning|health|career|finance|relationships|personal|creative|other",\n  "plan_summary": "...",\n  "notification_frequency": "daily|weekly|weekdays|3x_per_week|2x_per_week",\n  "requires_daily_action": true|false,\n  "weekdays_only": false,\n  "habit_days_of_week": [],\n  "month_titles": { "1": "title", "2": "title" },\n  "notification_schedule": [{ "id": "week_1_begin", "type": "week_summary_begin", "phase": "Month 1, Week 1", "scheduled_date": "YYYY-MM-DD", "scheduled_time": "09:00", "teaser_text": "...", "full_message_text": "..." }],\n  "steps": [{ "title": "Week N: focus", "description": "...", "phase": "Month X, Week Y", "priority": "medium", "due_date": "YYYY-MM-DD", "order_index": 0, "step_resources": [], "success_criteria": [], "tips_and_guidance": "", "is_daily_habit": false }]\n}`
+            content: `Convert this plan to JSON. CRITICAL: For due_dates, parse the phase (e.g. "Month 3, Week 2"), then calculate the actual date based on the plan's target_date and timeline. Do NOT use today's date for all steps. Spread dates across the entire timeline.\n\nPlan:\n\n${planText}\n\nReturn this exact structure:\n{\n  "title": "...",\n  "description": "...",\n  "timeline": "X months",\n  "target_date": "YYYY-MM-DD",\n  "category": "learning|health|career|finance|relationships|personal|creative|other",\n  "plan_summary": "...",\n  "notification_frequency": "daily|weekly|weekdays|3x_per_week|2x_per_week",\n  "requires_daily_action": true|false,\n  "weekdays_only": false,\n  "habit_days_of_week": [],\n  "month_titles": { "1": "title", "2": "title" },\n  "notification_schedule": [{ "id": "week_1_begin", "type": "week_summary_begin", "phase": "Month 1, Week 1", "scheduled_date": "YYYY-MM-DD", "scheduled_time": "09:00", "teaser_text": "...", "full_message_text": "..." }],\n  "steps": [{ "title": "Week N: focus", "description": "...", "phase": "Month X, Week Y", "priority": "medium", "due_date": "YYYY-MM-DD", "order_index": 0, "step_resources": [], "success_criteria": [], "tips_and_guidance": "", "is_daily_habit": false }]\n}`
           }
         ],
         max_tokens: 16000,
@@ -92,19 +92,51 @@ Rules:
       plan.notification_schedule = plan.notification_schedule || [];
       plan.habit_days_of_week = plan.habit_days_of_week || [];
 
-      // Fallback due dates if AI didn't assign valid ones
+      // Calculate due dates based on phase (Month X, Week Y), target_date, and timeline
       const todayDate = new Date(today);
-      const targetDate = plan.target_date ? new Date(plan.target_date) : null;
-      const aiDueDates = plan.steps.filter(s => s.due_date).map(s => s.due_date).sort();
-      const aiDatesAreValid = aiDueDates[0] && new Date(aiDueDates[0]) > todayDate;
-      if (!aiDatesAreValid && targetDate && plan.steps.length > 0) {
-        const daysAvailable = (targetDate - todayDate) / (1000 * 60 * 60 * 24);
-        const daysPerStep = daysAvailable / plan.steps.length;
-        plan.steps.forEach((step, idx) => {
-          const d = new Date(todayDate);
-          d.setDate(d.getDate() + Math.round((idx + 1) * daysPerStep));
-          step.due_date = d.toISOString().split('T')[0];
-        });
+      const targetDate = plan.target_date ? new Date(plan.target_date + 'T23:59:59Z') : null;
+      
+      if (plan.steps.length > 0 && targetDate) {
+        // Parse timeline to get total months
+        const timelineMatch = plan.timeline?.match(/(\d+)/);
+        const totalMonths = timelineMatch ? parseInt(timelineMatch[1], 10) : 12;
+        
+        // Calculate start date: target_date - totalMonths
+        const startDate = new Date(targetDate);
+        startDate.setUTCMonth(startDate.getUTCMonth() - totalMonths);
+        
+        console.log(`[goalPlannerChat extract_plan] Calculating due_dates: timeline=${plan.timeline}, totalMonths=${totalMonths}, startDate=${startDate.toISOString().split('T')[0]}, targetDate=${targetDate.toISOString().split('T')[0]}`);
+        
+        // For each step, extract its phase and calculate due_date
+        for (const step of plan.steps) {
+          if (step.due_date && new Date(step.due_date) > todayDate) {
+            // AI provided a valid future date, keep it
+            continue;
+          }
+          
+          // Parse phase to extract Month and Week numbers
+          const phaseMatch = step.phase?.match(/Month\s+(\d+)(?:[,\s]+Week\s+(\d+))?/i);
+          if (phaseMatch) {
+            const monthNum = parseInt(phaseMatch[1], 10);
+            const weekNum = phaseMatch[2] ? parseInt(phaseMatch[2], 10) : 1;
+            
+            // Calculate days from start: (monthNum-1)*30 + (weekNum-1)*7
+            const daysFromStart = (monthNum - 1) * 30 + (weekNum - 1) * 7;
+            const stepDueDate = new Date(startDate);
+            stepDueDate.setUTCDate(stepDueDate.getUTCDate() + daysFromStart);
+            
+            step.due_date = stepDueDate.toISOString().split('T')[0];
+            console.log(`[goalPlannerChat extract_plan] Step phase="${step.phase}" → due_date=${step.due_date}`);
+          } else {
+            // Fallback: spread linearly from start to target
+            const daysAvailable = (targetDate - startDate) / (1000 * 60 * 60 * 24);
+            const stepIndex = plan.steps.indexOf(step);
+            const daysPerStep = daysAvailable / plan.steps.length;
+            const stepDueDate = new Date(startDate);
+            stepDueDate.setUTCDate(stepDueDate.getUTCDate() + Math.round((stepIndex + 1) * daysPerStep));
+            step.due_date = stepDueDate.toISOString().split('T')[0];
+          }
+        }
       }
 
       console.log(`[goalPlannerChat] extract_plan done: ${plan.steps.length} steps, ${plan.timeline}`);
