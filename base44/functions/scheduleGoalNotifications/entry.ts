@@ -199,9 +199,22 @@ Deno.serve(async (req) => {
 
   let scheduled = 0, cancelled = 0;
 
-  // ── STEP-LEVEL NOTIFICATIONS ──
-  console.log(`[scheduleGoalNotifications] --- Processing ${steps.length} steps for due-date notifications ---`);
+  // ── DETECT PLAN START DATE (earliest due_date across all steps) ──
+  const allDueDates = steps.filter(s => s.due_date).map(s => s.due_date).sort();
+  const planStartDate = allDueDates[0] || null;
+  const todayStr = now.toISOString().split('T')[0];
+  const planStartsInFuture = planStartDate && planStartDate > todayStr;
+  console.log(`[scheduleGoalNotifications] planStartDate=${planStartDate}, todayStr=${todayStr}, planStartsInFuture=${planStartsInFuture}`);
+
+  // ── STEP-LEVEL NOTIFICATIONS (Week 1 only) ──
+  console.log(`[scheduleGoalNotifications] --- Processing Week 1 steps for due-date notifications ---`);
   for (const step of steps) {
+    const p = parsePhase(step.phase);
+    const isWeek1 = p && p.month === 1 && p.week === 1;
+    if (!isWeek1) {
+      console.log(`[scheduleGoalNotifications] Skipping step "${step.title?.substring(0,40)}" — not Week 1`);
+      continue;
+    }
     const existingIds = step.onesignal_notification_ids || [];
     if (existingIds.length > 0) {
       console.log(`[scheduleGoalNotifications] Cancelling ${existingIds.length} old notifs for step "${step.title}"`);
@@ -315,13 +328,6 @@ Deno.serve(async (req) => {
 
   console.log(`[scheduleGoalNotifications] weekMap keys: [${Object.keys(weekMap).join(', ')}]`);
   console.log(`[scheduleGoalNotifications] monthMap keys: [${Object.keys(monthMap).join(', ')}]`);
-
-  // ── DETECT PLAN START DATE (earliest due_date across all steps) ──
-  const allDueDates = steps.filter(s => s.due_date).map(s => s.due_date).sort();
-  const planStartDate = allDueDates[0] || null;
-  const todayStr = now.toISOString().split('T')[0];
-  const planStartsInFuture = planStartDate && planStartDate > todayStr;
-  console.log(`[scheduleGoalNotifications] planStartDate=${planStartDate}, todayStr=${todayStr}, planStartsInFuture=${planStartsInFuture}`);
 
   // ── IMMEDIATE "PLAN STARTS SOON" NOTIFICATION (when plan starts in the future) ──
   if (planStartsInFuture) {
