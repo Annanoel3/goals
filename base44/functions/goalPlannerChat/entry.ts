@@ -43,11 +43,12 @@ Deno.serve(async (req) => {
 
     if (mode === 'extract_plan') {
       // First: classify the goal type to drive downstream extraction rules
-      const goalClassification = await base44.asServiceRole.functions.invoke('classifyGoalType', {
+      const classifyRes = await base44.asServiceRole.functions.invoke('classifyGoalType', {
         conversation_text: conversationText,
         title: '',
         description: ''
       });
+      const goalClassification = classifyRes?.data || classifyRes || {};
       
       const classificationRules = {
         reading: { is_daily_habit: true, notification_frequency: 'daily', requires_daily_breakdown: false },
@@ -303,7 +304,7 @@ CRITICAL:
         plan.notification_frequency = rules.notification_frequency;
       }
 
-      console.log(`[goalPlannerChat] Extracted plan: requires_daily_action=${plan.requires_daily_action}, weekdays_only=${plan.weekdays_only}, daily_habit_steps=${dailyHabitSteps.length}`);
+      console.log(`[goalPlannerChat] Extracted plan: requires_daily_action=${plan.requires_daily_action}, weekdays_only=${plan.weekdays_only}, goal_type=${goalClassification.goal_type}`);
 
       // VALIDATE: ensure no gaps in phases/timeline with week structure for 3+ month goals
       const validatePlanCompleteness = (p) => {
