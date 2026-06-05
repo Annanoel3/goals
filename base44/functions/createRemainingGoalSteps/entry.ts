@@ -91,16 +91,16 @@ Deno.serve(async (req) => {
   let createdCount = 0;
   let failedSteps = [];
 
+  // Use user-scoped client so created_by is set to the actual user (required by read RLS)
   try {
-    await base44.asServiceRole.entities.GoalStep.bulkCreate(bulkPayload);
+    await base44.entities.GoalStep.bulkCreate(bulkPayload);
     createdCount = bulkPayload.length;
     console.log(`[createRemainingGoalSteps] Bulk create SUCCESS: ${createdCount} steps`);
   } catch (bulkErr) {
     console.error(`[createRemainingGoalSteps] Bulk create FAILED: ${bulkErr.message} — falling back to one-by-one`);
-    // Fall back to one-by-one if bulk fails
     for (let i = 0; i < bulkPayload.length; i++) {
       try {
-        await base44.asServiceRole.entities.GoalStep.create(bulkPayload[i]);
+        await base44.entities.GoalStep.create(bulkPayload[i]);
         createdCount++;
       } catch (stepErr) {
         console.error(`[createRemainingGoalSteps] Step ${i + 1} FAILED: ${stepErr.message}`);
