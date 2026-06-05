@@ -1,19 +1,26 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
 const ONESIGNAL_APP_ID = Deno.env.get("ONESIGNAL_APP_ID")?.trim();
 const ONESIGNAL_REST_API_KEY = Deno.env.get("ONESIGNAL_REST_API_KEY")?.trim();
 
+console.log(`[scheduleGoalNotifications] MODULE LOAD: ONESIGNAL_APP_ID=${ONESIGNAL_APP_ID ? 'SET(' + ONESIGNAL_APP_ID.substring(0,8) + '...)' : 'MISSING'}, ONESIGNAL_REST_API_KEY=${ONESIGNAL_REST_API_KEY ? 'SET' : 'MISSING'}`);
+
 async function cancelNotification(notifId) {
   try {
-    await fetch(`https://onesignal.com/api/v1/notifications/${notifId}?app_id=${ONESIGNAL_APP_ID}`, {
+    const res = await fetch(`https://onesignal.com/api/v1/notifications/${notifId}?app_id=${ONESIGNAL_APP_ID}`, {
       method: 'DELETE',
       headers: { 'Authorization': `Basic ${ONESIGNAL_REST_API_KEY}` },
     });
-  } catch (_) {}
+    console.log(`[scheduleGoalNotifications] cancelNotification ${notifId}: status=${res.status}`);
+  } catch (err) {
+    console.error(`[scheduleGoalNotifications] cancelNotification ${notifId} THREW: ${err.message}`);
+  }
 }
 
 async function scheduleNotification({ externalId, title, body, data, sendAt }) {
+  console.log(`[scheduleGoalNotifications] scheduleNotification: externalId=${externalId}, title="${title}", sendAt=${sendAt}`);
   if (!ONESIGNAL_APP_ID || !ONESIGNAL_REST_API_KEY) {
+    console.error(`[scheduleGoalNotifications] scheduleNotification ABORTED: missing OneSignal credentials`);
     throw new Error('Missing OneSignal credentials');
   }
   const payload = {
@@ -29,6 +36,7 @@ async function scheduleNotification({ externalId, title, body, data, sendAt }) {
       { id: 'remind_later', text: '🔔 Remind Later' },
     ],
   };
+  console.log(`[scheduleGoalNotifications] OneSignal payload: ${JSON.stringify(payload).substring(0, 400)}`);
   const res = await fetch('https://onesignal.com/api/v1/notifications', {
     method: 'POST',
     headers: {
@@ -37,37 +45,48 @@ async function scheduleNotification({ externalId, title, body, data, sendAt }) {
     },
     body: JSON.stringify(payload),
   });
+  const responseText = await res.text();
+  console.log(`[scheduleGoalNotifications] OneSignal response: status=${res.status}, body=${responseText.substring(0, 300)}`);
   if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(`OneSignal API error: ${res.status} ${errorText}`);
+    throw new Error(`OneSignal API error: ${res.status} ${responseText}`);
   }
-  const json = await res.json();
-  return json?.id || null;
+  let json;
+  try { json = JSON.parse(responseText); } catch (_) { json = {}; }
+  const notifId = json?.id || null;
+  console.log(`[scheduleGoalNotifications] Notification scheduled with id=${notifId}`);
+  return notifId;
 }
 
-// Parse "Month 1 Week 2" -> { month: 1, week: 2 }
+// Parse "Month 1 Week 2" or "Month 1, Week 2" -> { month: 1, week: 2 }
 // Parse "Month 3" -> { month: 3, week: null }
 function parsePhase(phase) {
-  if (!phase) return null;
-  // Handle both "Month 1 Week 2" and "Month 1, Week 2"
+  if (!phase) {
+    console.log(`[scheduleGoalNotifications] parsePhase: null/empty phase`);
+    return null;
+  }
   const full = phase.match(/Month\s+(\d+)[,\s]+Week\s+(\d+)/i);
-  if (full) return { month: parseInt(full[1]), week: parseInt(full[2]) };
+  if (full) {
+    const result = { month: parseInt(full[1]), week: parseInt(full[2]) };
+    console.log(`[scheduleGoalNotifications] parsePhase("${phase}") => month=${result.month}, week=${result.week}`);
+    return result;
+  }
   const monthOnly = phase.match(/Month\s+(\d+)/i);
-  if (monthOnly) return { month: parseInt(monthOnly[1]), week: null };
+  if (monthOnly) {
+    const result = { month: parseInt(monthOnly[1]), week: null };
+    console.log(`[scheduleGoalNotifications] parsePhase("${phase}") => month=${result.month}, week=null`);
+    return result;
+  }
+  console.log(`[scheduleGoalNotifications] parsePhase("${phase}") => NO MATCH`);
   return null;
 }
 
 // Return a UTC Date for localHour:localMin on the given YYYY-MM-DD string
-// tzOffsetMinutes is what JS returns from -new Date().getTimezoneOffset()
-// e.g. CST = UTC-5 → tzOffsetMinutes = -300
-// local time → UTC: subtract the offset (UTC = local - offset)
 function localTimeOnDate(dateStr, localHour, localMin, tzOffsetMinutes) {
   const d = new Date(dateStr + 'T00:00:00Z');
-  // Start at midnight UTC, then set to localHour:localMin in local time
-  // UTC equivalent = local time - tzOffset
   const totalLocalMins = localHour * 60 + localMin;
   const totalUTCMins = totalLocalMins - tzOffsetMinutes;
   d.setUTCHours(Math.floor(totalUTCMins / 60), totalUTCMins % 60, 0, 0);
+  console.log(`[scheduleGoalNotifications] localTimeOnDate(${dateStr}, ${localHour}:${localMin}, tz=${tzOffsetMinutes}) => ${d.toISOString()}`);
   return d;
 }
 
@@ -79,56 +98,128 @@ function addDays(dateStr, n) {
 }
 
 Deno.serve(async (req) => {
+  console.log(`[scheduleGoalNotifications] ===== FUNCTION INVOKED =====`);
+  console.log(`[scheduleGoalNotifications] Method: ${req.method}, URL: ${req.url}`);
+
+  let rawBody = '';
   try {
-    const base44 = createClientFromRequest(req);
-    const { goal_id, goal_data, timezoneOffsetMinutes } = await req.json();
-    console.log(`[scheduleGoalNotifications] Called with goal_id=${goal_id}, has_goal_data=${!!goal_data}, timezone=${timezoneOffsetMinutes}`);
-    if (!goal_id) return Response.json({ error: 'goal_id required' }, { status: 400 });
+    rawBody = await req.text();
+    console.log(`[scheduleGoalNotifications] Raw body length: ${rawBody.length}`);
+    console.log(`[scheduleGoalNotifications] Raw body preview: ${rawBody.substring(0, 500)}`);
+  } catch (bodyErr) {
+    console.error(`[scheduleGoalNotifications] Failed to read body: ${bodyErr.message}`);
+    return Response.json({ error: 'Failed to read body' }, { status: 400 });
+  }
 
-    const tzOffset = typeof timezoneOffsetMinutes === 'number' ? timezoneOffsetMinutes : 0;
-    const now = new Date();
+  let parsedBody;
+  try {
+    parsedBody = JSON.parse(rawBody);
+  } catch (parseErr) {
+    console.error(`[scheduleGoalNotifications] Failed to parse JSON: ${parseErr.message}`);
+    return Response.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
 
-    // If goal_data is passed, use it; otherwise fetch from database
-    let goal = goal_data;
-    if (!goal) {
+  const { goal_id, goal_data, timezoneOffsetMinutes } = parsedBody;
+  console.log(`[scheduleGoalNotifications] goal_id=${goal_id}, has_goal_data=${!!goal_data}, timezoneOffsetMinutes=${timezoneOffsetMinutes}`);
+
+  if (!goal_id) return Response.json({ error: 'goal_id required' }, { status: 400 });
+
+  const tzOffset = typeof timezoneOffsetMinutes === 'number' ? timezoneOffsetMinutes : 0;
+  console.log(`[scheduleGoalNotifications] Using tzOffset=${tzOffset}`);
+  const now = new Date();
+  console.log(`[scheduleGoalNotifications] now=${now.toISOString()}`);
+
+  let base44;
+  try {
+    const reqWithBody = new Request(req.url, {
+      method: req.method,
+      headers: req.headers,
+      body: rawBody,
+    });
+    base44 = createClientFromRequest(reqWithBody);
+    console.log(`[scheduleGoalNotifications] SDK client created`);
+  } catch (sdkErr) {
+    console.error(`[scheduleGoalNotifications] SDK init failed: ${sdkErr.message}`);
+    return Response.json({ error: `SDK init failed: ${sdkErr.message}` }, { status: 500 });
+  }
+
+  let goal = goal_data;
+  if (!goal) {
+    console.log(`[scheduleGoalNotifications] No goal_data passed, fetching from DB...`);
+    try {
       goal = await base44.entities.Goal.get(goal_id);
-      if (!goal) return Response.json({ error: 'Goal not found' }, { status: 404 });
+      console.log(`[scheduleGoalNotifications] Fetched goal: id=${goal?.id}, title="${goal?.title}"`);
+    } catch (fetchErr) {
+      console.error(`[scheduleGoalNotifications] Failed to fetch goal: ${fetchErr.message}`);
+      return Response.json({ error: `Failed to fetch goal: ${fetchErr.message}` }, { status: 500 });
     }
+    if (!goal) return Response.json({ error: 'Goal not found' }, { status: 404 });
+  } else {
+    console.log(`[scheduleGoalNotifications] Using passed goal_data: id=${goal?.id}, title="${goal?.title}"`);
+  }
 
-    const user = await base44.auth.me();
-    const externalId = user?.email;
-    console.log(`[scheduleGoalNotifications] User: ${externalId}, Goal requires_daily_action=${goal.requires_daily_action}, weekdays_only=${goal.weekdays_only}`);
-    if (!externalId) return Response.json({ error: 'No user email' }, { status: 400 });
-    
-    const steps = await base44.entities.GoalStep.filter({ goal_id });
-    console.log(`[scheduleGoalNotifications] Found ${steps.length} steps for goal ${goal_id}`);
+  let user;
+  try {
+    user = await base44.auth.me();
+    console.log(`[scheduleGoalNotifications] Auth: user=${user?.email}, role=${user?.role}`);
+  } catch (authErr) {
+    console.error(`[scheduleGoalNotifications] Auth failed: ${authErr.message}`);
+    return Response.json({ error: `Auth failed: ${authErr.message}` }, { status: 401 });
+  }
 
-    // Preferred notification time (default 9 AM)
-    let prefHour = 9, prefMin = 0;
-    if (user?.preferred_notification_time) {
-      const tp = user.preferred_notification_time.match(/(\d{1,2}):(\d{2})/);
-      if (tp) { prefHour = parseInt(tp[1]); prefMin = parseInt(tp[2]); }
+  const externalId = user?.email;
+  if (!externalId) {
+    console.error(`[scheduleGoalNotifications] No user email found`);
+    return Response.json({ error: 'No user email' }, { status: 400 });
+  }
+  console.log(`[scheduleGoalNotifications] externalId=${externalId}`);
+  console.log(`[scheduleGoalNotifications] goal.requires_daily_action=${goal.requires_daily_action}, goal.weekdays_only=${goal.weekdays_only}, goal.notification_frequency=${goal.notification_frequency}`);
+
+  let steps;
+  try {
+    steps = await base44.entities.GoalStep.filter({ goal_id });
+    console.log(`[scheduleGoalNotifications] Fetched ${steps.length} steps for goal ${goal_id}`);
+    if (steps.length > 0) {
+      console.log(`[scheduleGoalNotifications] Step phases sample: ${steps.slice(0, 10).map(s => s.phase).join(' | ')}`);
+      console.log(`[scheduleGoalNotifications] Daily habit steps: ${steps.filter(s => s.is_daily_habit).length}`);
+      console.log(`[scheduleGoalNotifications] Steps with due_date: ${steps.filter(s => s.due_date).length}`);
     }
+  } catch (stepsErr) {
+    console.error(`[scheduleGoalNotifications] Failed to fetch steps: ${stepsErr.message}`);
+    return Response.json({ error: `Failed to fetch steps: ${stepsErr.message}` }, { status: 500 });
+  }
 
-    let scheduled = 0, cancelled = 0;
+  // Preferred notification time (default 9 AM)
+  let prefHour = 9, prefMin = 0;
+  if (user?.preferred_notification_time) {
+    const tp = user.preferred_notification_time.match(/(\d{1,2}):(\d{2})/);
+    if (tp) { prefHour = parseInt(tp[1]); prefMin = parseInt(tp[2]); }
+  }
+  console.log(`[scheduleGoalNotifications] prefHour=${prefHour}, prefMin=${prefMin}`);
 
-    // ── STEP-LEVEL NOTIFICATIONS ──
-    // Daily habit notifications are handled entirely by cronDailyHabitNotifications.
-    // Here we only schedule: day-before reminder + due-date reminder for milestone steps.
-    for (const step of steps) {
-      const existingIds = step.onesignal_notification_ids || [];
-      for (const nid of existingIds) { await cancelNotification(nid); cancelled++; }
+  let scheduled = 0, cancelled = 0;
 
-      const newNotifIds = [];
-      const hasDueDate = !!step.due_date;
-      const isDailyHabit = step.is_daily_habit === true;
-      console.log(`[scheduleGoalNotifications] Step "${step.title}": due_date=${step.due_date}, is_daily_habit=${step.is_daily_habit}, will_schedule=${hasDueDate && !isDailyHabit}`);
+  // ── STEP-LEVEL NOTIFICATIONS ──
+  console.log(`[scheduleGoalNotifications] --- Processing ${steps.length} steps for due-date notifications ---`);
+  for (const step of steps) {
+    const existingIds = step.onesignal_notification_ids || [];
+    if (existingIds.length > 0) {
+      console.log(`[scheduleGoalNotifications] Cancelling ${existingIds.length} old notifs for step "${step.title}"`);
+    }
+    for (const nid of existingIds) { await cancelNotification(nid); cancelled++; }
 
-      if (step.due_date && !step.is_daily_habit) {
-        // Day-before reminder
-        const dayBeforeStr = addDays(step.due_date, -1);
-        const dayBeforeSendAt = localTimeOnDate(dayBeforeStr, prefHour, prefMin, tzOffset);
-        if (dayBeforeSendAt > now) {
+    const newNotifIds = [];
+    const hasDueDate = !!step.due_date;
+    const isDailyHabit = step.is_daily_habit === true;
+    console.log(`[scheduleGoalNotifications] Step "${step.title?.substring(0,50)}": phase="${step.phase}", due_date=${step.due_date}, is_daily_habit=${isDailyHabit}, will_schedule_due_date=${hasDueDate && !isDailyHabit}`);
+
+    if (step.due_date && !step.is_daily_habit) {
+      // Day-before reminder
+      const dayBeforeStr = addDays(step.due_date, -1);
+      const dayBeforeSendAt = localTimeOnDate(dayBeforeStr, prefHour, prefMin, tzOffset);
+      console.log(`[scheduleGoalNotifications] Day-before sendAt=${dayBeforeSendAt.toISOString()}, now=${now.toISOString()}, isFuture=${dayBeforeSendAt > now}`);
+      if (dayBeforeSendAt > now) {
+        try {
           const nid = await scheduleNotification({
             externalId,
             title: `📌 "${step.title}" is due tomorrow`,
@@ -137,11 +228,16 @@ Deno.serve(async (req) => {
             sendAt: dayBeforeSendAt.toISOString(),
           });
           if (nid) { newNotifIds.push(nid); scheduled++; }
+        } catch (nErr) {
+          console.error(`[scheduleGoalNotifications] Failed to schedule day-before for step "${step.title}": ${nErr.message}`);
         }
+      }
 
-        // Due-date reminder
-        const dueSendAt = localTimeOnDate(step.due_date, prefHour, prefMin, tzOffset);
-        if (dueSendAt > now) {
+      // Due-date reminder
+      const dueSendAt = localTimeOnDate(step.due_date, prefHour, prefMin, tzOffset);
+      console.log(`[scheduleGoalNotifications] Due-date sendAt=${dueSendAt.toISOString()}, isFuture=${dueSendAt > now}`);
+      if (dueSendAt > now) {
+        try {
           const nid = await scheduleNotification({
             externalId,
             title: `🎯 "${step.title}" is due today`,
@@ -150,70 +246,86 @@ Deno.serve(async (req) => {
             sendAt: dueSendAt.toISOString(),
           });
           if (nid) { newNotifIds.push(nid); scheduled++; }
+        } catch (nErr) {
+          console.error(`[scheduleGoalNotifications] Failed to schedule due-date for step "${step.title}": ${nErr.message}`);
         }
       }
-
-      if (newNotifIds.length > 0 || existingIds.length > 0) {
-        await base44.entities.GoalStep.update(step.id, {
-          onesignal_notification_ids: newNotifIds,
-        });
-      }
     }
 
-    // ── GOAL TYPE DETECTION ──
-    // If the goal has any daily habit steps, it's a habit goal — the cron drives daily notifications
-    // and the week-4-done trigger fires the celebration. If no daily habit steps exist,
-    // it's milestone-based — the month-end notification carries the celebration trigger.
-    const isMilestoneGoal = !steps.some(s => s.is_daily_habit && s.habit_time);
-
-    // ── CANCEL OLD GOAL-LEVEL NOTIFICATIONS ──
-    const existingGoalNotifIds = goal.onesignal_notification_ids || [];
-    for (const nid of existingGoalNotifIds) { await cancelNotification(nid); cancelled++; }
-    const goalNotifIds = [];
-
-    // ── BUILD WEEK/MONTH MAP from step phases and due_dates ──
-    // This derives all timing from actual step data — no dependency on created_date or now.
-    const weekMap = {};   // key: "month-week"
-    const monthMap = {};  // key: "month"
-
-    for (const step of steps) {
-      if (!step.due_date) continue;
-      const p = parsePhase(step.phase);
-      if (!p) continue;
-
-      // Month map
-      const mk = String(p.month);
-      if (!monthMap[mk]) monthMap[mk] = { month: p.month, dates: [] };
-      monthMap[mk].dates.push(step.due_date);
-
-      // Week map
-      if (p.week !== null) {
-        const wk = `${p.month}-${p.week}`;
-        if (!weekMap[wk]) weekMap[wk] = { month: p.month, week: p.week, dates: [], titles: [] };
-        weekMap[wk].dates.push(step.due_date);
-        if (step.title) weekMap[wk].titles.push(step.title);
+    if (newNotifIds.length > 0 || existingIds.length > 0) {
+      try {
+        await base44.entities.GoalStep.update(step.id, { onesignal_notification_ids: newNotifIds });
+        console.log(`[scheduleGoalNotifications] Updated step "${step.title?.substring(0,40)}" with ${newNotifIds.length} notif IDs`);
+      } catch (updateErr) {
+        console.error(`[scheduleGoalNotifications] Failed to update step notif IDs: ${updateErr.message}`);
       }
     }
+  }
 
-    // ── WEEK NOTIFICATIONS (only Week 1 initially; subsequent weeks scheduled progressively) ──
-    // CRITICAL: Only schedule Week 1 notifications now — the automation handles scheduling future weeks
-    // This keeps notifications personalized to the user's actual progress
-    console.log(`[scheduleGoalNotifications] weekMap keys: ${Object.keys(weekMap).join(', ')}`);
-    for (const wData of Object.values(weekMap)) {
-      // Only schedule Week 1 of Month 1 upfront — all other weeks are scheduled by automation
-      if (wData.month !== 1 || wData.week !== 1) continue;
+  // ── GOAL TYPE DETECTION ──
+  const isMilestoneGoal = !steps.some(s => s.is_daily_habit && s.habit_time);
+  console.log(`[scheduleGoalNotifications] isMilestoneGoal=${isMilestoneGoal}`);
 
-      const sortedDates = [...wData.dates].sort();
-      const weekEndDate = sortedDates[sortedDates.length - 1];
-      const weekStartDate = addDays(weekEndDate, -6);
-      console.log(`[scheduleGoalNotifications] Week 1 dates: start=${weekStartDate}, end=${weekEndDate}`);
+  // ── CANCEL OLD GOAL-LEVEL NOTIFICATIONS ──
+  const existingGoalNotifIds = goal.onesignal_notification_ids || [];
+  console.log(`[scheduleGoalNotifications] Cancelling ${existingGoalNotifIds.length} old goal-level notif IDs`);
+  for (const nid of existingGoalNotifIds) { await cancelNotification(nid); cancelled++; }
+  const goalNotifIds = [];
 
-      const monthTheme = goal.month_titles?.[wData.month];
-      const weekFocus = wData.titles.slice(0, 2).join(' & ') || monthTheme || goal.title;
+  // ── BUILD WEEK/MONTH MAP ──
+  console.log(`[scheduleGoalNotifications] --- Building weekMap/monthMap ---`);
+  const weekMap = {};
+  const monthMap = {};
 
-      // Week begin — morning of week start
-      const weekBeginSendAt = localTimeOnDate(weekStartDate, prefHour, prefMin, tzOffset);
-      if (weekBeginSendAt > now) {
+  for (const step of steps) {
+    if (!step.due_date) {
+      console.log(`[scheduleGoalNotifications] Skipping step "${step.title?.substring(0,40)}" — no due_date`);
+      continue;
+    }
+    const p = parsePhase(step.phase);
+    if (!p) {
+      console.log(`[scheduleGoalNotifications] Skipping step "${step.title?.substring(0,40)}" — parsePhase returned null for phase="${step.phase}"`);
+      continue;
+    }
+
+    const mk = String(p.month);
+    if (!monthMap[mk]) monthMap[mk] = { month: p.month, dates: [] };
+    monthMap[mk].dates.push(step.due_date);
+
+    if (p.week !== null) {
+      const wk = `${p.month}-${p.week}`;
+      if (!weekMap[wk]) weekMap[wk] = { month: p.month, week: p.week, dates: [], titles: [] };
+      weekMap[wk].dates.push(step.due_date);
+      if (step.title) weekMap[wk].titles.push(step.title);
+    }
+  }
+
+  console.log(`[scheduleGoalNotifications] weekMap keys: [${Object.keys(weekMap).join(', ')}]`);
+  console.log(`[scheduleGoalNotifications] monthMap keys: [${Object.keys(monthMap).join(', ')}]`);
+
+  // ── WEEK NOTIFICATIONS (Week 1 only) ──
+  console.log(`[scheduleGoalNotifications] --- Scheduling Week 1 notifications ---`);
+  for (const [wk, wData] of Object.entries(weekMap)) {
+    console.log(`[scheduleGoalNotifications] weekMap[${wk}]: month=${wData.month}, week=${wData.week}, dates=${wData.dates.join(',')}`);
+    if (wData.month !== 1 || wData.week !== 1) {
+      console.log(`[scheduleGoalNotifications] Skipping week ${wk} — not Month 1 Week 1`);
+      continue;
+    }
+
+    const sortedDates = [...wData.dates].sort();
+    const weekEndDate = sortedDates[sortedDates.length - 1];
+    const weekStartDate = addDays(weekEndDate, -6);
+    console.log(`[scheduleGoalNotifications] Week 1: startDate=${weekStartDate}, endDate=${weekEndDate}`);
+
+    const monthTheme = goal.month_titles?.[wData.month] || goal.month_titles?.[String(wData.month)];
+    const weekFocus = wData.titles.slice(0, 2).join(' & ') || monthTheme || goal.title;
+    console.log(`[scheduleGoalNotifications] Week 1 monthTheme="${monthTheme}", weekFocus="${weekFocus}"`);
+
+    // Week begin
+    const weekBeginSendAt = localTimeOnDate(weekStartDate, prefHour, prefMin, tzOffset);
+    console.log(`[scheduleGoalNotifications] Week begin sendAt=${weekBeginSendAt.toISOString()}, isFuture=${weekBeginSendAt > now}`);
+    if (weekBeginSendAt > now) {
+      try {
         const nid = await scheduleNotification({
           externalId,
           title: `Week 1 begins`,
@@ -224,11 +336,16 @@ Deno.serve(async (req) => {
           sendAt: weekBeginSendAt.toISOString(),
         });
         if (nid) { goalNotifIds.push(nid); scheduled++; }
+      } catch (nErr) {
+        console.error(`[scheduleGoalNotifications] Failed to schedule week begin: ${nErr.message}`);
       }
+    }
 
-      // Week end — evening of last due date in week
-      const weekEndSendAt = localTimeOnDate(weekEndDate, 19, 0, tzOffset);
-      if (weekEndSendAt > now) {
+    // Week end
+    const weekEndSendAt = localTimeOnDate(weekEndDate, 19, 0, tzOffset);
+    console.log(`[scheduleGoalNotifications] Week end sendAt=${weekEndSendAt.toISOString()}, isFuture=${weekEndSendAt > now}`);
+    if (weekEndSendAt > now) {
+      try {
         const nid = await scheduleNotification({
           externalId,
           title: `Week 1 wrap-up`,
@@ -239,20 +356,20 @@ Deno.serve(async (req) => {
           sendAt: weekEndSendAt.toISOString(),
         });
         if (nid) { goalNotifIds.push(nid); scheduled++; }
+      } catch (nErr) {
+        console.error(`[scheduleGoalNotifications] Failed to schedule week end: ${nErr.message}`);
       }
     }
-
-    // Month-level notifications removed — they're scheduled progressively via week automation for personalization
-
-    // Save goal-level notification IDs
-    await base44.entities.Goal.update(goal.id, {
-      onesignal_notification_ids: goalNotifIds,
-    });
-
-    console.log(`[scheduleGoalNotifications] Complete: scheduled=${scheduled}, cancelled=${cancelled}, steps=${steps.length}`);
-    return Response.json({ ok: true, scheduled, cancelled, steps_processed: steps.length });
-  } catch (err) {
-    console.error(`[scheduleGoalNotifications] Error: ${err.message}`);
-    return Response.json({ error: err.message }, { status: 500 });
   }
+
+  // Save goal-level notification IDs
+  try {
+    await base44.entities.Goal.update(goal.id, { onesignal_notification_ids: goalNotifIds });
+    console.log(`[scheduleGoalNotifications] Saved ${goalNotifIds.length} goal-level notif IDs to goal`);
+  } catch (updateErr) {
+    console.error(`[scheduleGoalNotifications] Failed to save goal notif IDs: ${updateErr.message}`);
+  }
+
+  console.log(`[scheduleGoalNotifications] ===== COMPLETE: scheduled=${scheduled}, cancelled=${cancelled}, steps_processed=${steps.length} =====`);
+  return Response.json({ ok: true, scheduled, cancelled, steps_processed: steps.length });
 });
