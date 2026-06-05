@@ -876,6 +876,38 @@ PHASE 1 — GATHER INFO FIRST (STRICTLY REQUIRED before drafting any plan IF Pha
 
 PHASE 2 — DRAFT THE FULL PLAN (only after sufficient info gathered):
 ${monthsRule}
+
+MANDATORY MARKDOWN FORMAT — EVERY MONTH MUST USE THIS EXACT STRUCTURE, NO EXCEPTIONS:
+
+**Month 1 — [Descriptive Title]**
+**Week 1**
+- [specific task]
+- [specific task]
+
+**Week 2**
+- [specific task]
+- [specific task]
+
+**Week 3**
+- [specific task]
+- [specific task]
+
+**Week 4**
+- [specific task]
+- [specific task]
+
+**Month 2 — [Descriptive Title]**
+**Week 1**
+- [specific task]
+...and so on for EVERY month.
+
+CRITICAL FORMAT RULES:
+- Every month MUST start with "**Month N — Title**" on its own line
+- Every week MUST start with "**Week N**" on its own line directly under its month
+- Tasks MUST be "- task" bullet points under each week
+- NEVER skip this structure for ANY month. Month 6 must look identical in structure to Month 1.
+- NEVER write a month without its 4 weeks immediately following it.
+
 4. STRICT PHASE NAMING RULES — VIOLATIONS ARE NOT ACCEPTABLE:
    - NEVER combine weeks: "Week 1-2", "Week 3-4", "Weeks 5-6" are ALL FORBIDDEN. Every week is its own entry: "Month 1, Week 1", "Month 1, Week 2", etc.
    - NEVER combine months: "Month 9-12", "Months 3-6", "Month 7-10", "Months 4-12" are ALL FORBIDDEN. Every month is its own entry: "Month 9", "Month 10", "Month 11", "Month 12".
