@@ -278,6 +278,7 @@ export default function Planner() {
       // Navigate immediately — don't wait for steps/notifications
       setPendingGoalId(goal.id);
       setSaved(true);
+      setTimeout(() => { setIsSaving(false); setShowCelebration(false); }, 500);
       navigate(`/goal/${goal.id}`);
 
       // Clear the in-progress session
