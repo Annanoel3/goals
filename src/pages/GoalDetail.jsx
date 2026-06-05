@@ -103,28 +103,27 @@ export default function GoalDetail() {
   const [celebrationWeek, setCelebrationWeek] = useState(null);
 
   useEffect(() => { loadData(); }, [id]);
-  useEffect(() => {
-    // Poll for new steps every 5 seconds while months are still loading
-    if (!loading && steps.length > 0) {
-      const hasLoadingMonths = Object.keys(monthsMap).some(m => {
-        const monthNum = parseInt(m.match(/\d+/)?.[0] || 0);
-        const weeksMap = monthsMap[m];
-        const hasNoSteps = Object.values(weeksMap).flat().length === 0;
-        return monthNum > 2 && hasNoSteps;
-      });
 
-      if (hasLoadingMonths) {
-        const timer = setInterval(() => {
-          base44.entities.GoalStep.filter({ goal_id: id })
-            .then(stepsData => {
-              setSteps(stepsData.sort((a, b) => (a.order_index || 0) - (b.order_index || 0)));
-            })
-            .catch(e => console.error('Poll error:', e));
-        }, 5000);
-        return () => clearInterval(timer);
-      }
-    }
-  }, [steps, loading, id]);
+  // Poll every 3s while background months are still being created
+  useEffect(() => {
+    if (loading || !goal) return;
+    const timelineMatch = goal.timeline?.match(/(\d+)\s*month/i);
+    const totalMonths = timelineMatch ? parseInt(timelineMatch[1]) : 0;
+    if (totalMonths <= 2) return; // Nothing to wait for
+
+    // Count how many distinct months have steps
+    const monthsWithSteps = new Set(
+      steps.map(s => s.phase?.match(/Month\s*(\d+)/i)?.[1]).filter(Boolean)
+    );
+    if (monthsWithSteps.size >= totalMonths) return; // All months loaded
+
+    const timer = setInterval(() => {
+      base44.entities.GoalStep.filter({ goal_id: id })
+        .then(stepsData => setSteps(stepsData.sort((a, b) => (a.order_index || 0) - (b.order_index || 0))))
+        .catch(() => {});
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [loading, goal, steps, id]);
 
   const loadData = async () => {
    try {
@@ -242,6 +241,15 @@ export default function GoalDetail() {
     return n(a) - n(b);
   };
   const sortedMonths = Object.keys(monthsMap).sort(monthSort);
+
+  // Add placeholder entries for months that haven't been created yet (background creation)
+  const timelineMonthsMatch = goal.timeline?.match(/(\d+)\s*month/i);
+  const totalExpectedMonths = timelineMonthsMatch ? parseInt(timelineMonthsMatch[1]) : 0;
+  const loadingMonthPlaceholders = [];
+  for (let m = 1; m <= totalExpectedMonths; m++) {
+    const key = `Month ${m}`;
+    if (!monthsMap[key]) loadingMonthPlaceholders.push(key);
+  }
 
   return (
     <div className="min-h-screen pb-32 px-4 pt-6">
@@ -394,7 +402,27 @@ export default function GoalDetail() {
               </div>
             );
           })}
-          {steps.length === 0 && (
+          {/* Loading placeholders for months not yet created in background */}
+          {loadingMonthPlaceholders.map(monthKey => (
+            <div key={monthKey} className="rounded-xl border border-gray-200 overflow-hidden">
+              <div className="w-full flex items-center gap-3 px-4 py-3 bg-white">
+                <div className="w-1.5 h-5 bg-violet-200 rounded-full flex-shrink-0" />
+                <div className="flex-1">
+                  <h3 className="text-sm font-bold text-gray-400">{monthKey}</h3>
+                  {monthTitles[monthKey] && (
+                    <p className="text-xs text-violet-300 mt-0.5">— {monthTitles[monthKey]}</p>
+                  )}
+                </div>
+                <Loader2 className="w-4 h-4 text-violet-400 animate-spin flex-shrink-0" />
+              </div>
+              <div className="border-t border-gray-100 bg-gray-50 px-3 py-4 flex items-center justify-center gap-2 text-gray-400">
+                <Loader2 className="w-4 h-4 animate-spin text-violet-400" />
+                <p className="text-xs">Creating plan…</p>
+              </div>
+            </div>
+          ))}
+
+          {steps.length === 0 && loadingMonthPlaceholders.length === 0 && (
             <Card className="bg-gray-50 border-gray-200">
               <CardContent className="p-6 text-center text-gray-400">No steps yet. Check back when the plan is created.</CardContent>
             </Card>
