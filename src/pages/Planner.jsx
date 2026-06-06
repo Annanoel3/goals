@@ -34,8 +34,7 @@ export default function Planner() {
   const [isRecording, setIsRecording] = useState(false);
   const [mediaRecorder, setMediaRecorder] = useState(null);
   const [goals, setGoals] = useState([]);
-  const [showDraftModal, setShowDraftModal] = useState(false);
-  const [showFinalConfirm, setShowFinalConfirm] = useState(false);
+  const [showApprovalModal, setShowApprovalModal] = useState(false);
   const [editingGoal, setEditingGoal] = useState(null); // goal being edited in current session
   const [userCity, setUserCity] = useState(null);
   const [saveError, setSaveError] = useState(false);
@@ -146,8 +145,7 @@ export default function Planner() {
     setSaved(false);
     setInput("");
     setEditingGoal(null);
-    setShowDraftModal(false);
-    setShowFinalConfirm(false);
+    setShowApprovalModal(false);
     // Save that we're starting a new goal session
     const sessionData = { startedAt: new Date().toISOString(), messages: [], pendingAction: null };
     localStorage.setItem('plannerInProgress', JSON.stringify(sessionData));
@@ -469,15 +467,15 @@ export default function Planner() {
             </div>
             )}
 
-            {/* Summary approval — first step */}
-            {pendingAction === 'plan_proposed' && !isLoading && !saved && !editingGoal && !showCelebration && !showDraftModal && (
+            {/* 2-step approval flow */}
+            {pendingAction === 'plan_proposed' && !isLoading && !saved && !editingGoal && !showCelebration && !showApprovalModal && (
               <div className="flex flex-col items-center gap-3 pt-4 pb-4">
                 <Button
-                  onClick={() => setShowDraftModal(true)}
+                  onClick={() => setShowApprovalModal(true)}
                   className={`rounded-2xl px-6 py-2.5 font-semibold ${isDark ? 'bg-violet-600 hover:bg-violet-700 text-white shadow-lg shadow-violet-900/30' : 'bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white shadow-lg shadow-violet-100'}`}
                 >
                   <Check className="w-4 h-4 mr-2" />
-                  Looks good!
+                  Looks good
                 </Button>
                 <Button
                   variant="outline"
@@ -489,45 +487,23 @@ export default function Planner() {
               </div>
             )}
 
-            {/* Draft approval modal — second step */}
-            {showDraftModal && !saved && !showCelebration && !showFinalConfirm && (
+            {/* Create Plan confirmation */}
+            {showApprovalModal && !saved && !showCelebration && (
               <div className="flex flex-col items-center gap-3 pt-4 pb-4 border-t-2 border-dashed mt-4">
-                <p className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Ready to create your plan?</p>
+                <p className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Create your plan now?</p>
                 <Button
-                  onClick={() => setShowFinalConfirm(true)}
-                  className={`rounded-2xl px-6 py-2.5 font-semibold ${isDark ? 'bg-violet-600 hover:bg-violet-700 text-white shadow-lg shadow-violet-900/30' : 'bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white shadow-lg shadow-violet-100'}`}
+                  onClick={() => { setShowCelebration(true); handleSaveNewGoal(); }}
+                  className={`rounded-2xl px-6 py-2.5 font-semibold ${isDark ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-900/30' : 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-lg shadow-emerald-100'}`}
                 >
                   <Check className="w-4 h-4 mr-2" />
                   Create Plan
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={() => setShowDraftModal(false)}
+                  onClick={() => setShowApprovalModal(false)}
                   className={`rounded-2xl px-6 py-2.5 border-2 font-semibold ${isDark ? 'border-gray-700 text-gray-300 hover:bg-gray-800' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}
                 >
                   Go Back
-                </Button>
-              </div>
-            )}
-
-            {/* Final confirmation — third step */}
-            {showFinalConfirm && !saved && !showCelebration && (
-              <div className="flex flex-col items-center gap-3 pt-4 pb-4 border-t-2 border-dashed mt-4">
-                <p className={`text-sm font-semibold ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>Confirm & Save Plan?</p>
-                <p className={`text-xs text-center max-w-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>You can adjust this anytime, but let's save it now so you can start working on it.</p>
-                <Button
-                  onClick={() => { setShowCelebration(true); handleSaveNewGoal(); }}
-                  className={`rounded-2xl px-6 py-2.5 font-semibold ${isDark ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-900/30' : 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-lg shadow-emerald-100'}`}
-                >
-                  <Check className="w-4 h-4 mr-2" />
-                  Save & Create
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => setShowFinalConfirm(false)}
-                  className={`rounded-2xl px-6 py-2.5 border-2 font-semibold ${isDark ? 'border-gray-700 text-gray-300 hover:bg-gray-800' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}
-                >
-                  Review Again
                 </Button>
               </div>
             )}
