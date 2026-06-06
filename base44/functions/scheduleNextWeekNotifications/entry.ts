@@ -40,11 +40,9 @@ async function scheduleNotification({ externalId, title, body, data, sendAt }) {
 
 function localTimeOnDate(dateStr, localHour, localMin, tzOffsetMinutes) {
   const d = new Date(dateStr + 'T00:00:00Z');
-  d.setUTCHours(
-    localHour + Math.floor(tzOffsetMinutes / 60),
-    localMin + (tzOffsetMinutes % 60),
-    0, 0
-  );
+  const totalLocalMins = localHour * 60 + localMin;
+  const totalUTCMins = totalLocalMins - tzOffsetMinutes;
+  d.setUTCHours(Math.floor(totalUTCMins / 60), totalUTCMins % 60, 0, 0);
   return d;
 }
 
@@ -75,14 +73,24 @@ Deno.serve(async (req) => {
 
     // Preferred notification time
     let prefHour = 9, prefMin = 0;
-    if (user?.preferred_notification_time) {
-      const tp = user.preferred_notification_time.match(/(\d{1,2}):(\d{2})/);
-      if (tp) { prefHour = parseInt(tp[1]); prefMin = parseInt(tp[2]); }
+    const prefTimeStr = goal?.preferred_time || user?.preferred_notification_time;
+    if (prefTimeStr) {
+      const tp = prefTimeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+      if (tp) {
+        prefHour = parseInt(tp[1]);
+        prefMin = parseInt(tp[2]);
+        if (tp[3]) {
+          const isPM = tp[3].toUpperCase() === 'PM';
+          if (isPM && prefHour < 12) prefHour += 12;
+          if (!isPM && prefHour === 12) prefHour = 0;
+        }
+      }
     }
 
     // Determine next week to schedule
     const nextWeek = (completed_week || 0) + 1;
     const nextMonthNum = Math.ceil(nextWeek / 4);
+    const monthRelativeWeek = nextWeek - (nextMonthNum - 1) * 4;
 
     // Get all steps for the next week
     const nextWeekSteps = steps.filter(s => {
@@ -91,7 +99,7 @@ Deno.serve(async (req) => {
       const weekMatch = phase.match(/Week\s*(\d+)/i);
       const m = monthMatch ? parseInt(monthMatch[1]) : 0;
       const w = weekMatch ? parseInt(weekMatch[1]) : 0;
-      return m === nextMonthNum && w === nextWeek;
+      return m === nextMonthNum && w === monthRelativeWeek;
     });
 
     if (nextWeekSteps.length === 0) {
