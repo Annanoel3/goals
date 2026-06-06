@@ -892,14 +892,7 @@ function parsePlanHierarchy(text, goalMonthTitles = {}) {
 function WeekDropdown({ week }) {
   const [open, setOpen] = React.useState(false);
   const [checked, setChecked] = React.useState(false);
-  const [showTimeInput, setShowTimeInput] = React.useState(false);
-  const [timeValue, setTimeValue] = React.useState("13:00");
   const isDark = localStorage.getItem('adhd_theme') === 'dark';
-  
-  const handleTimeChange = (e) => {
-    setTimeValue(e.target.value);
-    // You could emit an event or callback here to update the parent state
-  };
   
   return (
     <div className={`border rounded-xl overflow-hidden mb-1.5 ${isDark ? 'border-gray-700' : 'border-gray-100'}`}>
@@ -937,15 +930,6 @@ function WeekDropdown({ week }) {
           ) : (
             <p className={`text-xs italic ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>Activities for this week</p>
           )}
-          <div className="mt-3 pt-3 border-t flex items-center gap-2">
-            <label className={`text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Time:</label>
-            <input
-              type="time"
-              value={timeValue}
-              onChange={handleTimeChange}
-              className={`text-xs px-2 py-1 rounded border ${isDark ? 'bg-gray-800 border-gray-600 text-gray-200' : 'bg-white border-gray-300 text-gray-900'}`}
-            />
-          </div>
         </div>
       )}
     </div>
