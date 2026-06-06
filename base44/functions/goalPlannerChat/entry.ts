@@ -168,12 +168,12 @@ Return JSON:
 today = ${today}
 Extract every single step. If the planner listed 48 steps, return all 48.`
           }
-        ],
-        max_tokens: 16000,
-        response_format: { type: "json_object" }
-      });
+          ],
+          max_tokens: 24000,
+          response_format: { type: "json_object" }
+          });
 
-      const extracted = JSON.parse(extractionResponse.choices[0].message.content);
+          const extracted = JSON.parse(extractionResponse.choices[0].message.content);
 
       // Apply goal-level updates
       const goalUpdates = extracted.goal_updates || {};
@@ -724,7 +724,7 @@ REMINDER: You can always come back here anytime to adjust your plan — change t
         }
       ],
       tool_choice: "auto",
-      max_tokens: 16000
+      max_tokens: 24000
     });
 
     // If the model wants to search the web, execute and continue
@@ -746,7 +746,7 @@ REMINDER: You can always come back here anytime to adjust your plan — change t
         }
         toolMessages.push({ role: "tool", tool_call_id: call.id, content: searchResult });
       }
-      const followUp = await openai.chat.completions.create({ model: "gpt-4o", messages: toolMessages, max_tokens: 16000 });
+      const followUp = await openai.chat.completions.create({ model: "gpt-4o", messages: toolMessages, max_tokens: 24000 });
       finalReply = followUp.choices[0].message.content;
     } else {
       finalReply = firstChoice.message.content;
