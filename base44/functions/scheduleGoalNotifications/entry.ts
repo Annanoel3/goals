@@ -193,13 +193,15 @@ Deno.serve(async (req) => {
     return Response.json({ error: `Failed to fetch steps: ${stepsErr.message}` }, { status: 500 });
   }
 
-  // Preferred notification time (default 9 AM)
+  // Preferred time: the goal's own time wins (set from the planning chat), then the
+  // user-level preference, then a 9 AM default.
   let prefHour = 9, prefMin = 0;
-  if (user?.preferred_notification_time) {
-    const tp = user.preferred_notification_time.match(/(\d{1,2}):(\d{2})/);
+  const prefTimeStr = goal.preferred_time || user?.preferred_notification_time;
+  if (prefTimeStr) {
+    const tp = String(prefTimeStr).match(/(\d{1,2}):(\d{2})/);
     if (tp) { prefHour = parseInt(tp[1]); prefMin = parseInt(tp[2]); }
   }
-  console.log(`[scheduleGoalNotifications] prefHour=${prefHour}, prefMin=${prefMin}`);
+  console.log(`[scheduleGoalNotifications] prefHour=${prefHour}, prefMin=${prefMin} (source: ${goal.preferred_time ? 'goal' : (user?.preferred_notification_time ? 'user' : 'default')})`);
 
   let scheduled = 0, cancelled = 0;
 
@@ -371,8 +373,13 @@ Deno.serve(async (req) => {
   // ── DAILY HABIT NOTIFICATIONS (for requires_daily_action goals) ──
   if (goal.requires_daily_action) {
     console.log(`[scheduleGoalNotifications] --- Scheduling daily habit reminders for Week 1 ---`);
-    const dailyHabitSteps = steps.filter(s => s.is_daily_habit === true);
-    console.log(`[scheduleGoalNotifications] Found ${dailyHabitSteps.length} daily habit steps`);
+    // Only Month 1, Week 1 — we schedule one week ahead, never the whole plan.
+    const dailyHabitSteps = steps.filter(s => {
+      if (s.is_daily_habit !== true) return false;
+      const p = parsePhase(s.phase);
+      return p && p.month === 1 && p.week === 1;
+    });
+    console.log(`[scheduleGoalNotifications] Found ${dailyHabitSteps.length} Week-1 daily habit steps`);
 
     if (dailyHabitSteps.length > 0 && planStartDate) {
       // Generate week 1 dates respecting include_weekend_reminders preference
