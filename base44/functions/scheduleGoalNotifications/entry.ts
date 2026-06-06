@@ -81,13 +81,17 @@ function parsePhase(phase) {
 }
 
 // Return a UTC Date for localHour:localMin on the given YYYY-MM-DD string
+// tzOffsetMinutes is the negative offset from UTC (e.g., -300 for CDT)
 function localTimeOnDate(dateStr, localHour, localMin, tzOffsetMinutes) {
-  const d = new Date(dateStr + 'T00:00:00Z');
-  const totalLocalMins = localHour * 60 + localMin;
-  const totalUTCMins = totalLocalMins - tzOffsetMinutes;
-  d.setUTCHours(Math.floor(totalUTCMins / 60), totalUTCMins % 60, 0, 0);
-  console.log(`[scheduleGoalNotifications] localTimeOnDate(${dateStr}, ${localHour}:${localMin}, tz=${tzOffsetMinutes}) => ${d.toISOString()}`);
-  return d;
+   // Create a UTC date at midnight on the given date
+   const d = new Date(dateStr + 'T00:00:00Z');
+   // Convert local time to UTC: if it's 9 AM local and offset is -300 (CDT, UTC-5),
+   // then 9 AM local = 9:00 + 5:00 = 14:00 UTC
+   const totalLocalMins = localHour * 60 + localMin;
+   const totalUTCMins = totalLocalMins - tzOffsetMinutes;
+   d.setUTCHours(Math.floor(totalUTCMins / 60), totalUTCMins % 60, 0, 0);
+   console.log(`[scheduleGoalNotifications] localTimeOnDate(${dateStr}, ${localHour}:${localMin}, tzOffset=${tzOffsetMinutes}min) => ${d.toISOString()}`);
+   return d;
 }
 
 // Add N days to a YYYY-MM-DD string, return new YYYY-MM-DD
@@ -125,9 +129,9 @@ Deno.serve(async (req) => {
   if (!goal_id) return Response.json({ error: 'goal_id required' }, { status: 400 });
 
   const tzOffset = typeof timezoneOffsetMinutes === 'number' ? timezoneOffsetMinutes : 0;
-  console.log(`[scheduleGoalNotifications] Using tzOffset=${tzOffset}`);
-  const now = new Date();
-  console.log(`[scheduleGoalNotifications] now=${now.toISOString()}`);
+   console.log(`[scheduleGoalNotifications] Using tzOffset=${tzOffset}`);
+   const now = new Date();
+   console.log(`[scheduleGoalNotifications] now=${now.toISOString()}, local time check: tzOffset=${tzOffset}min`);
 
   let base44;
   try {
