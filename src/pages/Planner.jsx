@@ -533,14 +533,14 @@ export default function Planner() {
               </div>
             )}
 
-            {/* Saving state — edit only (new goals navigate immediately) */}
-            {pendingAction !== null && !isLoading && !saved && showCelebration && editingGoal && (
+            {/* Saving state — shows for both new and edit goals */}
+            {pendingAction !== null && !isLoading && !saved && showCelebration && (
               <>
                 {saveError ? (
                    <div className="flex flex-col items-center gap-3 py-2">
                     <p className={`text-sm font-medium ${isDark ? 'text-red-400' : 'text-red-600'}`}>Something went wrong saving your goal.</p>
                     <Button
-                      onClick={handleApplyEdits}
+                      onClick={editingGoal ? handleApplyEdits : handleSaveNewGoal}
                       className={`rounded-2xl px-6 py-2.5 font-semibold ${isDark ? 'bg-violet-600 hover:bg-violet-700 text-white' : 'bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white'}`}
                     >
                       Retry
@@ -548,7 +548,7 @@ export default function Planner() {
                   </div>
                 ) : isSaving && (
                   <div className="flex flex-col items-center gap-3 py-6">
-                    <SavingProgressBar isEdit done={true} />
+                    <SavingProgressBar isEdit={!!editingGoal} done={false} />
                   </div>
                 )}
               </>
