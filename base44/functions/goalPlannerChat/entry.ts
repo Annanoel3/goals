@@ -169,7 +169,7 @@ today = ${today}
 Extract every single step. If the planner listed 48 steps, return all 48.`
           }
           ],
-          max_tokens: 24000,
+          max_tokens: 16000,
           response_format: { type: "json_object" }
           });
 
@@ -609,6 +609,14 @@ CRITICAL FORMAT RULES:
 
 10d. ABSOLUTELY FORBIDDEN — GROUPED MONTH SHORTCUTS: It is NEVER acceptable to write a section like "Month 6-12: Proposed Titles", "Months 7-12: Content List", "Months 4-6: Summary", or ANY grouped range of months as a bullet list or shortcut. This is a CRITICAL FAILURE regardless of goal type. Every single month MUST be formatted with its own full section — same level of detail as Month 1. If Month 1 has a title, reason, and plan, then Month 6 must also have a title, reason, and plan. If Month 1 has weekly steps, Month 6 must also have weekly steps. The structure of later months must match the structure of earlier months exactly. If you are running low on tokens — shorten each description, but NEVER collapse multiple months together. Every month gets its own section, every time, for every goal type.
 
+CRITICAL ENFORCEMENT — VIOLATION CHECK: If your response includes ANY of these patterns, you MUST STOP and regenerate:
+- "Month X-Y:" (X and Y are different numbers)
+- "Months A-Z:" 
+- "For the rest of" followed by abbreviated content
+- "I'll continue" or "will continue selecting" instead of actual full month content
+- Any month heading without 4 complete weeks immediately below it
+If you catch yourself writing these patterns, DELETE the shortcut and write out EVERY remaining month in full. This is non-negotiable.
+
 ██████████████████████████████████████████████████████████
 ABSOLUTE RULE — DO NOT RECOMMEND ALREADY-READ/TRIED ITEMS
 ██████████████████████████████████████████████████████████
@@ -724,13 +732,13 @@ REMINDER: You can always come back here anytime to adjust your plan — change t
         }
       ],
       tool_choice: "auto",
-      max_tokens: 24000
-    });
+      max_tokens: 16000
+      });
 
-    // If the model wants to search the web, execute and continue
-    let finalReply;
-    const firstChoice = completion.choices[0];
-    if (firstChoice.finish_reason === 'tool_calls' && firstChoice.message.tool_calls?.length > 0) {
+      // If the model wants to search the web, execute and continue
+      let finalReply;
+      const firstChoice = completion.choices[0];
+      if (firstChoice.finish_reason === 'tool_calls' && firstChoice.message.tool_calls?.length > 0) {
       const toolMessages = [{ role: "system", content: systemPrompt }, ...messages, firstChoice.message];
       for (const call of firstChoice.message.tool_calls) {
         const query = JSON.parse(call.function.arguments).query;
@@ -746,7 +754,7 @@ REMINDER: You can always come back here anytime to adjust your plan — change t
         }
         toolMessages.push({ role: "tool", tool_call_id: call.id, content: searchResult });
       }
-      const followUp = await openai.chat.completions.create({ model: "gpt-4o", messages: toolMessages, max_tokens: 24000 });
+       const followUp = await openai.chat.completions.create({ model: "gpt-4o", messages: toolMessages, max_tokens: 16000 });
       finalReply = followUp.choices[0].message.content;
     } else {
       finalReply = firstChoice.message.content;
