@@ -109,66 +109,6 @@ Deno.serve(async (req) => {
     }
   }
 
-  // Assign due_dates to steps based on phase if not already set
-  console.log(`[createRemainingGoalSteps] Calculating due_dates for steps based on phases...`);
-  if (createdCount > 0) {
-    try {
-      const goal = await base44.entities.Goal.get(goal_id);
-      const targetDate = goal?.target_date ? new Date(goal.target_date + 'T00:00:00Z') : null;
-      const timelineStr = goal?.timeline || '';
-      
-      // Detect total months from timeline (e.g., "12 months", "7-month plan")
-      const timelineMatch = timelineStr.match(/(\d+)/);
-      const totalMonths = timelineMatch ? parseInt(timelineMatch[1]) : 12;
-      
-      if (targetDate && totalMonths > 0) {
-        // Calculate start date from target and total months
-        const startDate = new Date(targetDate);
-        startDate.setUTCMonth(startDate.getUTCMonth() - totalMonths);
-        console.log(`[createRemainingGoalSteps] Goal timeline: ${totalMonths} months, startDate=${startDate.toISOString().split('T')[0]}, targetDate=${targetDate.toISOString().split('T')[0]}`);
-        
-        // Assign due_dates to all created steps
-        const updatedSteps = bulkPayload.map(step => {
-          if (step.due_date) return step; // Skip if already has a due_date
-          
-          // Parse phase to get month/week
-          const phaseMatch = step.phase.match(/Month\s+(\d+)(?:[,\s]+Week\s+(\d+))?/i);
-          if (!phaseMatch) return step;
-          
-          const monthNum = parseInt(phaseMatch[1]);
-          const weekNum = phaseMatch[2] ? parseInt(phaseMatch[2]) : 1;
-          
-          // Calculate due date: startDate + (monthNum-1)*30 days + (weekNum-1)*7 days
-          const dayOffset = (monthNum - 1) * 30 + (weekNum - 1) * 7;
-          const stepDueDate = new Date(startDate);
-          stepDueDate.setUTCDate(stepDueDate.getUTCDate() + dayOffset);
-          
-          const dueDateStr = stepDueDate.toISOString().split('T')[0];
-          console.log(`[createRemainingGoalSteps] Step "${step.title?.substring(0,30)}" phase="${step.phase}" => due_date=${dueDateStr}`);
-          
-          return { ...step, due_date: dueDateStr };
-        });
-        
-        // Update created steps with calculated due_dates
-        for (const step of updatedSteps) {
-          if (step.due_date && step.due_date !== bulkPayload.find(s => s.title === step.title)?.due_date) {
-            try {
-              await base44.asServiceRole.entities.GoalStep.update(
-                bulkPayload.findIndex(s => s.title === step.title),
-                { due_date: step.due_date }
-              );
-            } catch (err) {
-              // Silently fail — steps are created, due_dates are a bonus
-              console.error(`[createRemainingGoalSteps] Failed to update due_date for step: ${err.message}`);
-            }
-          }
-        }
-      }
-    } catch (dateCalcErr) {
-      console.error(`[createRemainingGoalSteps] Due date calculation failed: ${dateCalcErr.message}`);
-    }
-  }
-
   console.log(`[createRemainingGoalSteps] ===== DONE: created=${createdCount}/${steps.length}, failed=${failedSteps.length} =====`);
 
   // Now that steps exist in DB, schedule notifications in background (don't await)

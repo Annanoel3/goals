@@ -163,19 +163,16 @@ export default function Planner() {
 
     try {
       const allMessages = [...messagesRef.current, userMsg];
-      const filteredMessages = allMessages.filter(m => m.role !== "system");
       const payload = {
-        messages: filteredMessages,
+        messages: allMessages.filter(m => m.role !== "system"),
         mode: "chat",
         city: userCity,
         existing_goals: goals.map(g => ({ id: g.id, title: g.title })),
       };
       if (editingGoal) payload.goal_id = editingGoal.id;
 
-      console.log('[Planner] Invoking goalPlannerChat with payload:', { messagesCount: filteredMessages.length, mode: payload.mode, hasGoalId: !!payload.goal_id });
       const res = await base44.functions.invoke("goalPlannerChat", payload);
       const { message, action, goal_id, month_titles } = res.data;
-      console.log('[Planner] goalPlannerChat response:', { action, hasMessage: !!message });
 
       // If the AI returned new month_titles, use them exclusively (they reflect the new plan).
       // Only fall back to the existing goal's titles if the AI returned nothing at all.
@@ -205,7 +202,6 @@ export default function Planner() {
         }
       }
     } catch (err) {
-      console.error('[Planner] sendMessage error:', err);
       setMessages(prev => [...prev, { role: "assistant", content: "Something went wrong. Please try again." }]);
     } finally {
       setIsChatLoading(false);
@@ -261,7 +257,6 @@ export default function Planner() {
         }
       }
 
-      console.log('[handleSaveNewGoal] pendingAction:', pendingAction);
       const goal = await base44.entities.Goal.create({
         title: plan.title,
         description: plan.description,
@@ -279,7 +274,6 @@ export default function Planner() {
         weekdays_only: plan.weekdays_only ?? false,
         habit_days_of_week: plan.habit_days_of_week ?? []
       });
-      console.log('[handleSaveNewGoal] Goal created:', goal.id);
 
       // Navigate immediately — don't wait for steps/notifications
       setPendingGoalId(goal.id);
@@ -309,15 +303,12 @@ export default function Planner() {
         }).catch(err => console.error('createRemainingGoalSteps failed:', err));
       }
     } catch (err) {
-      console.error('[handleSaveNewGoal] Error:', err);
       if (retryCount < 3) {
         toast({ title: "Something went wrong", description: "Retrying in a moment...", variant: "default" });
         setTimeout(() => handleSaveNewGoal(retryCount + 1), 2000);
       } else {
-        console.error('[handleSaveNewGoal] Failed after 3 retries:', err);
         toast({ title: "Error saving goal", description: "Please try again.", variant: "destructive" });
         setIsSaving(false);
-        setSaveError(true);
       }
     }
   };
@@ -502,7 +493,7 @@ export default function Planner() {
               <div className="flex flex-col items-center gap-3 pt-4 pb-4 border-t-2 border-dashed mt-4">
                 <p className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Ready to create your plan?</p>
                 <Button
-                  onClick={() => { setShowCelebration(true); handleSaveNewGoal().catch(err => console.error('handleSaveNewGoal error:', err)); }}
+                  onClick={() => { setShowCelebration(true); handleSaveNewGoal(); }}
                   className={`rounded-2xl px-6 py-2.5 font-semibold ${isDark ? 'bg-violet-600 hover:bg-violet-700 text-white shadow-lg shadow-violet-900/30' : 'bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white shadow-lg shadow-violet-100'}`}
                 >
                   <Check className="w-4 h-4 mr-2" />
@@ -538,14 +529,14 @@ export default function Planner() {
               </div>
             )}
 
-            {/* Saving state — shows for both new and edit goals */}
-            {pendingAction !== null && !isLoading && !saved && showCelebration && (
+            {/* Saving state — edit only (new goals navigate immediately) */}
+            {pendingAction !== null && !isLoading && !saved && showCelebration && editingGoal && (
               <>
                 {saveError ? (
                    <div className="flex flex-col items-center gap-3 py-2">
                     <p className={`text-sm font-medium ${isDark ? 'text-red-400' : 'text-red-600'}`}>Something went wrong saving your goal.</p>
                     <Button
-                      onClick={editingGoal ? handleApplyEdits : handleSaveNewGoal}
+                      onClick={handleApplyEdits}
                       className={`rounded-2xl px-6 py-2.5 font-semibold ${isDark ? 'bg-violet-600 hover:bg-violet-700 text-white' : 'bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white'}`}
                     >
                       Retry
@@ -553,7 +544,7 @@ export default function Planner() {
                   </div>
                 ) : isSaving && (
                   <div className="flex flex-col items-center gap-3 py-6">
-                    <SavingProgressBar isEdit={!!editingGoal} done={false} />
+                    <SavingProgressBar isEdit done={true} />
                   </div>
                 )}
               </>
