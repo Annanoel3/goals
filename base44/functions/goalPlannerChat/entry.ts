@@ -53,12 +53,12 @@ const WEB_SEARCH_TOOL = {
 // Pure helpers for the plan-completeness safety net (no I/O — testable).
 // ──────────────────────────────────────────────────────────────────────────
 
-const MONTH_HEADER_RE = /^\s*\*{0,2}\s*Month\s+(\d+)\b/i;
+const MONTH_HEADER_RE = /^\s*#{0,4}\s*\*{0,2}\s*Month\s+(\d+)\b/i;
 
-// A month RANGE, e.g. "Month 4-15", "Months 3 to 6". This is the grouped/abbreviated
-// form we must NEVER allow in the final plan — every month has to stand on its own.
-// (No comma form — it would false-match a legitimate title like "Month 1, 2027".)
-const MONTH_RANGE_RE = /Months?\s+\d+\s*(?:[-–—]|to|through|&)\s*\d+/i;
+// A real month RANGE: plural "Months N..M" (any separator), OR singular "Month N-M"
+// (plain hyphen only), OR "Month N to/through M". Deliberately does NOT match a title
+// like "Month 1 — 1984" or "Month 3 — 100 Years of Solitude".
+const MONTH_RANGE_RE = /Months\s+\d+\s*(?:[-–—]|to|through|&|,)\s*\d+|Month\s+\d+\s*-\s*\d+|Month\s+\d+\s+(?:to|through)\s+\d+/i;
 
 // Softer deferral phrasing that ALSO means "I didn't actually write this out"
 // (e.g. "book titles TBD", "I'll continue choosing them"). Kept narrow so it can't
@@ -81,16 +81,16 @@ const isPlaceholderLine = (ln) => MONTH_RANGE_RE.test(ln) || DEFERRAL_RE.test(ln
 //   headerIdx, lines, firstHeaderIdx — for slicing
 function analyzePlan(text) {
   const lines = text.split('\n');
-  const headerIdx = {}; // month number -> first line index of its standalone header
+  const headerIdx = {};
   let maxPresent = 0, maxMentioned = 0, firstHeaderIdx = -1;
 
-  const rangeRe = /Months?\s+(\d+)\s*(?:[-–—]|to|through|&)\s*(\d+)/gi;
-  let rm;
-  while ((rm = rangeRe.exec(text))) {
-    maxMentioned = Math.max(maxMentioned, parseInt(rm[1], 10) || 0, parseInt(rm[2], 10) || 0);
-  }
-
   lines.forEach((ln, i) => {
+    // A grouped range tells us the intended length — pull its numbers (capped to avoid
+    // years or numeric titles), but only from lines that are actually a range.
+    if (MONTH_RANGE_RE.test(ln)) {
+      const nums = (ln.match(MONTH_RANGE_RE)[0].match(/\d+/g) || []).map(Number).filter(x => x >= 1 && x <= 36);
+      if (nums.length) maxMentioned = Math.max(maxMentioned, ...nums);
+    }
     const m = ln.match(MONTH_HEADER_RE);
     if (m && !MONTH_RANGE_RE.test(ln)) {
       const n = parseInt(m[1], 10);
@@ -868,7 +868,7 @@ Always be specific, warm, encouraging, and treat the plan as a living document t
     // If this turn is a plan draft (has month headers) and not an approval, make
     // sure every month is written out in full.
     const isApproval = /\b(?:PLAN_APPROVED|EDIT_APPROVED)\b/i.test(finalReply);
-    const looksLikePlan = /^\s*\*{0,2}\s*Month\s+\d+/im.test(finalReply);
+    const looksLikePlan = /^\s*#{0,4}\s*\*{0,2}\s*Month\s+\d+/im.test(finalReply);
     if (!isApproval && looksLikePlan) {
       finalReply = await expandPlan(finalReply);
     }
