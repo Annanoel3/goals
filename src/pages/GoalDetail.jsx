@@ -192,17 +192,11 @@ export default function GoalDetail() {
   };
 
   const deleteGoal = async () => {
-    setIsDeleting(true);
     setShowDeleteConfirm(false);
-    try {
-      await base44.functions.invoke('deleteGoalWithNotifications', { goal_id: goal.id });
-      toast({ title: "Goal deleted", description: `"${goal.title}" has been removed.`, variant: "default" });
-      navigate("/Goals");
-    } catch (err) {
-      setIsDeleting(false);
-      console.error("Deletion failed:", err);
-      toast({ title: "Error", description: "Failed to delete goal. Please try again.", variant: "destructive" });
-    }
+    toast({ title: "Goal deleted", description: `"${goal.title}" has been removed.`, variant: "default" });
+    navigate("/Goals");
+    // Delete in background asynchronously — don't block the user
+    base44.functions.invoke('deleteGoalWithNotifications', { goal_id: goal.id }).catch(err => console.error("Background deletion failed:", err));
   };
 
   if (loading) {
