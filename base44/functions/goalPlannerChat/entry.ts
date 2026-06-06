@@ -654,7 +654,7 @@ Ask ALL your questions in ONE numbered list (never split across messages). Rules
    - Realistic monthly commitment (time or money).
    - Deadline/target date — ONLY if they haven't already stated one.
    - Start date: "When do you want to start? I'll calculate the timeline from your start date to the end date."
-   - DAILY-ACTION GOALS ONLY (practice, reading, exercise, learning): preferred time of day (e.g., "What time works best for you? Morning, afternoon, or evening?")
+   - Preferred time for notifications (MANDATORY for all goals): "What time of day should I send you reminders? (e.g., 9am, 6pm, morning, evening)"
    - DAILY-ACTION GOALS ONLY (practice, reading, exercise, learning): "Reminders on weekends too, or just weekdays?"
    - BUDGET (ask for almost all goals — books, courses, tools, classes all cost money): "Do you have a budget for things like books, courses, or tools? A rough idea helps — or I can stick to free resources only." Skip ONLY for pure save/pay-off-money goals. Use the answer to filter resources strictly: no budget / no answer / vague / question not asked → FREE resources only (never recommend paid books, courses, or tools). A stated budget → tailor to fit it.
    - LOCAL RESOURCES (only for goals where in-person options genuinely help — music lessons, clubs, dance, martial arts, classes, etc.): ${userCity ? `the user's city is ${userCity}; ask if they want local resources included.` : `ask "What city are you in? (optional — I can include local classes, clubs, and meetups near you)".`} Ask this once only.
