@@ -271,11 +271,13 @@ export default function Planner() {
         habit_days_of_week: plan.habit_days_of_week ?? []
       });
 
-      // Navigate immediately — don't wait for steps/notifications
+      // Don't navigate yet — let the user see the success message and click "Go to Goal"
       setPendingGoalId(goal.id);
+      setIsSaving(false);
+
+      // Show success state
       setSaved(true);
-      setTimeout(() => { setIsSaving(false); setShowCelebration(false); }, 500);
-      navigate(`/goal/${goal.id}`);
+      setShowCelebration(true);
 
       // Clear the in-progress session
       localStorage.removeItem('plannerInProgress');
@@ -525,24 +527,24 @@ export default function Planner() {
               </div>
             )}
 
-            {/* Saving state — edit only (new goals navigate immediately) */}
-            {pendingAction !== null && !isLoading && !saved && showCelebration && editingGoal && (
+            {/* Saving state — both new and edit */}
+            {showCelebration && !saved && (
               <>
-                {saveError ? (
-                   <div className="flex flex-col items-center gap-3 py-2">
+                {isSaving ? (
+                  <div className="flex flex-col items-center gap-3 py-6">
+                    <SavingProgressBar isEdit={!!editingGoal} done={false} />
+                  </div>
+                ) : saveError ? (
+                  <div className="flex flex-col items-center gap-3 py-2">
                     <p className={`text-sm font-medium ${isDark ? 'text-red-400' : 'text-red-600'}`}>Something went wrong saving your goal.</p>
                     <Button
-                      onClick={handleApplyEdits}
+                      onClick={editingGoal ? handleApplyEdits : handleSaveNewGoal}
                       className={`rounded-2xl px-6 py-2.5 font-semibold ${isDark ? 'bg-violet-600 hover:bg-violet-700 text-white' : 'bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white'}`}
                     >
                       Retry
                     </Button>
                   </div>
-                ) : isSaving && (
-                  <div className="flex flex-col items-center gap-3 py-6">
-                    <SavingProgressBar isEdit done={true} />
-                  </div>
-                )}
+                ) : null}
               </>
             )}
 
