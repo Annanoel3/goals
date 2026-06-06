@@ -136,6 +136,75 @@ function analyzePlan(text) {
   return { lines, headerIdx, maxPresent, maxMentioned, contig, rangePresent, groupingPresent, firstHeaderIdx, sectionEnd };
 }
 
+// Parse an already-written plan (markdown) into weeks + month titles — no AI.
+// Returns { weeks: [{month, week, phase, bullets[]}], monthTitles: {n: "title"} }.
+function parsePlanWeeks(text) {
+  const lines = text.split('\n');
+  const monthTitles = {};
+  const registry = {};
+  const weeks = [];
+  let curMonth = null, curWeek = null, awaitingSubtitle = false;
+
+  const monthRe    = /^#{0,4}\s*Month\s+(\d+)\b\s*(?:[-–—:]\s*(.*\S))?\s*$/i;
+  const weekRe     = /^#{0,4}\s*Week\s+(\d+)\b\s*(?:[-–—:]\s*(.*\S))?\s*$/i;
+  const combinedRe = /^#{0,4}\s*Month\s+(\d+)\s*[,\s]\s*Week\s+(\d+)\b/i;
+  const rangeRe    = /Months?\s+\d+\s*(?:[-–—]|to|through|&)\s*\d+/i;
+  const bulletRe   = /^(?:[-•*]\s+|\d+\.\s+)(.+\S)\s*$/;
+  const dateOnlyRe = /^(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}$/i;
+  const stripEmph  = (s) => s.replace(/\*/g, '').replace(/^[-–—:]\s*/, '').trim();
+
+  const getWeek = (m, w) => {
+    const key = m + '-' + w;
+    if (!registry[key]) { const o = { month: m, week: w, phase: `Month ${m}, Week ${w}`, bullets: [] }; registry[key] = o; weeks.push(o); }
+    return registry[key];
+  };
+
+  for (const raw of lines) {
+    const clean = raw.replace(/\*\*/g, '').replace(/`/g, '').trim();
+    if (!clean) continue;
+
+    const cm = clean.match(combinedRe);
+    if (cm) { curMonth = parseInt(cm[1], 10); curWeek = getWeek(curMonth, parseInt(cm[2], 10)); awaitingSubtitle = false; continue; }
+
+    const mh = clean.match(monthRe);
+    if (mh && !rangeRe.test(clean) && !/Week\s+\d+/i.test(clean)) {
+      curMonth = parseInt(mh[1], 10); curWeek = null;
+      const sub = mh[2] ? stripEmph(mh[2]) : '';
+      if (sub && !dateOnlyRe.test(sub) && !/^Month\s+\d+$/i.test(sub) && sub.length <= 120) { monthTitles[curMonth] = sub; awaitingSubtitle = false; }
+      else awaitingSubtitle = true;
+      continue;
+    }
+
+    const wh = clean.match(weekRe);
+    if (wh && curMonth != null && !/Month\s+\d+/i.test(clean)) {
+      curWeek = getWeek(curMonth, parseInt(wh[1], 10));
+      awaitingSubtitle = false;
+      const wsub = wh[2] ? stripEmph(wh[2]) : '';
+      if (wsub) curWeek.bullets.push(wsub);
+      continue;
+    }
+
+    const b = clean.match(bulletRe);
+    if (b) {
+      const content = b[1].replace(/\*/g, '').trim();
+      if (content) {
+        if (curWeek) curWeek.bullets.push(content);
+        else if (curMonth != null) getWeek(curMonth, 1).bullets.push(content);
+      }
+      awaitingSubtitle = false;
+      continue;
+    }
+
+    if (awaitingSubtitle && curMonth != null && !monthTitles[curMonth]) {
+      const t = stripEmph(clean);
+      if (t && !dateOnlyRe.test(t) && t.length <= 120) monthTitles[curMonth] = t;
+    }
+    awaitingSubtitle = false;
+  }
+
+  return { weeks, monthTitles };
+}
+
 Deno.serve(async (req) => {
   const openai = new OpenAI({ apiKey: Deno.env.get('OPENAI_API_KEY') });
   try {
@@ -170,13 +239,102 @@ Deno.serve(async (req) => {
       ? `- Use EXACTLY ${detectedMonths} months for this plan (Month 1 through Month ${detectedMonths}). Do NOT recalculate or shorten it. Each month MUST have exactly 4 weeks (Week 1–Week 4) — ${detectedMonths * 4} week-blocks total. Never combine or skip weeks or months.`
       : `- Identify the exact duration from the conversation (a deadline, date, or duration phrase) and use that many months — do NOT shorten it. Each month has exactly 4 weeks.`;
 
-    // ── EXTRACT PLAN: reformat the already-written plan into structured JSON ─────
+    // ── EXTRACT PLAN: turn the already-written plan into structured JSON ─────────
     if (mode === 'extract_plan') {
-      // The plan text already exists in the conversation — just reformat it into JSON.
-      // gpt-4o-mini is fine here since we're only restructuring already-written content.
       const lastAssistantMessage = [...messages].reverse().find(m => m.role === 'assistant');
       const planText = lastAssistantMessage?.content || conversationText;
 
+      // FAST PATH — the plan is already fully written as markdown by the chat, so we
+      // parse it into steps IN CODE instead of paying for a second AI pass to
+      // re-generate every step. This is the big latency win (~40s → a few seconds).
+      const parsed = parsePlanWeeks(planText);
+      const parsedWeeks = parsed.weeks;
+      const parsedMonthTitles = parsed.monthTitles;
+      const weeksWithContent = parsedWeeks.filter(w => w.bullets.length > 0).length;
+
+      if (weeksWithContent >= 3) {
+        parsedWeeks.sort((a, b) => a.month - b.month || a.week - b.week);
+
+        // Only the goal-level fields need inference, and their output is tiny — so this
+        // gpt-4o-mini call is fast and constant-time no matter how long the plan is.
+        const userText = messages.filter(m => m.role === 'user').map(m => m.content).join('\n');
+        let meta = {};
+        try {
+          const metaResp = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [
+              { role: "system", content: `Return ONLY a small JSON object describing this goal at a high level (NO steps). Fields:
+- title: short goal title (e.g. "Read 12 books in 12 months")
+- description: one sentence
+- plan_summary: 2-3 sentences
+- category: one of learning|health|career|finance|relationships|personal|creative|other
+- notification_frequency: one of daily|weekly|weekdays|3x_per_week|2x_per_week (daily for reading/fitness/language/practice habits; weekly for career/finance/project milestones)
+- requires_daily_action: true for habit/practice/reading/fitness goals, else false
+- weekdays_only: false unless the goal is explicitly work/career only
+- preferred_time: "HH:MM" (24h) if the user stated a time, else null
+${TIME_MAPPING_RULE}` },
+              { role: "user", content: `User said:\n${userText}\n\nPlan intro:\n${planText.slice(0, 1200)}\n\nReturn the JSON.` }
+            ],
+            max_tokens: 500,
+            response_format: { type: "json_object" }
+          });
+          meta = JSON.parse(metaResp.choices[0].message.content) || {};
+        } catch (_) { meta = {}; }
+
+        // Timeline + dates, computed in code.
+        const monthNums = parsedWeeks.map(w => w.month);
+        const titleNums = Object.keys(parsedMonthTitles).map(Number).filter(n => !isNaN(n));
+        const N = Math.max(detectedMonths || 0, monthNums.length ? Math.max(...monthNums) : 0, titleNums.length ? Math.max(...titleNums) : 0, 1);
+        const todayDate = new Date(today);
+        const targetDate = new Date(todayDate); targetDate.setMonth(targetDate.getMonth() + N);
+        const totalDays = Math.max(1, (targetDate - todayDate) / (1000 * 60 * 60 * 24));
+        const T = parsedWeeks.length || 1;
+        const dailyHabit = meta.requires_daily_action === true;
+
+        const steps = parsedWeeks.map((wk, i) => {
+          const bullets = wk.bullets.filter(Boolean);
+          const first = bullets[0] || '';
+          let focus = (first.includes(':') ? first.split(':')[0] : first).trim();
+          if (focus.length > 60) focus = focus.slice(0, 60).trim();
+          const d = new Date(todayDate); d.setDate(d.getDate() + Math.round((i + 1) * totalDays / T));
+          return {
+            title: focus ? `Week ${wk.week}: ${focus}` : `Week ${wk.week}`,
+            description: bullets.join('\n'),
+            phase: wk.phase,
+            priority: "medium",
+            due_date: d.toISOString().split('T')[0],
+            order_index: i,
+            step_resources: [],
+            success_criteria: [],
+            tips_and_guidance: "",
+            is_daily_habit: dailyHabit
+          };
+        });
+
+        const firstUser = messages.find(m => m.role === 'user')?.content || 'My Goal';
+        const plan = {
+          title: (meta.title || firstUser).toString().slice(0, 120),
+          description: meta.description || "",
+          plan_summary: meta.plan_summary || "",
+          timeline: `${N} months`,
+          target_date: targetDate.toISOString().split('T')[0],
+          category: meta.category || "personal",
+          notification_frequency: meta.notification_frequency || (dailyHabit ? "daily" : "weekly"),
+          requires_daily_action: dailyHabit,
+          weekdays_only: meta.weekdays_only === true,
+          habit_days_of_week: [],
+          preferred_time: meta.preferred_time || null,
+          month_titles: parsedMonthTitles,
+          notification_schedule: [],
+          steps
+        };
+
+        console.log(`[goalPlannerChat] extract_plan (code-parse) done: ${steps.length} steps, ${N} months`);
+        return Response.json({ plan, month_titles: plan.month_titles, notification_schedule: plan.notification_schedule, requires_daily_action: plan.requires_daily_action, weekdays_only: plan.weekdays_only, include_weekend_reminders: plan.include_weekend_reminders, habit_days_of_week: plan.habit_days_of_week });
+      }
+
+      // FALLBACK — if the markdown wasn't in the expected shape, use the original AI
+      // extraction so we still always produce a plan.
       const extractionResponse = await openai.chat.completions.create({
         model: "gpt-4o-mini",
         messages: [
@@ -187,22 +345,22 @@ Deno.serve(async (req) => {
 Rules:
 - Each step = one week. phase = "Month X, Week Y". title = "Week N: [short focus from plan]".
 - Include EVERY week of EVERY month present in the plan. Do not skip or merge any.
-- description (IMPORTANT — this is what the user reads when they open the week): capture the FULL detail of that week from the plan. Include every bullet — the concrete action, the focus points, the reflection/thinking prompts, and the activities — written out as clear prose or a short list. NEVER compress a rich week down to a single line like "Read chapters 1-5"; keep all of the substance.
-- success_criteria: 2–4 concrete "done" checks for the week, derived from its tasks (e.g. "Finished Chapters 1–5", "Wrote a journal reflection on the theme of X").
-- tips_and_guidance: a short, helpful note for the week (an encouragement, a watch-out, or how to get the most from it), drawn from the plan. Leave "" if the plan offers nothing.
-- step_resources: leave as an empty array []. Put any resource links/books/apps for the week INSIDE the description text instead (e.g. "Resource: The Happiness Advantage by Shawn Achor — https://www.amazon.com/s?k=The+Happiness+Advantage").
-- is_daily_habit: true for reading/fitness/language/music/meditation goals; false for milestone/project goals.
+- description: capture the FULL detail of that week — the concrete action, focus points, reflection prompts, and activities. NEVER compress to one line.
+- success_criteria: 2–4 concrete "done" checks for the week.
+- tips_and_guidance: a short helpful note, or "".
+- step_resources: leave as []. Put resource links inside the description text.
+- is_daily_habit: true for reading/fitness/language/music/meditation; false for milestone/project goals.
 - requires_daily_action: same logic as is_daily_habit.
-- notification_frequency: infer from goal type ("daily" for reading/fitness/language, "weekly" for career/finance/project).
-- month_titles: extract the descriptive title after each "Month N —" heading.
-- notification_schedule: generate 2-3 simple check-in notifications for Week 1 only (dates starting from today ${today}).
-- due_dates: spread evenly from today ${today} across the full timeline.
-- weekdays_only: false unless goal is explicitly work/career focused.
+- notification_frequency: "daily" for reading/fitness/language, "weekly" for career/finance/project.
+- month_titles: extract the title after each "Month N —" heading.
+- notification_schedule: 2-3 simple check-ins for Week 1 only (dates from today ${today}).
+- due_dates: spread evenly from today ${today} across the timeline.
+- weekdays_only: false unless explicitly work/career focused.
 - ${TIME_MAPPING_RULE}`
           },
           {
             role: "user",
-            content: `Convert this plan to JSON:\n\n${planText}\n\nReturn this exact structure:\n{\n  "title": "...",\n  "description": "...",\n  "timeline": "X months",\n  "target_date": "YYYY-MM-DD",\n  "category": "learning|health|career|finance|relationships|personal|creative|other",\n  "plan_summary": "...",\n  "notification_frequency": "daily|weekly|weekdays|3x_per_week|2x_per_week",\n  "requires_daily_action": true|false,\n  "weekdays_only": false,\n  "habit_days_of_week": [],\n  "month_titles": { "1": "title", "2": "title" },\n  "notification_schedule": [{ "id": "week_1_begin", "type": "week_summary_begin", "phase": "Month 1, Week 1", "scheduled_date": "YYYY-MM-DD", "scheduled_time": "09:00", "teaser_text": "...", "full_message_text": "..." }],\n  "steps": [{ "title": "Week N: focus", "description": "...", "phase": "Month X, Week Y", "priority": "medium", "due_date": "YYYY-MM-DD", "order_index": 0, "step_resources": [], "success_criteria": [], "tips_and_guidance": "", "is_daily_habit": false }]\n}`
+            content: `Convert this plan to JSON:\n\n${planText}\n\nReturn this structure:\n{ "title": "...", "description": "...", "timeline": "X months", "target_date": "YYYY-MM-DD", "category": "...", "plan_summary": "...", "notification_frequency": "daily", "requires_daily_action": true, "weekdays_only": false, "habit_days_of_week": [], "month_titles": {"1":"title"}, "notification_schedule": [], "steps": [{ "title": "Week N: focus", "description": "...", "phase": "Month X, Week Y", "priority": "medium", "due_date": "YYYY-MM-DD", "order_index": 0, "step_resources": [], "success_criteria": [], "tips_and_guidance": "", "is_daily_habit": false }] }`
           }
         ],
         max_tokens: 16000,
@@ -210,7 +368,6 @@ Rules:
       });
 
       const plan = JSON.parse(extractionResponse.choices[0].message.content);
-
       plan.steps = (plan.steps || []).map(step => ({
         ...step,
         step_resources: step.step_resources || [],
@@ -221,7 +378,6 @@ Rules:
       plan.notification_schedule = plan.notification_schedule || [];
       plan.habit_days_of_week = plan.habit_days_of_week || [];
 
-      // Fallback due dates if AI didn't assign valid ones
       const todayDate = new Date(today);
       const targetDate = plan.target_date ? new Date(plan.target_date) : null;
       const aiDueDates = plan.steps.filter(s => s.due_date).map(s => s.due_date).sort();
@@ -236,7 +392,7 @@ Rules:
         });
       }
 
-      console.log(`[goalPlannerChat] extract_plan done: ${plan.steps.length} steps, ${plan.timeline}`);
+      console.log(`[goalPlannerChat] extract_plan (AI fallback) done: ${plan.steps.length} steps, ${plan.timeline}`);
       return Response.json({ plan, month_titles: plan.month_titles, notification_schedule: plan.notification_schedule, requires_daily_action: plan.requires_daily_action, weekdays_only: plan.weekdays_only, include_weekend_reminders: plan.include_weekend_reminders, habit_days_of_week: plan.habit_days_of_week });
     }
 
