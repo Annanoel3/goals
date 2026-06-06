@@ -302,7 +302,8 @@ export default function Planner() {
         month_titles: plan.month_titles || {},
         requires_daily_action: plan.requires_daily_action ?? false,
         weekdays_only: plan.weekdays_only ?? false,
-        habit_days_of_week: plan.habit_days_of_week ?? []
+        habit_days_of_week: plan.habit_days_of_week ?? [],
+        timezone_offset_minutes: -new Date().getTimezoneOffset()
       });
 
       // Don't navigate yet — let the user see the success message and click "Go to Goal"
@@ -368,7 +369,7 @@ export default function Planner() {
 
       // Reschedule all notifications for this goal (cancels old ones first)
       if (gid) {
-        base44.functions.invoke('scheduleGoalNotifications', { goal_id: gid, timezoneOffsetMinutes: -new Date().getTimezoneOffset() }).catch(err => console.error('scheduleGoalNotifications failed:', err));
+        base44.functions.invoke('cronGoalNotifications', { goal_id: gid, timezoneOffsetMinutes: -new Date().getTimezoneOffset() }).catch(err => console.error('cronGoalNotifications failed:', err));
       }
     } catch (err) {
       if (retryCount < 3) {

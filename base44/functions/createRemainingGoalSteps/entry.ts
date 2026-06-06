@@ -113,10 +113,10 @@ Deno.serve(async (req) => {
 
   // Now that steps exist in DB, schedule notifications in background (don't await)
   if (createdCount > 0) {
-    base44.functions.invoke('scheduleGoalNotifications', {
+    base44.functions.invoke('cronGoalNotifications', {
       goal_id,
       timezoneOffsetMinutes: timezoneOffsetMinutes ?? 0
-    }).catch(notifErr => console.error(`[createRemainingGoalSteps] scheduleGoalNotifications failed: ${notifErr.message}`));
+    }).catch(err => console.error('cronGoalNotifications failed:', err.message));
   }
 
   return Response.json({ ok: true, created: createdCount, total: steps.length, failed: failedSteps.length, failed_details: failedSteps });

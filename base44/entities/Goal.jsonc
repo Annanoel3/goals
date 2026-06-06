@@ -94,6 +94,10 @@
       "description": "How often notifications should be sent for this goal (e.g., 'daily', 'weekdays', 'weekly', '3x_per_week', '2x_per_week', 'once_per_week')",
       "default": "daily"
     },
+    "timezone_offset_minutes": {
+      "type": "number",
+      "description": "User's UTC offset in minutes at goal creation time (e.g. -300 for UTC-5). Used to schedule notifications at the correct local time."
+    },
     "notes": {
       "type": "string",
       "description": "Personal notes about this goal"
