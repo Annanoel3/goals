@@ -261,6 +261,7 @@ export default function Planner() {
         }
       }
 
+      console.log('[handleSaveNewGoal] pendingAction:', pendingAction);
       const goal = await base44.entities.Goal.create({
         title: plan.title,
         description: plan.description,
@@ -278,6 +279,7 @@ export default function Planner() {
         weekdays_only: plan.weekdays_only ?? false,
         habit_days_of_week: plan.habit_days_of_week ?? []
       });
+      console.log('[handleSaveNewGoal] Goal created:', goal.id);
 
       // Navigate immediately — don't wait for steps/notifications
       setPendingGoalId(goal.id);
@@ -307,12 +309,15 @@ export default function Planner() {
         }).catch(err => console.error('createRemainingGoalSteps failed:', err));
       }
     } catch (err) {
+      console.error('[handleSaveNewGoal] Error:', err);
       if (retryCount < 3) {
         toast({ title: "Something went wrong", description: "Retrying in a moment...", variant: "default" });
         setTimeout(() => handleSaveNewGoal(retryCount + 1), 2000);
       } else {
+        console.error('[handleSaveNewGoal] Failed after 3 retries:', err);
         toast({ title: "Error saving goal", description: "Please try again.", variant: "destructive" });
         setIsSaving(false);
+        setSaveError(true);
       }
     }
   };
