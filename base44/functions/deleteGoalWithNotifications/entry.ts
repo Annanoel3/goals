@@ -58,45 +58,27 @@ Deno.serve(async (req) => {
     const { goal_id } = body;
     if (!goal_id) return Response.json({ error: 'Missing goal_id' }, { status: 400 });
 
-    // Get the goal and all its steps
+    // Get the goal and all its steps — gather notification IDs BEFORE deleting
     const goalResults = await base44.asServiceRole.entities.Goal.filter({ id: goal_id });
     const goal = goalResults[0];
     const steps = await base44.entities.GoalStep.filter({ goal_id });
 
-    let cancelled = 0;
+    const allIds = [
+      ...(goal?.onesignal_notification_ids || []),
+      ...steps.flatMap(s => [
+        ...(s.onesignal_notification_ids || []),
+        ...(s.habit_notification_id ? [s.habit_notification_id] : []),
+      ]),
+    ];
 
-    // 1. Cancel IDs stored on the goal record
-    if (goal) {
-      for (const nid of goal.onesignal_notification_ids || []) {
-        await cancelNotification(nid);
-        cancelled++;
-      }
-    }
-
-    // 2. Cancel IDs stored on each step record (including habit_notification_id)
-    for (const step of steps) {
-      for (const nid of step.onesignal_notification_ids || []) {
-        await cancelNotification(nid);
-        cancelled++;
-      }
-      if (step.habit_notification_id) {
-        await cancelNotification(step.habit_notification_id);
-        cancelled++;
-      }
-    }
-
-    // 3. Sweep OneSignal for any scheduled notifications with this goal_id in their data
-    //    (catches notifications whose IDs were never saved back to the entity)
-    const sweptCount = await cancelAllNotificationsForGoal(goal_id);
-    cancelled += sweptCount;
-
-    // Delete all steps first, then the goal
-    for (const step of steps) {
-      await base44.entities.GoalStep.delete(step.id);
-    }
+    // Delete records first — goal is truly gone, UI delete sticks, no refetch resurrection
+    await Promise.all(steps.map(s => base44.entities.GoalStep.delete(s.id)));
     await base44.entities.Goal.delete(goal_id);
 
-    return Response.json({ ok: true, cancelled, steps_cleaned: steps.length });
+    // Cancel OneSignal notifications in parallel (not sequential)
+    await Promise.all(allIds.map(id => cancelNotification(id)));
+
+    return Response.json({ ok: true, cancelled: allIds.length, steps_cleaned: steps.length });
   } catch (err) {
     return Response.json({ error: err.message }, { status: 500 });
   }
