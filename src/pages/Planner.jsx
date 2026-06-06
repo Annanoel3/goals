@@ -31,6 +31,7 @@ export default function Planner() {
   const [pendingAction, setPendingAction] = useState(null); // 'plan_approved' | 'edit_approved'
   const [pendingGoalId, setPendingGoalId] = useState(null);
   const [saved, setSaved] = useState(false);
+  const [firstTwoMonthsReady, setFirstTwoMonthsReady] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [mediaRecorder, setMediaRecorder] = useState(null);
   const [goals, setGoals] = useState([]);
@@ -49,6 +50,38 @@ export default function Planner() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Poll for first 2 months to be created after goal is saved
+  useEffect(() => {
+    if (!saved || !pendingGoalId) return;
+    
+    let pollCount = 0;
+    const maxPolls = 60; // 60 × 500ms = 30s max
+    
+    const checkMonths = async () => {
+      try {
+        const steps = await base44.entities.GoalStep.filter({ goal_id: pendingGoalId });
+        const hasMonth1 = steps.some(s => s.phase?.includes('Month 1'));
+        const hasMonth2 = steps.some(s => s.phase?.includes('Month 2'));
+        
+        if (hasMonth1 && hasMonth2) {
+          setFirstTwoMonthsReady(true);
+          clearInterval(timer);
+        }
+      } catch (err) {
+        console.error('Poll months error:', err);
+      }
+    };
+    
+    checkMonths();
+    const timer = setInterval(() => {
+      pollCount++;
+      if (pollCount >= maxPolls) clearInterval(timer);
+      else checkMonths();
+    }, 500);
+    
+    return () => clearInterval(timer);
+  }, [saved, pendingGoalId]);
 
   // Load goals and user city
   useEffect(() => {
@@ -584,9 +617,9 @@ export default function Planner() {
                       <p className={`text-sm font-medium mb-1 ${isDark ? 'text-violet-300' : 'text-violet-800'}`}>Your plan is a living document 🌱</p>
                       <p className={`text-xs leading-relaxed mb-3 ${isDark ? 'text-violet-400' : 'text-violet-600'}`}>Come back anytime to adjust difficulty, add resources, skip ahead, extend the timeline, or completely restructure a phase. Just tell me what's working and what isn't.</p>
                       <div className="flex gap-2 justify-center">
-                         <Button size="sm" className={`rounded-xl text-xs font-semibold ${isDark ? 'bg-violet-600 hover:bg-violet-700 text-white' : 'bg-violet-600 hover:bg-violet-700 text-white'}`} onClick={() => navigate(`/goal/${pendingGoalId}`)}>
-                           Go to Goal →
-                         </Button>
+                           <Button size="sm" disabled={!firstTwoMonthsReady} className={`rounded-xl text-xs font-semibold ${!firstTwoMonthsReady ? 'opacity-50 cursor-not-allowed' : ''} ${isDark ? 'bg-violet-600 hover:bg-violet-700 text-white' : 'bg-violet-600 hover:bg-violet-700 text-white'}`} onClick={() => navigate(`/goal/${pendingGoalId}`)}>
+                             {firstTwoMonthsReady ? 'Go to Goal →' : 'Loading plan…'}
+                           </Button>
                          <Button size="sm" variant="outline" className={`rounded-xl text-xs font-semibold ${isDark ? 'border-violet-700 text-violet-400 hover:bg-gray-700' : 'border-violet-200 text-violet-700 hover:bg-violet-50'}`} onClick={handleNewPlan}>
                            Plan Another
                          </Button>
