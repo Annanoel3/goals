@@ -75,7 +75,6 @@ function StepRow({ step, onOpen, onToggle, onCheckIn, onUpdate }) {
         </button>
       </div>
       {isHabit && step.status !== 'completed' && <HabitWeekTracker step={step} onUpdate={onUpdate} />}
-      {isHabit && !step.habit_time && step.status !== 'completed' && <HabitTimePrompt step={step} onScheduled={onUpdate} />}
       {isHabit && step.habit_checkin_pending && step.status !== 'completed' && (
         <button onClick={e => { e.stopPropagation(); onCheckIn(); }} className="w-full text-center py-2 text-xs font-semibold text-violet-700 bg-violet-50 border-t border-violet-100 hover:bg-violet-100 transition-colors">
           ✅ Did you do it today? Tap to check in
