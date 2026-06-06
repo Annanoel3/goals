@@ -163,16 +163,19 @@ export default function Planner() {
 
     try {
       const allMessages = [...messagesRef.current, userMsg];
+      const filteredMessages = allMessages.filter(m => m.role !== "system");
       const payload = {
-        messages: allMessages.filter(m => m.role !== "system"),
+        messages: filteredMessages,
         mode: "chat",
         city: userCity,
         existing_goals: goals.map(g => ({ id: g.id, title: g.title })),
       };
       if (editingGoal) payload.goal_id = editingGoal.id;
 
+      console.log('[Planner] Invoking goalPlannerChat with payload:', { messagesCount: filteredMessages.length, mode: payload.mode, hasGoalId: !!payload.goal_id });
       const res = await base44.functions.invoke("goalPlannerChat", payload);
       const { message, action, goal_id, month_titles } = res.data;
+      console.log('[Planner] goalPlannerChat response:', { action, hasMessage: !!message });
 
       // If the AI returned new month_titles, use them exclusively (they reflect the new plan).
       // Only fall back to the existing goal's titles if the AI returned nothing at all.
