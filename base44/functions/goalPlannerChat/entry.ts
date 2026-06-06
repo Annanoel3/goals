@@ -271,9 +271,9 @@ Deno.serve(async (req) => {
 - notification_frequency: one of daily|weekly|weekdays|3x_per_week|2x_per_week (daily for reading/fitness/language/practice habits; weekly for career/finance/project milestones)
 - requires_daily_action: true for habit/practice/reading/fitness goals, else false
 - weekdays_only: false unless the goal is explicitly work/career only
-- preferred_time: "HH:MM" (24h) if the user stated a time, else null
+- preferred_time: Extract the user's stated preferred time for reminders/notifications. Parse time phrases like "9am", "6:00 PM", "morning", "evening", "noon" into 24h HH:MM format (e.g., "09:00", "18:00", "08:00" for morning, "17:00" for evening). If no time stated, null.
 ${TIME_MAPPING_RULE}` },
-              { role: "user", content: `User said:\n${userText}\n\nPlan intro:\n${planText.slice(0, 1200)}\n\nReturn the JSON.` }
+              { role: "user", content: `User said:\n${userText}\n\nPlan intro:\n${planText.slice(0, 1200)}\n\nSearching the user's text above, extract their preferred time for reminders. Return the JSON.` }
             ],
             max_tokens: 500,
             response_format: { type: "json_object" }
