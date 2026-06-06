@@ -132,6 +132,10 @@
       "description": "Map of month numbers to their descriptive titles (e.g. {1: 'Book Title', 2: 'Next Book Title'} for reading goals)",
       "default": {}
     },
+    "timezone_offset_minutes": {
+      "type": "number",
+      "description": "User's timezone offset in minutes from UTC at the time the goal was created (e.g. -300 for CDT)"
+    },
     "notification_schedule": {
       "type": "array",
       "items": {

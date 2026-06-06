@@ -302,7 +302,8 @@ export default function Planner() {
         month_titles: plan.month_titles || {},
         requires_daily_action: plan.requires_daily_action ?? false,
         weekdays_only: plan.weekdays_only ?? false,
-        habit_days_of_week: plan.habit_days_of_week ?? []
+        habit_days_of_week: plan.habit_days_of_week ?? [],
+        timezone_offset_minutes: -new Date().getTimezoneOffset(),
       });
 
       // Don't navigate yet — let the user see the success message and click "Go to Goal"
