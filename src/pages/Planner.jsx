@@ -223,11 +223,7 @@ export default function Planner() {
     setSaveError(false);
     try {
       const allMessages = messagesRef.current.filter(m => m.role !== "system");
-      // Run extract_plan and ad in true parallel
-      const [res] = await Promise.all([
-        base44.functions.invoke("goalPlannerChat", { messages: allMessages, mode: "extract_plan" }),
-        showInterstitialAd({ skipIfShownThisLaunch: true })
-      ]);
+      const res = await base44.functions.invoke("goalPlannerChat", { messages: allMessages, mode: "extract_plan" });
       
       if (res.data?.error) {
         throw new Error(res.data.error);
