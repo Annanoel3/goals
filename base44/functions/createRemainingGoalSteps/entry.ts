@@ -26,6 +26,7 @@ Deno.serve(async (req) => {
   }
 
   const { goal_id, steps, start_order_index = 0, timezoneOffsetMinutes } = parsedBody;
+
   console.log(`[createRemainingGoalSteps] goal_id=${goal_id}, steps count=${Array.isArray(steps) ? steps.length : 'NOT_ARRAY (type=' + typeof steps + ')'}, start_order_index=${start_order_index}`);
 
   if (steps && Array.isArray(steps) && steps.length > 0) {
@@ -71,6 +72,14 @@ Deno.serve(async (req) => {
     return Response.json({ error: `Service role failed: ${srErr.message}` }, { status: 500 });
   }
 
+  // Fetch start_date from the goal so due_dates are anchored to the user's chosen start
+  let goal_start_date = null;
+  try {
+    const _g = (await base44.asServiceRole.entities.Goal.filter({ id: goal_id }))[0];
+    goal_start_date = _g?.start_date || null;
+    console.log(`[createRemainingGoalSteps] goal_start_date=${goal_start_date}`);
+  } catch (_) {}
+
   // Build bulk payload — much faster than one-by-one and avoids timeouts for large plans
   const bulkPayload = steps.map((step, i) => ({
     goal_id,
@@ -78,7 +87,16 @@ Deno.serve(async (req) => {
     description: step.description || "",
     phase: step.phase || "",
     priority: step.priority || "medium",
-    due_date: step.due_date || "",
+    due_date: (() => {
+      if (goal_start_date) {
+        const m = (step.phase || '').match(/Month\s*(\d+)[,\s]+Week\s*(\d+)/i);
+        const wk = m ? (parseInt(m[1]) - 1) * 4 + (parseInt(m[2]) - 1) : i;
+        const d = new Date(goal_start_date + 'T00:00:00Z');
+        d.setUTCDate(d.getUTCDate() + wk * 7);
+        return d.toISOString().split('T')[0];
+      }
+      return step.due_date || "";
+    })(),
     order_index: step.order_index ?? (start_order_index + i),
     status: "pending",
     step_resources: step.step_resources || [],

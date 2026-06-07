@@ -302,7 +302,9 @@ export default function Planner() {
         month_titles: plan.month_titles || {},
         requires_daily_action: plan.requires_daily_action ?? false,
         weekdays_only: plan.weekdays_only ?? false,
-        habit_days_of_week: plan.habit_days_of_week ?? []
+        include_weekend_reminders: plan.include_weekend_reminders ?? true,
+        habit_days_of_week: plan.habit_days_of_week ?? [],
+        start_date: plan.start_date || null
       });
 
       // Don't navigate yet — let the user see the success message and click "Go to Goal"

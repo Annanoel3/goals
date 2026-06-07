@@ -478,7 +478,7 @@ Deno.serve(async (req) => {
      }
 
      // Week end
-     const weekEndSendAt = localTimeOnDate(weekEndDate, 19, 0, tzOffset);
+     const weekEndSendAt = localTimeOnDate(weekEndDate, prefHour, prefMin, tzOffset);
      console.log(`[scheduleGoalNotifications] Week end sendAt=${weekEndSendAt.toISOString()}, isFuture=${weekEndSendAt > now}`);
      if (weekEndSendAt > now) {
        try {

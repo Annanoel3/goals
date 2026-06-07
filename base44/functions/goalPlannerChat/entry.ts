@@ -271,7 +271,9 @@ Deno.serve(async (req) => {
 - notification_frequency: one of daily|weekly|weekdays|3x_per_week|2x_per_week (daily for reading/fitness/language/practice habits; weekly for career/finance/project milestones)
 - requires_daily_action: true for habit/practice/reading/fitness goals, else false
 - weekdays_only: false unless the goal is explicitly work/career only
+- include_weekend_reminders: false if the user said anything like "no weekends", "weekdays only", "not on weekends"; true otherwise (default true)
 - preferred_time: Extract the user's stated preferred time for reminders/notifications. Parse time phrases like "9am", "6:00 PM", "morning", "evening", "noon" into 24h HH:MM format (e.g., "09:00", "18:00", "08:00" for morning, "17:00" for evening). If no time stated, null.
+- start_date: Extract the user's stated start date in YYYY-MM-DD format. If no start date stated, null.
 ${TIME_MAPPING_RULE}` },
               { role: "user", content: `User said:\n${userText}\n\nPlan intro:\n${planText.slice(0, 1200)}\n\nSearching the user's text above, extract their preferred time for reminders. Return the JSON.` }
             ],
@@ -318,10 +320,12 @@ ${TIME_MAPPING_RULE}` },
           plan_summary: meta.plan_summary || "",
           timeline: `${N} months`,
           target_date: targetDate.toISOString().split('T')[0],
+          start_date: meta.start_date || null,
           category: meta.category || "personal",
           notification_frequency: meta.notification_frequency || (dailyHabit ? "daily" : "weekly"),
           requires_daily_action: dailyHabit,
           weekdays_only: meta.weekdays_only === true,
+          include_weekend_reminders: meta.include_weekend_reminders !== false,
           habit_days_of_week: [],
           preferred_time: meta.preferred_time || null,
           month_titles: parsedMonthTitles,

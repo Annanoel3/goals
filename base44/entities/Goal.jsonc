@@ -18,6 +18,11 @@
       "type": "string",
       "description": "Timeline description, e.g. '5 months', '1 year'"
     },
+    "start_date": {
+      "type": "string",
+      "format": "date",
+      "description": "The user's chosen start date for the plan (YYYY-MM-DD)"
+    },
     "target_date": {
       "type": "string",
       "format": "date",
@@ -138,8 +143,7 @@
         "type": "object",
         "properties": {
           "id": {
-            "type": "string",
-            "description": "Unique ID for this notification (e.g. 'week_1_checkin_1')"
+            "type": "string"
           },
           "type": {
             "type": "string",
@@ -150,38 +154,30 @@
               "week_summary_end",
               "month_summary_begin",
               "month_summary_end"
-            ],
-            "description": "Type of notification"
+            ]
           },
           "phase": {
-            "type": "string",
-            "description": "Which phase this notification belongs to (e.g. 'Month 1, Week 1')"
+            "type": "string"
           },
           "scheduled_date": {
             "type": "string",
-            "format": "date",
-            "description": "Date to send this notification (YYYY-MM-DD)"
+            "format": "date"
           },
           "scheduled_time": {
-            "type": "string",
-            "description": "Time to send (HH:MM format, in user's local timezone)"
+            "type": "string"
           },
           "teaser_text": {
-            "type": "string",
-            "description": "Short notification text shown in push notification"
+            "type": "string"
           },
           "full_message_text": {
-            "type": "string",
-            "description": "Full message shown when user taps notification or opens app same day"
+            "type": "string"
           },
           "onesignal_notification_id": {
-            "type": "string",
-            "description": "OneSignal ID after scheduling (for cancellation)"
+            "type": "string"
           },
           "has_been_displayed": {
             "type": "boolean",
-            "default": false,
-            "description": "Whether user has seen this notification (tapped or dismissed)"
+            "default": false
           }
         },
         "required": [
@@ -195,7 +191,12 @@
         ]
       },
       "default": [],
-      "description": "AI-generated notification schedule for the entire goal (Week 1 only scheduled upfront; automation handles subsequent weeks)"
+      "description": "AI-generated notification schedule for the entire goal"
+    },
+    "timezone_offset_minutes": {
+      "type": "number",
+      "description": "User's timezone offset in minutes at time of goal creation (e.g. -300 for CDT)",
+      "default": 0
     }
   },
   "required": [
