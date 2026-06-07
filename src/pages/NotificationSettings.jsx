@@ -26,19 +26,7 @@ export default function NotificationSettings() {
     setIsSaving(true);
     try {
       await base44.auth.updateMe({ preferred_notification_time: notificationTime, notification_frequency: notificationFrequency });
-
-      // Update preferred_time on all active goals so cron and reschedule both see the new time
-      const activeGoals = await base44.entities.Goal.filter({ status: 'active' });
-      await Promise.all(activeGoals.map(g =>
-        base44.entities.Goal.update(g.id, { preferred_time: notificationTime })
-      ));
-
-      // Re-run scheduling so existing reminders are cancelled and recreated at the new time
-      await Promise.all([
-        base44.functions.invoke('rescheduleAllGoalNotifications', {}),
-        base44.functions.invoke('cronDailyHabitNotifications', {}),
-      ]);
-
+      await base44.functions.invoke('rescheduleAllGoalNotifications', {});
       toast({ title: "Notification settings saved!" });
     } catch (err) {
       toast({ title: "Failed to save", variant: "destructive" });

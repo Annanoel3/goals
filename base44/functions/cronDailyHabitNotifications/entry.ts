@@ -81,9 +81,7 @@ async function generateThreeDayMissNotification(openai, step, goal, context) {
 }
 
 function buildSendAtISO(habitTime, userTimezoneOffsetMinutes = 0) {
-  let hour = 9, minute = 0;
-  const _tp = String(habitTime).match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
-  if (_tp) { hour = parseInt(_tp[1]); minute = parseInt(_tp[2]); if (_tp[3]) { const _pm = _tp[3].toUpperCase() === 'PM'; if (_pm && hour < 12) hour += 12; if (!_pm && hour === 12) hour = 0; } }
+  const [hour, minute] = habitTime.split(':').map(Number);
   const now = new Date();
   
   const candidate = new Date(now);
@@ -133,7 +131,7 @@ function getConsecutiveMissedDays(step) {
 }
 
 async function scheduleHabitNotificationForUser(base44, step, userEmail, timezoneOffset = 0, goal = null, openai = null) {
-   if (!step.is_daily_habit) return;
+   if (!step.habit_time || !step.is_daily_habit) return;
    if (!openai) openai = new OpenAI({ apiKey: Deno.env.get("OPENAI_API_KEY") });
 
    const today = new Date().toISOString().split('T')[0];
@@ -164,7 +162,7 @@ async function scheduleHabitNotificationForUser(base44, step, userEmail, timezon
       // Use month-specific title if available, otherwise fall back to step description
       const displayTitle = monthTitle || step.description || step.title;
       const msg = await generateHabitNotificationMessage(openai, step, goal, dayOfWeek, displayTitle);
-      const sendAt = buildSendAtISO(step.habit_time || goal?.preferred_time || '09:00', timezoneOffset);
+      const sendAt = buildSendAtISO(step.habit_time, timezoneOffset);
 
     const notificationPayload = {
       app_id: ONESIGNAL_APP_ID,
@@ -333,20 +331,13 @@ Deno.serve(async (req) => {
     for (const goal of allGoals) {
       try {
        const steps = await base44.asServiceRole.entities.GoalStep.filter({ goal_id: goal.id });
-       const _todayStr = new Date().toISOString().split('T')[0];
-       const _habitCandidates = steps
-         .filter(s => s.is_daily_habit && s.status !== 'completed' && s.due_date)
-         .sort((a, b) => a.due_date.localeCompare(b.due_date));
-       let _current = null;
-       for (const s of _habitCandidates) { if (s.due_date <= _todayStr) _current = s; }
-       if (!_current) _current = _habitCandidates[0] || null;
-       const habitSteps = _current ? [_current] : [];
+       const habitSteps = steps.filter(s => s.is_daily_habit && s.habit_time && s.status !== 'completed');
 
        if (habitSteps.length > 0) {
          const user = await base44.asServiceRole.entities.User.get(goal.created_by_id);
          if (user) {
            // Estimate timezone offset from user profile if available, default to 0 (UTC)
-           const timezoneOffset = goal.timezone_offset_minutes ?? 0;
+           const timezoneOffset = user.timezone_offset || 0;
 
            for (const step of habitSteps) {
              await scheduleHabitNotificationForUser(base44, step, user.email, timezoneOffset, goal, openai);

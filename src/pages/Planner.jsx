@@ -302,8 +302,7 @@ export default function Planner() {
         month_titles: plan.month_titles || {},
         requires_daily_action: plan.requires_daily_action ?? false,
         weekdays_only: plan.weekdays_only ?? false,
-        habit_days_of_week: plan.habit_days_of_week ?? [],
-        timezone_offset_minutes: -new Date().getTimezoneOffset(),
+        habit_days_of_week: plan.habit_days_of_week ?? []
       });
 
       // Don't navigate yet — let the user see the success message and click "Go to Goal"
@@ -492,7 +491,6 @@ export default function Planner() {
               <MessageBubble key={i} msg={msg} onExampleClick={i === 0 ? sendMessage : null} />
             ))}
 
-            {isChatLoading && <TypingIndicator />}
 
             {/* 2-step approval flow */}
             {pendingAction === 'plan_proposed' && !isLoading && !saved && !editingGoal && !showCelebration && !showApprovalModal && (
@@ -1165,7 +1163,7 @@ function SavingProgressBar({ isEdit = false, done = false }) {
           style={{ width: `${progress}%` }}
         />
       </div>
-
+      <p className={`text-xs mt-2 text-center ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>This usually takes 1–2 minutes. Please don't navigate away.</p>
     </div>
   );
 }
