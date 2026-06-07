@@ -193,12 +193,13 @@ export default function GoalDetail() {
   const deleteGoal = async () => {
     setIsDeleting(true);
     const goalTitle = goal.title;
-    // Optimistic delete: remove from UI immediately
-    setGoal(null);
+    const goalId = goal.id;
+    // Close the dialog first, then navigate away
+    setShowDeleteConfirm(false);
     toast({ title: "Goal deleted", description: `"${goalTitle}" has been removed.`, variant: "default", duration: 3000 });
-    setTimeout(() => navigate("/Goals"), 500);
+    setTimeout(() => navigate("/Goals"), 300);
     // Delete in background asynchronously
-    base44.functions.invoke('deleteGoalWithNotifications', { goal_id: goal.id }).catch(err => console.error("Background deletion failed:", err));
+    base44.functions.invoke('deleteGoalWithNotifications', { goal_id: goalId }).catch(err => console.error("Background deletion failed:", err));
   };
 
   if (loading) {
