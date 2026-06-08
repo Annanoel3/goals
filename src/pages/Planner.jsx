@@ -494,7 +494,7 @@ export default function Planner() {
               <MessageBubble key={i} msg={msg} onExampleClick={i === 0 ? sendMessage : null} />
             ))}
 
-            {isChatLoading && <TypingIndicator isDrafting={messages.length >= 2 && !showCelebration} />}
+            {isChatLoading && <TypingIndicator isDrafting={pendingAction !== 'plan_proposed' && messages.length >= 2 && !showCelebration} />}
 
             {/* 2-step approval flow */}
             {pendingAction === 'plan_proposed' && !isLoading && !saved && !editingGoal && !showCelebration && !showApprovalModal && (
@@ -508,7 +508,7 @@ export default function Planner() {
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={() => sendMessage("I'd like to work on it some more")}
+                  onClick={() => { setPendingAction(null); sendMessage("I'd like to work on it some more"); }}
                   className={`rounded-2xl px-6 py-2.5 border-2 font-semibold ${isDark ? 'border-gray-700 text-gray-300 hover:bg-gray-800' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}
                 >
                   I'd like to work on it some more
