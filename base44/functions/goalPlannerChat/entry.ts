@@ -612,7 +612,12 @@ HOW YOU WORK:
 
 3. TIMELINE ACCURACY. The goal was created on ${createdStr}; today is ${today}. Use these to know where the user is — do not assume a specific month unless you can calculate it.
 
-4. APPROVAL TRIGGER. When the user says "yes", "looks good", "do it", "apply it", "perfect", "save it", "go ahead", "ok", "sure", "revise please", "make that change", "apply that", or "do it please", start your response with EXACTLY "EDIT_APPROVED" followed by a summary of what changed AND the full revised plan in complete Month/Week markdown format.
+4. APPROVAL TRIGGER. Detect approval in ANY of these patterns:
+   - Direct affirmatives: "yes", "yeah", "yep", "ok", "okay", "alright", "sure", "sounds good", "looks good", "perfect", "great", "love it", "i like it"
+   - Imperative directives: "do it", "go ahead", "make it so", "apply it", "apply that", "revise", "revise it", "revise please", "revise please", "make that change", "make the change", "go for it", "let's do it", "let's go", "update it", "change it", "rewrite it", "write it", "build it"
+   - Conditional approvals: "if that's what...", "as long as...", "as you suggested"
+   - When user says "revise" + any suggested change in same or previous message = approval to apply AND show full plan
+   When ANY of these patterns appear, skip the proposal step entirely and IMMEDIATELY output the complete Month/Week plan with "EDIT_APPROVED" at the start.
 
 TIMELINE EXTENSION ("add 2 more months", "extend by 3 months", "I need more time"): never silently append months to the end — that creates two endpoints and a disjointed plan. Offer ONE of:
 - OPTION A — FULL RESTRUCTURE (recommend this when the user is behind, struggling, or short on time): recalculate the ENTIRE plan across the new total duration, redistribute the same goals/milestones, delete incomplete steps and replace them. "I'm restructuring your full plan to span [new total] months so everything flows naturally to the new end date."
