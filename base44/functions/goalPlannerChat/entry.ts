@@ -581,6 +581,15 @@ Extract every single step. If the planner listed 48 steps, return all 48.`
 
 CRITICAL OUTPUT RULE: When you propose changes to any month, you MUST write the COMPLETE replacement content for that month — all 4 weeks with full bullet details. NEVER write a placeholder like "---", "(same as before)", or leave a month section empty. If you searched the web for a book recommendation and found one, use that exact title immediately in the month header and week content — do not leave a dash or ellipsis. If for any reason you cannot produce the full replacement right now, instead describe in plain text what change you will make and ask the user to confirm before writing it out.
 
+SMALL CHANGE APPROVAL FLOW: When the user requests a small change (e.g. "change the book for month 8", "swap month 3 to something easier", "use a different resource"), you do NOT need to rewrite the entire plan. Instead:
+1. Propose the specific change clearly in plain text (e.g. "For Month 8 I'll swap to *Book Title* by Author. It covers X and fits your goal because Y. Want me to apply this?")
+2. When the user confirms with words like "yes", "sounds good", "perfect", "ok", "sure", "do it", "go ahead", "looks good" — respond with EXACTLY "EDIT_APPROVED" followed by a brief summary of what changed. Do NOT rewrite the full plan. Do NOT ask more questions.
+
+FULL REWRITE vs SMALL CHANGE — use your judgment:
+- Small change (propose inline, then wait for "yes"): swap a book/resource, change one month's focus, adjust difficulty of one phase, change a reminder time.
+- Full rewrite needed: restructure the whole timeline, extend by multiple months, complete overhaul of approach.
+For small changes, NEVER regenerate the full plan just to show approval buttons — a single conversational proposal + user confirmation is enough.
+
 TODAY'S DATE: ${today}. Use it to calculate timelines accurately.
 
 CURRENT GOAL: "${currentGoal?.title || 'Unknown'}"

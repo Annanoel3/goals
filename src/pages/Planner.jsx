@@ -225,10 +225,11 @@ export default function Planner() {
       const sessionData = { startedAt: new Date().toISOString(), messages: updatedMessages, pendingAction: action || pendingAction, completed: false };
       localStorage.setItem('plannerInProgress', JSON.stringify(sessionData));
 
-      // Determine button state from backend action + message content
+      // Determine button state
       const looksLikeFullPlan = message?.includes('Month 1') && (message?.includes('Month 2') || message?.includes('Week 1') || message?.includes('Week 2'));
 
       if (action === 'edit_approved' || message?.includes('EDIT_APPROVED')) {
+        // Edit confirmed — show apply button
         setPendingAction('edit_approved');
         const resolvedGoalId = goal_id || editingGoal?.id;
         setPendingGoalId(resolvedGoalId);
@@ -236,11 +237,14 @@ export default function Planner() {
           const found = goals.find(g => g.id === resolvedGoalId);
           if (found) setEditingGoal(found);
         }
-      } else if (action === 'plan_proposed' || looksLikeFullPlan) {
-        // Backend signaled plan ready, OR the message contains a full plan
+      } else if (!editingGoal && (action === 'plan_proposed' || looksLikeFullPlan)) {
+        // New goal plan written — show approval buttons
+        setPendingAction('plan_proposed');
+      } else if (editingGoal && looksLikeFullPlan) {
+        // Edit session produced a full rewrite — show apply buttons
         setPendingAction('plan_proposed');
       } else {
-        // Pure conversational reply — clear any stale approval buttons
+        // Pure conversational reply — clear stale buttons
         setPendingAction(null);
       }
     } catch (err) {
