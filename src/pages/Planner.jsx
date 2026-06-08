@@ -493,7 +493,7 @@ export default function Planner() {
               <MessageBubble key={i} msg={msg} onExampleClick={i === 0 ? sendMessage : null} />
             ))}
 
-            {isChatLoading && <TypingIndicator />}
+            {isChatLoading && <TypingIndicator isDrafting={messages.length >= 4} />}
 
             {/* 2-step approval flow */}
             {pendingAction === 'plan_proposed' && !isLoading && !saved && !editingGoal && !showCelebration && !showApprovalModal && (
@@ -1171,18 +1171,22 @@ function SavingProgressBar({ isEdit = false, done = false }) {
   );
 }
 
-function TypingIndicator() {
+function TypingIndicator({ isDrafting = false }) {
+  const isDark = localStorage.getItem('adhd_theme') === 'dark';
   return (
-    <div className="flex items-center gap-2">
-      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-sm">
+    <div className="flex items-start gap-2">
+      <div className={`w-7 h-7 rounded-full flex items-center justify-center shadow-sm flex-shrink-0 mt-1 ${isDark ? 'bg-violet-700' : 'bg-gradient-to-br from-violet-500 to-indigo-600'}`}>
         <Sparkles className="w-3.5 h-3.5 text-white" />
       </div>
-      <div className="bg-white border border-gray-100 rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm">
-        <div className="flex gap-1 items-center">
+      <div className={`rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm ${isDark ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-100'}`}>
+        <div className="flex gap-1 items-center mb-1">
           {[0, 1, 2].map(i => (
             <div key={i} className="w-2 h-2 rounded-full bg-violet-400 animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
           ))}
         </div>
+        {isDrafting && (
+          <p className={`text-xs mt-1.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Drafting your plan, this may take a moment…</p>
+        )}
       </div>
     </div>
   );
