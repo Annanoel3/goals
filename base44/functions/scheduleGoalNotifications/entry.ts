@@ -25,11 +25,11 @@ async function scheduleNotification({ externalId, title, body, data, sendAt }) {
   }
   const payload = {
     app_id: ONESIGNAL_APP_ID,
-    include_external_user_ids: [String(externalId)],
+    include_aliases: { external_id: [String(externalId)] },
     headings: { en: title },
     contents: { en: body },
     data,
-    channel_for_external_user_ids: 'push',
+    target_channel: 'push',
     send_after: new Date(sendAt).toISOString(),
     buttons: [
       { id: 'complete', text: '✅ Done' },
