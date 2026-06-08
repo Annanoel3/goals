@@ -494,7 +494,7 @@ export default function Planner() {
               <MessageBubble key={i} msg={msg} onExampleClick={i === 0 ? sendMessage : null} />
             ))}
 
-            {isChatLoading && <TypingIndicator isDrafting={messages.length >= 4 && !showCelebration} />}
+            {isChatLoading && <TypingIndicator isDrafting={messages.length >= 2 && !showCelebration} />}
 
             {/* 2-step approval flow */}
             {pendingAction === 'plan_proposed' && !isLoading && !saved && !editingGoal && !showCelebration && !showApprovalModal && (
