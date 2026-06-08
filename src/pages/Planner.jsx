@@ -186,10 +186,11 @@ export default function Planner() {
     setMessages(newMessages);
     setInput("");
     setIsChatLoading(true);
-    // Show "Drafting your plan" when there's been enough back-and-forth and no full plan exists yet
+    // Show "Drafting your plan" when generating a new plan OR when revising an existing plan
     const priorAssistantMessages = messages.filter(m => m.role === 'assistant').length;
     const planAlreadyWritten = messages.some(m => m.role === 'assistant' && /Month\s+\d+/i.test(m.content) && /Week\s+\d+/i.test(m.content));
-    setIsDraftingFirstPlan(!planAlreadyWritten && priorAssistantMessages >= 1);
+    const isRevisionRequest = /revise|change|rewrite|redo|adjust|update|swap|remove|extend|shorten|easier|harder|restructure|skip|simplif|speed|slow|accelerate|compress|expand/i.test(content);
+    setIsDraftingFirstPlan((!planAlreadyWritten && priorAssistantMessages >= 1) || (planAlreadyWritten && isRevisionRequest));
     // Save progress to localStorage
     const sessionData = { startedAt: new Date().toISOString(), messages: newMessages, pendingAction, completed: false };
     localStorage.setItem('plannerInProgress', JSON.stringify(sessionData));
