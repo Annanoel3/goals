@@ -229,7 +229,9 @@ export default function Planner() {
       // Detect if AI proposed a full plan (new or edit) — show approval buttons
       // ONLY show save buttons when the message actually contains a full plan with multiple months/weeks
       const looksLikeFullPlan = message?.includes('Month 1') && (message?.includes('Month 2') || message?.includes('Week 1') || message?.includes('Week 2'));
-      if (looksLikeFullPlan && !message?.includes('EDIT_APPROVED')) {
+      // Also re-show approval if we were already in plan_proposed state (user chose to keep working)
+      const wasAlreadyProposed = pendingAction === 'plan_proposed';
+      if ((looksLikeFullPlan || wasAlreadyProposed) && !message?.includes('EDIT_APPROVED')) {
         // Full plan is visible in this message — show approval buttons
         setPendingAction('plan_proposed');
       } else if (action === 'edit_approved' || message?.includes('EDIT_APPROVED')) {
@@ -516,7 +518,7 @@ export default function Planner() {
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={() => { setPendingAction(null); sendMessage("I'd like to work on it some more"); }}
+                  onClick={() => sendMessage("I'd like to work on it some more")}
                   className={`rounded-2xl px-6 py-2.5 border-2 font-semibold ${isDark ? 'border-gray-700 text-gray-300 hover:bg-gray-800' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}
                 >
                   I'd like to work on it some more
