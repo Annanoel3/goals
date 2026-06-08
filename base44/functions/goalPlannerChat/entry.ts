@@ -288,8 +288,10 @@ ${TIME_MAPPING_RULE}` },
         const titleNums = Object.keys(parsedMonthTitles).map(Number).filter(n => !isNaN(n));
         const N = Math.max(detectedMonths || 0, monthNums.length ? Math.max(...monthNums) : 0, titleNums.length ? Math.max(...titleNums) : 0, 1);
         const todayDate = new Date(today);
-        const targetDate = new Date(todayDate); targetDate.setMonth(targetDate.getMonth() + N);
-        const totalDays = Math.max(1, (targetDate - todayDate) / (1000 * 60 * 60 * 24));
+        // Use start_date if the user specified one, otherwise fall back to today
+        const startDate = meta.start_date ? new Date(meta.start_date) : todayDate;
+        const targetDate = new Date(startDate); targetDate.setMonth(targetDate.getMonth() + N);
+        const totalDays = Math.max(1, (targetDate - startDate) / (1000 * 60 * 60 * 24));
         const T = parsedWeeks.length || 1;
         const dailyHabit = meta.requires_daily_action === true;
 
@@ -298,7 +300,7 @@ ${TIME_MAPPING_RULE}` },
           const first = bullets[0] || '';
           let focus = (first.includes(':') ? first.split(':')[0] : first).trim();
           if (focus.length > 60) focus = focus.slice(0, 60).trim();
-          const d = new Date(todayDate); d.setDate(d.getDate() + Math.round((i + 1) * totalDays / T));
+          const d = new Date(startDate); d.setDate(d.getDate() + Math.round((i + 1) * totalDays / T));
           return {
             title: focus ? `Week ${wk.week}: ${focus}` : `Week ${wk.week}`,
             description: bullets.join('\n'),
@@ -320,7 +322,7 @@ ${TIME_MAPPING_RULE}` },
           plan_summary: meta.plan_summary || "",
           timeline: `${N} months`,
           target_date: targetDate.toISOString().split('T')[0],
-          start_date: meta.start_date || null,
+          start_date: startDate.toISOString().split('T')[0],
           category: meta.category || "personal",
           notification_frequency: meta.notification_frequency || (dailyHabit ? "daily" : "weekly"),
           requires_daily_action: dailyHabit,
