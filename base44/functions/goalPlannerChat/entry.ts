@@ -307,7 +307,7 @@ Deno.serve(async (req) => {
           const first = bullets[0] || '';
           let focus = (first.includes(':') ? first.split(':')[0] : first).trim();
           if (focus.length > 60) focus = focus.slice(0, 60).trim();
-          const d = new Date(startDate); d.setDate(d.getDate() + Math.round((i + 1) * totalDays / T));
+          const d = new Date(startDate); d.setDate(d.getDate() + Math.round(i * totalDays / T));
           return {
             title: focus ? `Week ${wk.week}: ${focus}` : `Week ${wk.week}`,
             description: bullets.join('\n'),
