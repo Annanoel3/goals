@@ -268,7 +268,7 @@ Deno.serve(async (req) => {
         - description: one sentence
         - plan_summary: 2-3 sentences
         - category: one of learning|health|career|finance|relationships|personal|creative|other. CRITICAL: If the goal involves reading, books, novels, or chapters, use "learning", NOT "personal".
-        - notification_frequency: one of daily|weekly|weekdays|3x_per_week|2x_per_week (daily for reading/fitness/language/practice habits; weekly for career/finance/project milestones)
+        - notification_frequency: one of daily|weekdays|3x_per_week|2x_per_week. CRITICAL: Minimum 3x per week for ALL goals (user engagement/retention). daily for reading/fitness/language/practice habits; 3x_per_week for most others; only lower if the goal is truly milestone-based and user explicitly said "minimal contact".
         - requires_daily_action: true for habit/practice/reading/fitness goals, else false. CRITICAL: Reading/book goals MUST be true.
         - weekdays_only: false unless the goal is explicitly work/career only
         - include_weekend_reminders: false if the user said anything like "no weekends", "weekdays only", "not on weekends"; true otherwise (default true)
