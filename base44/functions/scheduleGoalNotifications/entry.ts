@@ -128,7 +128,7 @@ Deno.serve(async (req) => {
 
   if (!goal_id) return Response.json({ error: 'goal_id required' }, { status: 400 });
 
-  const tzOffset = typeof timezoneOffsetMinutes === 'number' ? timezoneOffsetMinutes : 0;
+  let tzOffset = typeof timezoneOffsetMinutes === 'number' ? timezoneOffsetMinutes : 0;
    console.log(`[scheduleGoalNotifications] Using tzOffset=${tzOffset}`);
    const now = new Date();
    console.log(`[scheduleGoalNotifications] now=${now.toISOString()}, local time check: tzOffset=${tzOffset}min`);
@@ -160,6 +160,11 @@ Deno.serve(async (req) => {
     if (!goal) return Response.json({ error: 'Goal not found' }, { status: 404 });
   } else {
     console.log(`[scheduleGoalNotifications] Using passed goal_data: id=${goal?.id}, title="${goal?.title}"`);
+  }
+
+  if (typeof goal?.timezone_offset_minutes === 'number') {
+    tzOffset = goal.timezone_offset_minutes;
+    console.log(`[scheduleGoalNotifications] tzOffset from goal=${tzOffset}`);
   }
 
   let user;
@@ -370,67 +375,89 @@ Deno.serve(async (req) => {
     }
   }
 
-  // ── DAILY HABIT NOTIFICATIONS (for requires_daily_action goals) ──
+  // ── DAILY HABIT NOTIFICATIONS (Week 1, Plan B: AI-personalized, distinct per day) ──
   if (goal.requires_daily_action) {
-    console.log(`[scheduleGoalNotifications] --- Scheduling daily habit reminders for Week 1 ---`);
-    // Only Month 1, Week 1 — we schedule one week ahead, never the whole plan.
-    const dailyHabitSteps = steps.filter(s => {
-      if (s.is_daily_habit !== true) return false;
-      const p = parsePhase(s.phase);
-      return p && p.month === 1 && p.week === 1;
-    });
-    console.log(`[scheduleGoalNotifications] Found ${dailyHabitSteps.length} Week-1 daily habit steps`);
+    console.log(`[scheduleGoalNotifications] --- Scheduling Week 1 daily reminders (AI-personalized) ---`);
 
-    if (dailyHabitSteps.length > 0 && planStartDate) {
-      // Generate week 1 dates respecting include_weekend_reminders preference
+    const week1Habit =
+      steps.find(s => { if (s.is_daily_habit !== true) return false; const p = parsePhase(s.phase); return p && p.month === 1 && p.week === 1; })
+      || steps.find(s => s.is_daily_habit === true)
+      || null;
+
+    if (week1Habit && planStartDate) {
       const todayStr = now.toISOString().split('T')[0];
-      // Start from tomorrow to avoid scheduling past times
       const weekStartDate = planStartDate <= todayStr ? addDays(todayStr, 1) : planStartDate;
       const include_weekends = goal.include_weekend_reminders !== false;
-      const daysToSchedule = [];
 
-      // Collect dates for the first week (7 days from weekStartDate)
+      const daysToSchedule = [];
       for (let i = 0; i < 7; i++) {
         const dateStr = addDays(weekStartDate, i);
-        const dateObj = new Date(dateStr + 'T00:00:00Z');
-        const dayOfWeek = dateObj.getUTCDay();
-        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+        const dow = new Date(dateStr + 'T00:00:00Z').getUTCDay();
+        const isWeekend = dow === 0 || dow === 6;
+        if ((!isWeekend || include_weekends) && !dateStr.endsWith('-07-04')) daysToSchedule.push(dateStr);
+      }
+      console.log(`[scheduleGoalNotifications] Week 1 daily dates: ${daysToSchedule.join(', ')}`);
 
-        // Include based on preference
-        if (!isWeekend || include_weekends) {
-          daysToSchedule.push(dateStr);
+      const bookTitle = goal.month_titles?.['1'] || goal.month_titles?.[1] || goal.title;
+
+      let dailyMessages = [];
+      if (daysToSchedule.length > 0) {
+        try {
+          const llm = await base44.integrations.Core.InvokeLLM({
+            prompt: `Write short daily push-notification reminders for someone working on the goal "${goal.title}".
+This week (Month 1, Week 1) they are focused on: ${week1Habit.title}.
+Week details: ${(week1Habit.description || '').slice(0, 600)}
+They are ONLY on this week's material (${bookTitle}). NO SPOILERS — do not reveal or hint at anything beyond the assigned portion (no later plot points, no ending).
+Write EXACTLY ${daysToSchedule.length} DISTINCT messages, one per day, each different in wording and angle (kickoff, momentum, a reflection nudge, encouragement, a tiny tip).
+Each message: under 110 characters, warm and specific to ${bookTitle}; no markdown, no links, no surrounding quotes.
+Return ONLY JSON: {"messages": ["...", ...]} with exactly ${daysToSchedule.length} strings.`,
+            response_json_schema: {
+              type: "object",
+              properties: { messages: { type: "array", items: { type: "string" } } },
+              required: ["messages"]
+            }
+          });
+          let obj = llm;
+          if (typeof llm === 'string') { try { obj = JSON.parse(llm); } catch { obj = {}; } }
+          else if (llm && !Array.isArray(llm.messages) && (llm.text || llm.content || llm.output)) {
+            try { obj = JSON.parse(llm.text || llm.content || llm.output); } catch { obj = llm; }
+          }
+          if (Array.isArray(obj?.messages)) dailyMessages = obj.messages.filter(m => typeof m === 'string' && m.trim());
+          console.log(`[scheduleGoalNotifications] Generated ${dailyMessages.length}/${daysToSchedule.length} daily messages`);
+        } catch (genErr) {
+          console.error(`[scheduleGoalNotifications] daily message generation failed: ${genErr.message}`);
         }
       }
 
-      console.log(`[scheduleGoalNotifications] Daily reminders for week 1: ${daysToSchedule.join(', ')} (weekends=${include_weekends})`);
+      const fallbacks = [
+        `Time to read ${bookTitle} — even a few pages counts.`,
+        `Your daily reading: pick up ${bookTitle} today.`,
+        `Keep the momentum on ${bookTitle} — read a bit now.`,
+        `A little progress in ${bookTitle} today adds up.`,
+        `Reading time! Dive back into ${bookTitle}.`,
+        `Don't break the streak — read ${bookTitle} today.`,
+        `Carve out a few minutes for ${bookTitle}.`,
+      ];
 
-      // Schedule one notification per day for each habit
-      for (const dateStr of daysToSchedule) {
-        // Skip July 4th (hardcoded for now, ideally would be configurable)
-        if (dateStr.endsWith('-07-04')) {
-          console.log(`[scheduleGoalNotifications] Skipping ${dateStr} (holiday)`);
-          continue;
-        }
+      const habitTime = week1Habit.habit_time || `${prefHour}:${String(prefMin).padStart(2, '0')}`;
+      const [hh, mm] = habitTime.split(':').map(Number);
 
-        for (const habit of dailyHabitSteps) {
-          const habitTime = habit.habit_time || `${prefHour}:${String(prefMin).padStart(2, '0')}`;
-          const [hh, mm] = habitTime.split(':').map(Number);
-          const sendAt = localTimeOnDate(dateStr, hh, mm, tzOffset);
-
-          if (sendAt > now) {
-            try {
-              const nid = await scheduleNotification({
-                externalId,
-                title: `${habit.title} 📖`,
-                body: `Time to: ${habit.description || habit.title}`,
-                data: { screen: 'GoalDetail', action: 'daily_habit', goal_id: goal.id, step_id: habit.id, date: dateStr },
-                sendAt: sendAt.toISOString(),
-              });
-              if (nid) { goalNotifIds.push(nid); scheduled++; }
-            } catch (nErr) {
-              console.error(`[scheduleGoalNotifications] Failed to schedule daily habit for ${dateStr}: ${nErr.message}`);
-            }
-          }
+      for (let di = 0; di < daysToSchedule.length; di++) {
+        const dateStr = daysToSchedule[di];
+        const sendAt = localTimeOnDate(dateStr, hh, mm, tzOffset);
+        if (sendAt <= now) continue;
+        const body = dailyMessages[di] || fallbacks[di % fallbacks.length];
+        try {
+          const nid = await scheduleNotification({
+            externalId,
+            title: bookTitle,
+            body,
+            data: { screen: 'GoalDetail', action: 'daily_habit', goal_id: goal.id, step_id: week1Habit.id, date: dateStr },
+            sendAt: sendAt.toISOString(),
+          });
+          if (nid) { goalNotifIds.push(nid); scheduled++; }
+        } catch (nErr) {
+          console.error(`[scheduleGoalNotifications] Failed to schedule daily for ${dateStr}: ${nErr.message}`);
         }
       }
     }

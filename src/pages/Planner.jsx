@@ -304,7 +304,8 @@ export default function Planner() {
         weekdays_only: plan.weekdays_only ?? false,
         include_weekend_reminders: plan.include_weekend_reminders ?? true,
         habit_days_of_week: plan.habit_days_of_week ?? [],
-        start_date: plan.start_date || null
+        start_date: plan.start_date || null,
+        timezone_offset_minutes: -new Date().getTimezoneOffset()
       });
 
       // Don't navigate yet — let the user see the success message and click "Go to Goal"

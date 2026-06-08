@@ -23,7 +23,7 @@ const RESPECT_CONSTRAINTS_RULE = `RESPECT "LESS X" CONSTRAINTS. If the user said
 
 const TIME_MAPPING_RULE = `TIME-OF-DAY MAPPING. "morning/early" → 06:00–07:00, "afternoon/midday" → 12:00–14:00, "evening/late afternoon" → 18:00–19:00, "night/late evening" → 20:00–21:00. If the user gave an exact time (e.g. "6pm", "7:30am"), use it. Never map "evening" to 1 PM.`;
 
-const READING_GOAL_RULE = `READING/BOOK GOALS. Never guess or invent chapter or page counts. Use web_search to look up the exact chapter count of EVERY specific book before splitting it into weekly chunks; divide evenly (total chapters ÷ 4 = chapters per week, balanced across all 4 weeks; if no chapters, use total pages ÷ 4). Assign a real, specific book title to every month — never "Book Title", "TBD", or a generic genre label.`;
+const READING_GOAL_RULE = `READING/BOOK GOALS. Never guess or invent chapter or page counts. Use web_search to look up the exact chapter count of EVERY specific book before splitting it into weekly chunks; divide evenly (total chapters ÷ 4 = chapters per week, balanced across all 4 weeks; if no chapters, use total pages ÷ 4). Assign a real, specific book title to every month — never "Book Title", "TBD", or a generic genre label. NO SPOILERS: a week's resource must match where the reader currently is — never a full-book/whole-plot summary, ending explainer, or review that reveals later events. Prefer spoiler-free aids (author background, "how to read X", character/vocabulary primers) or summaries explicitly limited to the chapters already assigned; if unsure a link is spoiler-free, omit it.`;
 
 const WEEK_DETAIL_RULE = `WEEK DEPTH — every week must be RICH, never a bare one-liner. A week that just says "Read Chapters 1–5" or "Practice scales" is a CRITICAL FAILURE. Each week needs ~3–6 bullets that actually give the user something to do AND think about:
   • The concrete action/chunk for the week (the exact chapters, the exercises with sets/reps, the specific vocabulary set, etc.).
@@ -273,7 +273,7 @@ Deno.serve(async (req) => {
 - weekdays_only: false unless the goal is explicitly work/career only
 - include_weekend_reminders: false if the user said anything like "no weekends", "weekdays only", "not on weekends"; true otherwise (default true)
 - preferred_time: Extract the user's stated preferred time for reminders/notifications. Parse time phrases like "9am", "6:00 PM", "morning", "evening", "noon" into 24h HH:MM format (e.g., "09:00", "18:00", "08:00" for morning, "17:00" for evening). If no time stated, null.
-- start_date: Extract the user's stated start date in YYYY-MM-DD format. If no start date stated, null.
+- start_date: The date the user wants to START, as YYYY-MM-DD. TODAY IS ${today}. Resolve loose/relative phrasing: "next month" → the 1st of next month; a bare month name ("July", "in July", "start in July") → the 1st of that month (this year if still upcoming, else next year); "now"/"today"/"asap" → ${today}. Only return null if no start timing is given at all.
 ${TIME_MAPPING_RULE}` },
               { role: "user", content: `User said:\n${userText}\n\nPlan intro:\n${planText.slice(0, 1200)}\n\nSearching the user's text above, extract their preferred time for reminders. Return the JSON.` }
             ],
