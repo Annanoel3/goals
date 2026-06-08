@@ -375,6 +375,29 @@ Deno.serve(async (req) => {
     }
   }
 
+  // ── "2 DAYS BEFORE START" NOTIFICATION ──
+  if (planStartsInFuture) {
+    const twoDaysBefore = addDays(planStartDate, -2);
+    if (twoDaysBefore >= todayStr) {
+      const sendAt = localTimeOnDate(twoDaysBefore, prefHour, prefMin, tzOffset);
+      if (sendAt > now) {
+        try {
+          const nid = await scheduleNotification({
+            externalId,
+            title: `⏳ Heads up!`,
+            body: `Your "${goal.title}" plan starts in 2 days! Get ready to begin.`,
+            data: { screen: 'GoalDetail', action: 'plan_starting_soon', goal_id: goal.id },
+            sendAt: sendAt.toISOString(),
+          });
+          if (nid) { goalNotifIds.push(nid); scheduled++; }
+          console.log(`[scheduleGoalNotifications] Scheduled 2-days-before notification for ${twoDaysBefore}`);
+        } catch (nErr) {
+          console.error(`[scheduleGoalNotifications] Failed to schedule 2-days-before notification: ${nErr.message}`);
+        }
+      }
+    }
+  }
+
   // ── DAILY HABIT NOTIFICATIONS (Week 1, Plan B: AI-personalized, distinct per day) ──
   if (goal.requires_daily_action) {
     console.log(`[scheduleGoalNotifications] --- Scheduling Week 1 daily reminders (AI-personalized) ---`);
