@@ -225,23 +225,22 @@ export default function Planner() {
       const sessionData = { startedAt: new Date().toISOString(), messages: updatedMessages, pendingAction: action || pendingAction, completed: false };
       localStorage.setItem('plannerInProgress', JSON.stringify(sessionData));
 
-      // Let the backend drive the button state via the `action` field.
-      // 'plan_proposed' → show approval buttons (backend sent PLAN_APPROVED)
-      // 'edit_approved' → show apply-edits button
-      // 'chat' → clear any stale buttons (AI is still in conversation mode)
-      if (action === 'plan_proposed') {
-        setPendingAction('plan_proposed');
-      } else if (action === 'edit_approved' || message?.includes('EDIT_APPROVED')) {
+      // Determine button state from backend action + message content
+      const looksLikeFullPlan = message?.includes('Month 1') && (message?.includes('Month 2') || message?.includes('Week 1') || message?.includes('Week 2'));
+
+      if (action === 'edit_approved' || message?.includes('EDIT_APPROVED')) {
         setPendingAction('edit_approved');
         const resolvedGoalId = goal_id || editingGoal?.id;
         setPendingGoalId(resolvedGoalId);
-        // If we weren't already in an edit session, set it now
         if (!editingGoal && resolvedGoalId) {
           const found = goals.find(g => g.id === resolvedGoalId);
           if (found) setEditingGoal(found);
         }
+      } else if (action === 'plan_proposed' || looksLikeFullPlan) {
+        // Backend signaled plan ready, OR the message contains a full plan
+        setPendingAction('plan_proposed');
       } else {
-        // AI is in conversation mode — clear any stale approval buttons
+        // Pure conversational reply — clear any stale approval buttons
         setPendingAction(null);
       }
     } catch (err) {
