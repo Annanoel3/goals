@@ -210,9 +210,9 @@ Deno.serve(async (req) => {
 
   let scheduled = 0, cancelled = 0;
 
-  // ── DETECT PLAN START DATE (earliest due_date across all steps, fallback to goal.start_date) ──
+  // ── DETECT PLAN START DATE (earliest due_date across all steps) ──
   const allDueDates = steps.filter(s => s.due_date).map(s => s.due_date).sort();
-  const planStartDate = allDueDates[0] || goal.start_date || null;
+  const planStartDate = allDueDates[0] || null;
   const todayStr = now.toISOString().split('T')[0];
   const planStartsInFuture = planStartDate && planStartDate > todayStr;
   console.log(`[scheduleGoalNotifications] planStartDate=${planStartDate}, todayStr=${todayStr}, planStartsInFuture=${planStartsInFuture}`);
@@ -488,17 +488,6 @@ Return ONLY JSON: {"messages": ["...", ...]} with exactly ${daysToSchedule.lengt
 
   // ── WEEK NOTIFICATIONS (Week 1 only) ──
    console.log(`[scheduleGoalNotifications] --- Scheduling Week 1 notifications ---`);
-
-   // If steps haven't been created yet (weekMap has no 1-1 entry), synthesize from planStartDate
-   if (!weekMap['1-1'] && planStartDate) {
-     console.log(`[scheduleGoalNotifications] No Month 1 Week 1 steps found in weekMap — synthesizing from planStartDate=${planStartDate}`);
-     weekMap['1-1'] = {
-       month: 1, week: 1,
-       dates: [planStartDate, addDays(planStartDate, 6)],
-       titles: []
-     };
-   }
-
    for (const [wk, wData] of Object.entries(weekMap)) {
      console.log(`[scheduleGoalNotifications] weekMap[${wk}]: month=${wData.month}, week=${wData.week}, dates=${wData.dates.join(',')}`);
      if (wData.month !== 1 || wData.week !== 1) {
