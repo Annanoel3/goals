@@ -493,7 +493,7 @@ export default function Planner() {
               <MessageBubble key={i} msg={msg} onExampleClick={i === 0 ? sendMessage : null} />
             ))}
 
-            {isChatLoading && <TypingIndicator isDrafting={messages.length >= 4} />}
+            {isChatLoading && <TypingIndicator isDrafting={messages.length >= 4 && !showCelebration} />}
 
             {/* 2-step approval flow */}
             {pendingAction === 'plan_proposed' && !isLoading && !saved && !editingGoal && !showCelebration && !showApprovalModal && (
@@ -1158,7 +1158,7 @@ function SavingProgressBar({ isEdit = false, done = false }) {
     <div className={`w-full max-w-sm border rounded-2xl px-5 py-4 shadow-md ${isDark ? 'bg-gray-800 border-gray-700 shadow-gray-900/30' : 'bg-white border-violet-100 shadow-violet-50'}`}>
       <div className="flex items-center gap-2 mb-3">
         <Loader2 className={`w-4 h-4 animate-spin flex-shrink-0 ${isDark ? 'text-violet-500' : 'text-violet-500'}`} />
-        <p className={`text-sm font-medium transition-all duration-500 ${isDark ? 'text-violet-400' : 'text-violet-800'}`}>{steps[stepIndex].label}</p>
+        <p className={`text-sm font-medium ${isDark ? 'text-violet-400' : 'text-violet-800'}`}>Creating your plan…</p>
       </div>
       <div className={`h-2 rounded-full overflow-hidden ${isDark ? 'bg-gray-700' : 'bg-violet-100'}`}>
         <div
