@@ -375,6 +375,37 @@ Deno.serve(async (req) => {
     }
   }
 
+  // ── "HEADS UP — PLAN STARTS IN 2 DAYS" — self-contained in its own try/catch so it can never
+  //    affect the daily/week notifications below; skipped when there's no valid future start date. ──
+  try {
+    const _startBasis = goal.start_date || planStartDate;       // the plan's real start, e.g. 2026-07-01
+    if (_startBasis && _startBasis > todayStr) {
+      const _headsUpStr = addDays(_startBasis, -2);             // 2 days BEFORE the start
+      const _headsUpSendAt = localTimeOnDate(_headsUpStr, prefHour, prefMin, tzOffset);
+      if (_headsUpSendAt > now) {
+        const _mName = new Date(_startBasis + 'T00:00:00Z').toLocaleString('en-US', { month: 'long', timeZone: 'UTC' });
+        const _mTheme = goal.month_titles?.['1'] || goal.month_titles?.[1];
+        const _nid = await scheduleNotification({
+          externalId,
+          title: `Heads up — "${goal.title}" starts in 2 days! 🚀`,
+          body: _mTheme
+            ? `Get ready to begin in ${_mName}. First up: "${_mTheme}".`
+            : `Get ready to begin "${goal.title}" in ${_mName}.`,
+          data: { screen: 'GoalDetail', action: 'plan_starts_2_days', goal_id: goal.id },
+          sendAt: _headsUpSendAt.toISOString(),
+        });
+        if (_nid) { goalNotifIds.push(_nid); scheduled++; }
+        console.log(`[scheduleGoalNotifications] 2-days-before heads-up scheduled for ${_headsUpStr}`);
+      } else {
+        console.log(`[scheduleGoalNotifications] 2-days-before heads-up skipped (send time already passed)`);
+      }
+    } else {
+      console.log(`[scheduleGoalNotifications] 2-days-before heads-up skipped (no future start date)`);
+    }
+  } catch (_headsUpErr) {
+    console.error(`[scheduleGoalNotifications] 2-days-before heads-up failed (non-fatal): ${_headsUpErr.message}`);
+  }
+
   // ── DAILY HABIT NOTIFICATIONS (Week 1, Plan B: AI-personalized, distinct per day) ──
   if (goal.requires_daily_action) {
     console.log(`[scheduleGoalNotifications] --- Scheduling Week 1 daily reminders (AI-personalized) ---`);
