@@ -192,11 +192,9 @@ export default function Planner() {
     setMessages(newMessages);
     setInput("");
     setIsChatLoading(true);
-    // Only show "Drafting your plan" text when the AI has already asked clarifying questions
-    // (i.e., there's at least one prior assistant message) and no plan has been proposed yet
-    const priorAssistantMessages = messages.filter(m => m.role === 'assistant').length;
+    // Only show "Drafting your plan" text when no plan has been proposed yet in this session
     const noPlanYet = pendingAction !== 'plan_proposed' && !messages.some(m => m.role === 'assistant' && /Month\s+\d+/i.test(m.content) && /Week\s+\d+/i.test(m.content));
-    setIsDraftingFirstPlan(noPlanYet && priorAssistantMessages >= 1);
+    setIsDraftingFirstPlan(noPlanYet);
     // Save progress to localStorage
     const sessionData = { startedAt: new Date().toISOString(), messages: newMessages, pendingAction, completed: false };
     localStorage.setItem('plannerInProgress', JSON.stringify(sessionData));
