@@ -338,15 +338,7 @@ export default function GoalDetail() {
           )}
         </div>
 
-        {/* One-time loading banner — shown while background plan creation is in progress */}
-        {loadingMonthPlaceholders.length > 0 && (
-          <div className="flex items-start gap-3 bg-violet-50 border border-violet-200 rounded-xl px-4 py-3 mb-4">
-            <Loader2 className="w-4 h-4 text-violet-500 animate-spin flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-violet-700 leading-snug">
-              <span className="font-semibold">Your full plan is being built in the background.</span> Month 1 will appear first — the rest will load automatically within a minute. This is a one-time process.
-            </p>
-          </div>
-        )}
+
 
         {/* Steps - Month/Week Hierarchy */}
         <div className="space-y-3">
