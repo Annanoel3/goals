@@ -494,10 +494,10 @@ export default function Planner() {
               <MessageBubble key={i} msg={msg} onExampleClick={i === 0 ? sendMessage : null} />
             ))}
 
-            {isChatLoading && <TypingIndicator isDrafting={pendingAction !== 'plan_proposed' && messages.length >= 2 && !showCelebration} />}
+            {isChatLoading && <TypingIndicator isDrafting={false} />}
 
             {/* 2-step approval flow */}
-            {pendingAction === 'plan_proposed' && !isLoading && !saved && !editingGoal && !showCelebration && !showApprovalModal && (
+            {pendingAction === 'plan_proposed' && !isChatLoading && !isLoading && !saved && !editingGoal && !showCelebration && !showApprovalModal && (
               <div className="flex flex-col items-center gap-3 pt-4 pb-4">
                 <Button
                   onClick={() => setShowApprovalModal(true)}
@@ -538,7 +538,7 @@ export default function Planner() {
             )}
 
             {/* Plan preview before approval — edit session (AI suggested a revised plan) */}
-            {pendingAction === 'plan_proposed' && !isLoading && !saved && editingGoal && !showCelebration && (
+            {pendingAction === 'plan_proposed' && !isChatLoading && !isLoading && !saved && editingGoal && !showCelebration && (
               <div className="flex flex-col items-center gap-3 pt-4 pb-4">
                 <Button
                   onClick={() => { setShowCelebration(true); handleApplyEdits(); }}
