@@ -129,7 +129,7 @@ Deno.serve(async (req) => {
   if (!goal_id) return Response.json({ error: 'goal_id required' }, { status: 400 });
 
   let tzOffset = typeof timezoneOffsetMinutes === 'number' ? timezoneOffsetMinutes : 0;
-   console.log(`[scheduleGoalNotifications] Using tzOffset=${tzOffset}`);
+   console.log(`[scheduleGoalNotifications] Using tzOffset=${tzOffset} (initial)`);
    const now = new Date();
    console.log(`[scheduleGoalNotifications] now=${now.toISOString()}, local time check: tzOffset=${tzOffset}min`);
 
@@ -164,7 +164,7 @@ Deno.serve(async (req) => {
 
   if (typeof goal?.timezone_offset_minutes === 'number') {
     tzOffset = goal.timezone_offset_minutes;
-    console.log(`[scheduleGoalNotifications] tzOffset from goal=${tzOffset}`);
+    console.log(`[scheduleGoalNotifications] tzOffset overridden from goal.timezone_offset_minutes=${tzOffset}`);
   }
 
   let user;

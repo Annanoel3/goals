@@ -25,7 +25,8 @@ Rules:
 - Body: max 1-2 sentences, conversational, speaks to ${weekPhase}
 - Personalize to: goal="${goal.title}", step="${step.title}", phase=${step.phase || 'ongoing'}, day=${dayName}
 - NO generic motivation; be specific to their exact habit
-- If it's ${dayOfWeek} (${dayName}), acknowledge where they are in their week`
+- If it's ${dayOfWeek} (${dayName}), acknowledge where they are in their week
+- NO SPOILERS: never reference plot points, events, or endings beyond where the reader currently is — keep it about showing up to the habit, not revealing content`
       },
       {
         role: "user",
@@ -168,8 +169,8 @@ async function scheduleHabitNotificationForUser(base44, step, userEmail, timezon
 
     const notificationPayload = {
       app_id: ONESIGNAL_APP_ID,
-      include_external_user_ids: [userEmail],
-      channel_for_external_user_ids: 'push',
+      include_aliases: { external_id: [userEmail] },
+      target_channel: 'push',
       headings: { en: msg.title },
       contents: { en: msg.body },
       send_after: sendAt,
@@ -235,8 +236,8 @@ async function scheduleHabitNotificationForUser(base44, step, userEmail, timezon
 
     const missedNotificationPayload = {
       app_id: ONESIGNAL_APP_ID,
-      include_external_user_ids: [userEmail],
-      channel_for_external_user_ids: 'push',
+      include_aliases: { external_id: [userEmail] },
+      target_channel: 'push',
       headings: { en: missedMsg.title },
       contents: { en: missedMsg.body },
       send_after: sendAtMissed,
@@ -286,8 +287,8 @@ async function scheduleHabitNotificationForUser(base44, step, userEmail, timezon
 
     const threeNotificationPayload = {
       app_id: ONESIGNAL_APP_ID,
-      include_external_user_ids: [userEmail],
-      channel_for_external_user_ids: 'push',
+      include_aliases: { external_id: [userEmail] },
+      target_channel: 'push',
       headings: { en: threeMsg.title },
       contents: { en: threeMsg.body },
       send_after: sendAtThree,
@@ -345,7 +346,7 @@ Deno.serve(async (req) => {
        const habitSteps = (_current && !_isWeek1) ? [_current] : [];
 
        if (habitSteps.length > 0) {
-         const user = await base44.asServiceRole.entities.User.get(goal.created_by_id);
+         const user = (await base44.asServiceRole.entities.User.filter({ id: goal.created_by_id }))[0];
          if (user) {
            const timezoneOffset = goal.timezone_offset_minutes ?? 0;
 
