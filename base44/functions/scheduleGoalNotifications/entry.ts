@@ -187,6 +187,14 @@ Deno.serve(async (req) => {
   let steps;
   try {
     steps = await base44.entities.GoalStep.filter({ goal_id });
+    // Steps are created by createRemainingGoalSteps right before this runs, but bulkCreate returning
+    // doesn't guarantee they're queryable yet (eventual consistency). If we got none, retry briefly —
+    // otherwise we'd schedule against an empty list and silently drop the daily + week + confirmation.
+    for (let _retry = 0; steps.length === 0 && _retry < 6; _retry++) {
+      await new Promise(r => setTimeout(r, 1000));
+      steps = await base44.entities.GoalStep.filter({ goal_id });
+      console.log(`[scheduleGoalNotifications] steps were empty — retry ${_retry + 1}/6 fetched ${steps.length}`);
+    }
     console.log(`[scheduleGoalNotifications] Fetched ${steps.length} steps for goal ${goal_id}`);
     if (steps.length > 0) {
       console.log(`[scheduleGoalNotifications] Step phases sample: ${steps.slice(0, 10).map(s => s.phase).join(' | ')}`);
