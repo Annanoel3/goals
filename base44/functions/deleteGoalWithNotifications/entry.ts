@@ -2,49 +2,44 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
 const ONESIGNAL_APP_ID = Deno.env.get("ONESIGNAL_APP_ID")?.trim();
 const ONESIGNAL_REST_API_KEY = Deno.env.get("ONESIGNAL_REST_API_KEY")?.trim();
+const ONESIGNAL_AUTH_HEADER = `Basic ${ONESIGNAL_REST_API_KEY}`;
 
 async function cancelNotification(notifId) {
   try {
     const res = await fetch(`https://onesignal.com/api/v1/notifications/${notifId}?app_id=${ONESIGNAL_APP_ID}`, {
       method: 'DELETE',
-      headers: { 'Authorization': `Basic ${ONESIGNAL_REST_API_KEY}` },
+      headers: { 'Authorization': ONESIGNAL_AUTH_HEADER },
     });
     return res.ok;
   } catch (_) { return false; }
 }
 
-// Fetch ALL scheduled notifications from OneSignal and cancel any that belong to this goal
+// Broad-sweep backstop: cancel EVERY scheduled OneSignal notification whose data
+// payload is tagged with this goal_id — even if its id was never stored on a record.
 async function cancelAllNotificationsForGoal(goalId) {
   let cancelled = 0;
   let offset = 0;
   const limit = 50;
-
   while (true) {
-    let data;
-    try {
-      const res = await fetch(
-        `https://onesignal.com/api/v1/notifications?app_id=${ONESIGNAL_APP_ID}&limit=${limit}&offset=${offset}&kind=1`,
-        { headers: { 'Authorization': `Basic ${ONESIGNAL_REST_API_KEY}` } }
-      );
-      data = await res.json();
-    } catch (_) { break; }
-
-    const notifications = data?.notifications || [];
+    const res = await fetch(
+      `https://api.onesignal.com/notifications?app_id=${ONESIGNAL_APP_ID}&limit=${limit}&offset=${offset}&kind=1`,
+      { headers: { Authorization: ONESIGNAL_AUTH_HEADER, Accept: 'application/json' } }
+    );
+    if (!res.ok) break;
+    const json = await res.json();
+    const notifications = json.notifications || [];
     if (notifications.length === 0) break;
 
-    for (const notif of notifications) {
-      const d = notif.data || {};
-      if (d.goal_id === goalId || d.goalId === goalId) {
-        const ok = await cancelNotification(notif.id);
-        if (ok) cancelled++;
-      }
-    }
+    const matching = notifications.filter(n => {
+      const d = n.data || {};
+      return d.goal_id === goalId || d.goalId === goalId;
+    });
+    const results = await Promise.all(matching.map(n => cancelNotification(n.id)));
+    cancelled += results.filter(Boolean).length;
 
-    // If fewer results than limit, we've reached the end
     if (notifications.length < limit) break;
     offset += limit;
   }
-
   return cancelled;
 }
 
@@ -75,10 +70,14 @@ Deno.serve(async (req) => {
     await Promise.all(steps.map(s => base44.entities.GoalStep.delete(s.id)));
     await base44.entities.Goal.delete(goal_id);
 
-    // Cancel OneSignal notifications in parallel (not sequential)
+    // Targeted cancel: IDs stored on goal/step records
     await Promise.all(allIds.map(id => cancelNotification(id)));
 
-    return Response.json({ ok: true, cancelled: allIds.length, steps_cleaned: steps.length });
+    // Backstop: catch any scheduled notifications for this goal whose ids weren't stored
+    let swept = 0;
+    try { swept = await cancelAllNotificationsForGoal(goal_id); } catch (_) {}
+
+    return Response.json({ ok: true, cancelled: allIds.length, swept, steps_cleaned: steps.length });
   } catch (err) {
     return Response.json({ error: err.message }, { status: 500 });
   }
