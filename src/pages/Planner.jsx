@@ -57,15 +57,13 @@ export default function Planner() {
     if (!saved || !pendingGoalId) return;
     
     let pollCount = 0;
-    const maxPolls = 60; // 60 × 500ms = 30s max
+    const maxPolls = 120; // 120 × 500ms = 60s max
     
     const checkMonths = async () => {
       try {
         const steps = await base44.entities.GoalStep.filter({ goal_id: pendingGoalId });
-        const hasMonth1 = steps.some(s => s.phase?.includes('Month 1'));
-        const hasMonth2 = steps.some(s => s.phase?.includes('Month 2'));
-        
-        if (hasMonth1 && hasMonth2) {
+        if (steps.length > 0) {
+          // Just need any steps to exist — don't require specific phase format
           setFirstTwoMonthsReady(true);
           clearInterval(timer);
         }
@@ -77,8 +75,13 @@ export default function Planner() {
     checkMonths();
     const timer = setInterval(() => {
       pollCount++;
-      if (pollCount >= maxPolls) clearInterval(timer);
-      else checkMonths();
+      if (pollCount >= maxPolls) {
+        // Timeout — let user navigate anyway
+        setFirstTwoMonthsReady(true);
+        clearInterval(timer);
+      } else {
+        checkMonths();
+      }
     }, 500);
     
     return () => clearInterval(timer);
