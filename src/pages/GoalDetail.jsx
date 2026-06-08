@@ -95,7 +95,6 @@ export default function GoalDetail() {
   const [selectedStep, setSelectedStep] = useState(null);
   const [isStepModalOpen, setIsStepModalOpen] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [habitCheckInStep, setHabitCheckInStep] = useState(null);
   const [celebrationMonth, setCelebrationMonth] = useState(null);
   const [celebrationSteps, setCelebrationSteps] = useState([]);
@@ -190,18 +189,16 @@ export default function GoalDetail() {
     }
   };
 
-  const deleteGoal = async () => {
-    setIsDeleting(true);
+  const deleteGoal = () => {
     const goalTitle = goal.title;
     const goalId = goal.id;
     // Mark as deleted in sessionStorage so Goals page hides it immediately
     const deleted = JSON.parse(sessionStorage.getItem('deletedGoalIds') || '[]');
     deleted.push(goalId);
     sessionStorage.setItem('deletedGoalIds', JSON.stringify(deleted));
-    // Close the dialog and navigate away immediately
-    setShowDeleteConfirm(false);
-    toast({ title: "Goal deleted", description: `"${goalTitle}" has been removed.`, duration: 3000 });
+    // Navigate away immediately — don't wait for anything
     navigate("/Goals");
+    toast({ title: "Goal deleted", description: `"${goalTitle}" has been removed.`, duration: 3000 });
     // Delete in background asynchronously
     base44.functions.invoke('deleteGoalWithNotifications', { goal_id: goalId }).catch(err => console.error("Background deletion failed:", err));
   };
@@ -493,8 +490,8 @@ export default function GoalDetail() {
               </DialogDescription>
             </DialogHeader>
             <div className="flex gap-3 mt-2">
-              <Button onClick={deleteGoal} disabled={isDeleting} className="w-full rounded-xl bg-red-600 hover:bg-red-700 text-white">
-                {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Delete"}
+              <Button onClick={deleteGoal} className="w-full rounded-xl bg-red-600 hover:bg-red-700 text-white">
+                Delete
               </Button>
             </div>
           </DialogContent>
