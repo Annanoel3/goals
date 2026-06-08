@@ -259,29 +259,29 @@ Deno.serve(async (req) => {
         // gpt-4o-mini call is fast and constant-time no matter how long the plan is.
         const userText = messages.filter(m => m.role === 'user').map(m => m.content).join('\n');
         let meta = {};
-        try {
-          const metaResp = await openai.chat.completions.create({
-            model: "gpt-4o-mini",
-            messages: [
-              { role: "system", content: `Return ONLY a small JSON object describing this goal at a high level (NO steps). Fields:
-- title: short goal title (e.g. "Read 12 books in 12 months")
-- description: one sentence
-- plan_summary: 2-3 sentences
-- category: one of learning|health|career|finance|relationships|personal|creative|other
-- notification_frequency: one of daily|weekly|weekdays|3x_per_week|2x_per_week (daily for reading/fitness/language/practice habits; weekly for career/finance/project milestones)
-- requires_daily_action: true for habit/practice/reading/fitness goals, else false
-- weekdays_only: false unless the goal is explicitly work/career only
-- include_weekend_reminders: false if the user said anything like "no weekends", "weekdays only", "not on weekends"; true otherwise (default true)
-- preferred_time: Extract the user's stated preferred time for reminders/notifications. Parse time phrases like "9am", "6:00 PM", "morning", "evening", "noon" into 24h HH:MM format (e.g., "09:00", "18:00", "08:00" for morning, "17:00" for evening). If no time stated, null.
-- start_date: The date the user wants to START, as YYYY-MM-DD. TODAY IS ${today}. Resolve loose/relative phrasing: "next month" → the 1st of next month; a bare month name ("July", "in July", "start in July") → the 1st of that month (this year if still upcoming, else next year); "now"/"today"/"asap" → ${today}. Only return null if no start timing is given at all.
-${TIME_MAPPING_RULE}` },
-              { role: "user", content: `User said:\n${userText}\n\nPlan intro:\n${planText.slice(0, 1200)}\n\nFrom the user's text above, extract BOTH their preferred reminder time AND their start date. For start_date, resolve relative phrasing ("next month", "in July", "start in July", "now") to a real YYYY-MM-DD using today = ${today}. Return the JSON.` }
-            ],
-            max_tokens: 500,
-            response_format: { type: "json_object" }
-          });
-          meta = JSON.parse(metaResp.choices[0].message.content) || {};
-        } catch (_) { meta = {}; }
+         try {
+           const metaResp = await openai.chat.completions.create({
+             model: "gpt-4o-mini",
+             messages: [
+               { role: "system", content: `Return ONLY a small JSON object describing this goal at a high level (NO steps). Fields:
+        - title: short goal title (e.g. "Read 12 books in 12 months")
+        - description: one sentence
+        - plan_summary: 2-3 sentences
+        - category: one of learning|health|career|finance|relationships|personal|creative|other. CRITICAL: If the goal involves reading, books, novels, or chapters, use "learning", NOT "personal".
+        - notification_frequency: one of daily|weekly|weekdays|3x_per_week|2x_per_week (daily for reading/fitness/language/practice habits; weekly for career/finance/project milestones)
+        - requires_daily_action: true for habit/practice/reading/fitness goals, else false. CRITICAL: Reading/book goals MUST be true.
+        - weekdays_only: false unless the goal is explicitly work/career only
+        - include_weekend_reminders: false if the user said anything like "no weekends", "weekdays only", "not on weekends"; true otherwise (default true)
+        - preferred_time: Extract the user's stated preferred time for reminders/notifications. Parse time phrases like "9am", "6:00 PM", "morning", "evening", "noon" into 24h HH:MM format (e.g., "09:00", "18:00", "08:00" for morning, "17:00" for evening). If no time stated, null.
+        - start_date: The date the user wants to START, as YYYY-MM-DD. TODAY IS ${today}. Resolve loose/relative phrasing: "next month" → the 1st of next month; a bare month name ("July", "in July", "start in July") → the 1st of that month (this year if still upcoming, else next year); "now"/"today"/"asap" → ${today}. Only return null if no start timing is given at all.
+        ${TIME_MAPPING_RULE}` },
+               { role: "user", content: `User said:\n${userText}\n\nPlan intro:\n${planText.slice(0, 1200)}\n\nFrom the user's text above, extract BOTH their preferred reminder time AND their start date. For start_date, resolve relative phrasing ("next month", "in July", "start in July", "now") to a real YYYY-MM-DD using today = ${today}. Return the JSON.` }
+             ],
+             max_tokens: 500,
+             response_format: { type: "json_object" }
+           });
+           meta = JSON.parse(metaResp.choices[0].message.content) || {};
+         } catch (_) { meta = {}; }
 
         // Timeline + dates, computed in code.
         const monthNums = parsedWeeks.map(w => w.month);
