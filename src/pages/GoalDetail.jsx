@@ -99,39 +99,36 @@ export default function GoalDetail() {
   const [celebrationMonth, setCelebrationMonth] = useState(null);
   const [celebrationSteps, setCelebrationSteps] = useState([]);
   const [celebrationWeek, setCelebrationWeek] = useState(null);
+  const [loadingTimedOut, setLoadingTimedOut] = useState(false);
 
   useEffect(() => { loadData(); }, [id]);
 
-  // Poll every 2s while background months are still being created (max 5 minutes)
+  // Poll every 2s while background months are still being created (max 2 minutes)
   useEffect(() => {
     if (loading || !goal) return;
     const timelineMatch = goal.timeline?.match(/(\d+)\s*month/i);
     const totalMonths = timelineMatch ? parseInt(timelineMatch[1]) : 0;
-    if (totalMonths <= 2) return; // Nothing to wait for
+    if (totalMonths === 0) return;
 
     let pollCount = 0;
-    const maxPolls = 90; // 90 × 2s = 3 minutes max
+    const maxPolls = 60; // 60 × 2s = 2 minutes max, then stop spinning
 
     const timer = setInterval(async () => {
       pollCount++;
-      if (pollCount > maxPolls) {
-        console.warn(`[GoalDetail] Polling timeout after ${maxPolls * 2}s. Stopping.`);
-        clearInterval(timer);
-        return;
-      }
 
       const stepsData = await base44.entities.GoalStep.filter({ goal_id: id }).catch(() => null);
-      if (!stepsData) return;
+      if (stepsData) {
+        setSteps(stepsData.sort((a, b) => (a.order_index || 0) - (b.order_index || 0)));
+      }
 
-      const sortedData = stepsData.sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
-      setSteps(sortedData);
-
-      // Stop polling once all months have steps
+      // Stop when all months have steps OR timeout reached
       const monthsWithSteps = new Set(
-        stepsData.map(s => s.phase?.match(/Month\s*(\d+)/i)?.[1]).filter(Boolean)
+        (stepsData || []).map(s => s.phase?.match(/Month\s*(\d+)/i)?.[1]).filter(Boolean)
       );
-      if (monthsWithSteps.size >= totalMonths) {
-        console.log(`[GoalDetail] All ${totalMonths} months loaded. Stopping poll.`);
+      if (pollCount >= maxPolls) {
+        setLoadingTimedOut(true);
+        clearInterval(timer);
+      } else if (monthsWithSteps.size >= totalMonths) {
         clearInterval(timer);
       }
     }, 2000);
@@ -421,7 +418,7 @@ export default function GoalDetail() {
             );
           })}
           {/* Loading placeholders for months not yet created in background */}
-          {loadingMonthPlaceholders.map(monthKey => (
+          {!loadingTimedOut && loadingMonthPlaceholders.map(monthKey => (
             <div key={monthKey} className="rounded-xl border border-gray-200 overflow-hidden">
               <div className="w-full flex items-center gap-3 px-4 py-3 bg-white">
                 <div className="w-1.5 h-5 bg-violet-200 rounded-full flex-shrink-0" />

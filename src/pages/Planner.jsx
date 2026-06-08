@@ -52,39 +52,30 @@ export default function Planner() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Poll for first 2 months to be created after goal is saved
+  // Poll for steps after goal is saved — unlock "Go to Goal" as soon as any steps exist, or after 15s max
   useEffect(() => {
-    if (!saved || !pendingGoalId) return;
-    
-    let pollCount = 0;
-    const maxPolls = 120; // 120 × 500ms = 60s max
-    
-    const checkMonths = async () => {
-      try {
-        const steps = await base44.entities.GoalStep.filter({ goal_id: pendingGoalId });
-        if (steps.length > 0) {
-          // Just need any steps to exist — don't require specific phase format
-          setFirstTwoMonthsReady(true);
-          clearInterval(timer);
-        }
-      } catch (err) {
-        console.error('Poll months error:', err);
-      }
-    };
-    
-    checkMonths();
-    const timer = setInterval(() => {
-      pollCount++;
-      if (pollCount >= maxPolls) {
-        // Timeout — let user navigate anyway
+  if (!saved || !pendingGoalId) return;
+
+  // Hard 15-second timeout — always unlock regardless
+  const hardTimeout = setTimeout(() => setFirstTwoMonthsReady(true), 15000);
+
+  const checkSteps = async () => {
+    try {
+      const steps = await base44.entities.GoalStep.filter({ goal_id: pendingGoalId });
+      if (steps.length > 0) {
         setFirstTwoMonthsReady(true);
-        clearInterval(timer);
-      } else {
-        checkMonths();
+        clearInterval(pollTimer);
+        clearTimeout(hardTimeout);
       }
-    }, 500);
-    
-    return () => clearInterval(timer);
+    } catch (err) {
+      console.error('Poll steps error:', err);
+    }
+  };
+
+  checkSteps();
+  const pollTimer = setInterval(checkSteps, 1000);
+
+  return () => { clearInterval(pollTimer); clearTimeout(hardTimeout); };
   }, [saved, pendingGoalId]);
 
   // Load goals and user city
