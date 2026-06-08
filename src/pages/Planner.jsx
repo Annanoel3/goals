@@ -1157,17 +1157,12 @@ function SavingProgressBar({ isEdit = false, done = false }) {
   const isDark = localStorage.getItem('adhd_theme') === 'dark';
   return (
     <div className={`w-full max-w-sm border rounded-2xl px-5 py-4 shadow-md ${isDark ? 'bg-gray-800 border-gray-700 shadow-gray-900/30' : 'bg-white border-violet-100 shadow-violet-50'}`}>
-      <div className="flex items-center gap-2 mb-3">
-        <Loader2 className={`w-4 h-4 animate-spin flex-shrink-0 ${isDark ? 'text-violet-500' : 'text-violet-500'}`} />
-        <p className={`text-sm font-medium ${isDark ? 'text-violet-400' : 'text-violet-800'}`}>Creating your plan…</p>
-      </div>
       <div className={`h-2 rounded-full overflow-hidden ${isDark ? 'bg-gray-700' : 'bg-violet-100'}`}>
         <div
           className={`h-full rounded-full transition-all duration-1000 ease-out ${isDark ? 'bg-violet-600' : 'bg-gradient-to-r from-violet-500 to-indigo-500'}`}
           style={{ width: `${progress}%` }}
         />
       </div>
-      <p className={`text-xs mt-2 text-center ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>This usually takes 1–2 minutes. Please don't navigate away.</p>
     </div>
   );
 }
