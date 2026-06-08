@@ -192,12 +192,11 @@ export default function Planner() {
     setMessages(newMessages);
     setInput("");
     setIsChatLoading(true);
-    // Only show "Drafting your plan" text when there's been enough back-and-forth
-    // that the AI is likely about to write an actual plan (2+ prior assistant messages, or user replied multiple times)
+    // Show "Drafting your plan" when there's been enough back-and-forth and no full plan exists yet
     const priorAssistantMessages = messages.filter(m => m.role === 'assistant').length;
     const priorUserMessages = messages.filter(m => m.role === 'user').length;
-    const noPlanYet = pendingAction !== 'plan_proposed' && !messages.some(m => m.role === 'assistant' && /Month\s+\d+/i.test(m.content) && /Week\s+\d+/i.test(m.content));
-    setIsDraftingFirstPlan(noPlanYet && priorAssistantMessages >= 1 && priorUserMessages >= 2);
+    const planAlreadyWritten = messages.some(m => m.role === 'assistant' && /Month\s+\d+/i.test(m.content) && /Week\s+\d+/i.test(m.content));
+    setIsDraftingFirstPlan(!planAlreadyWritten && priorAssistantMessages >= 1 && priorUserMessages >= 2);
     // Save progress to localStorage
     const sessionData = { startedAt: new Date().toISOString(), messages: newMessages, pendingAction, completed: false };
     localStorage.setItem('plannerInProgress', JSON.stringify(sessionData));
