@@ -226,13 +226,11 @@ export default function Planner() {
       const sessionData = { startedAt: new Date().toISOString(), messages: updatedMessages, pendingAction: action || pendingAction, completed: false };
       localStorage.setItem('plannerInProgress', JSON.stringify(sessionData));
 
-      // Detect if AI proposed a full plan (new or edit) — show approval buttons
-      // ONLY show save buttons when the message actually contains a full plan with multiple months/weeks
-      const looksLikeFullPlan = message?.includes('Month 1') && (message?.includes('Month 2') || message?.includes('Week 1') || message?.includes('Week 2'));
-      // Also re-show approval if we were already in plan_proposed state (user chose to keep working)
-      const wasAlreadyProposed = pendingAction === 'plan_proposed';
-      if ((looksLikeFullPlan || wasAlreadyProposed) && !message?.includes('EDIT_APPROVED')) {
-        // Full plan is visible in this message — show approval buttons
+      // Let the backend drive the button state via the `action` field.
+      // 'plan_proposed' → show approval buttons (backend sent PLAN_APPROVED)
+      // 'edit_approved' → show apply-edits button
+      // 'chat' → clear any stale buttons (AI is still in conversation mode)
+      if (action === 'plan_proposed') {
         setPendingAction('plan_proposed');
       } else if (action === 'edit_approved' || message?.includes('EDIT_APPROVED')) {
         setPendingAction('edit_approved');
@@ -243,6 +241,9 @@ export default function Planner() {
           const found = goals.find(g => g.id === resolvedGoalId);
           if (found) setEditingGoal(found);
         }
+      } else {
+        // AI is in conversation mode — clear any stale approval buttons
+        setPendingAction(null);
       }
     } catch (err) {
       setMessages(prev => [...prev, { role: "assistant", content: "Something went wrong. Please try again." }]);
