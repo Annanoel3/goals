@@ -39,6 +39,7 @@ export default function Planner() {
   const [editingGoal, setEditingGoal] = useState(null); // goal being edited in current session
   const [userCity, setUserCity] = useState(null);
   const [saveError, setSaveError] = useState(false);
+  const [isDraftingFirstPlan, setIsDraftingFirstPlan] = useState(false);
   // pollForMonth2Complete removed — navigation unlocks as soon as Month 1+2 are written
   const messagesEndRef = useRef(null);
   const messagesRef = useRef(messages);
@@ -191,6 +192,9 @@ export default function Planner() {
     setMessages(newMessages);
     setInput("");
     setIsChatLoading(true);
+    // Only show "Drafting your plan" text when no plan has been proposed yet in this session
+    const noPlanYet = pendingAction !== 'plan_proposed' && !messages.some(m => m.role === 'assistant' && /Month\s+\d+/i.test(m.content) && /Week\s+\d+/i.test(m.content));
+    setIsDraftingFirstPlan(noPlanYet);
     // Save progress to localStorage
     const sessionData = { startedAt: new Date().toISOString(), messages: newMessages, pendingAction, completed: false };
     localStorage.setItem('plannerInProgress', JSON.stringify(sessionData));
@@ -239,6 +243,7 @@ export default function Planner() {
       setMessages(prev => [...prev, { role: "assistant", content: "Something went wrong. Please try again." }]);
     } finally {
       setIsChatLoading(false);
+      setIsDraftingFirstPlan(false);
     }
     }, [isChatLoading, editingGoal, goals, userCity]);
 
@@ -494,7 +499,7 @@ export default function Planner() {
               <MessageBubble key={i} msg={msg} onExampleClick={i === 0 ? sendMessage : null} />
             ))}
 
-            {isChatLoading && <TypingIndicator isDrafting={false} />}
+            {isChatLoading && <TypingIndicator isDrafting={isDraftingFirstPlan} />}
 
             {/* 2-step approval flow */}
             {pendingAction === 'plan_proposed' && !isChatLoading && !isLoading && !saved && !editingGoal && !showCelebration && !showApprovalModal && (
