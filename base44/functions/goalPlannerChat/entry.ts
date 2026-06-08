@@ -275,7 +275,7 @@ Deno.serve(async (req) => {
 - preferred_time: Extract the user's stated preferred time for reminders/notifications. Parse time phrases like "9am", "6:00 PM", "morning", "evening", "noon" into 24h HH:MM format (e.g., "09:00", "18:00", "08:00" for morning, "17:00" for evening). If no time stated, null.
 - start_date: The date the user wants to START, as YYYY-MM-DD. TODAY IS ${today}. Resolve loose/relative phrasing: "next month" → the 1st of next month; a bare month name ("July", "in July", "start in July") → the 1st of that month (this year if still upcoming, else next year); "now"/"today"/"asap" → ${today}. Only return null if no start timing is given at all.
 ${TIME_MAPPING_RULE}` },
-              { role: "user", content: `User said:\n${userText}\n\nPlan intro:\n${planText.slice(0, 1200)}\n\nSearching the user's text above, extract their preferred time for reminders. Return the JSON.` }
+              { role: "user", content: `User said:\n${userText}\n\nPlan intro:\n${planText.slice(0, 1200)}\n\nFrom the user's text above, extract BOTH their preferred reminder time AND their start date. For start_date, resolve relative phrasing ("next month", "in July", "start in July", "now") to a real YYYY-MM-DD using today = ${today}. Return the JSON.` }
             ],
             max_tokens: 500,
             response_format: { type: "json_object" }
