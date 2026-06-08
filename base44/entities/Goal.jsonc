@@ -2,6 +2,10 @@
   "name": "Goal",
   "type": "object",
   "properties": {
+    "id": {
+      "type": "string",
+      "description": "The unique identifier of the goal"
+    },
     "title": {
       "type": "string",
       "description": "The goal title, e.g. 'Learn Spanish'"
