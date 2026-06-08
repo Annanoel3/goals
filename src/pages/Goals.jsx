@@ -47,7 +47,13 @@ export default function Goals() {
         base44.entities.Goal.list('-created_date'),
         base44.entities.GoalStep.list('-order_index')
       ]);
-      setGoals(goalsData);
+      // Filter out goals that are pending background deletion
+      const deletedIds = JSON.parse(sessionStorage.getItem('deletedGoalIds') || '[]');
+      const filteredGoals = goalsData.filter(g => !deletedIds.includes(g.id));
+      // Clean up IDs that no longer exist in DB (deletion completed)
+      const stillExisting = deletedIds.filter(id => goalsData.some(g => g.id === id));
+      sessionStorage.setItem('deletedGoalIds', JSON.stringify(stillExisting));
+      setGoals(filteredGoals);
       setSteps(stepsData);
     } catch (err) {
       console.error(err);

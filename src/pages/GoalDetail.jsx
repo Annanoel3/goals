@@ -194,10 +194,14 @@ export default function GoalDetail() {
     setIsDeleting(true);
     const goalTitle = goal.title;
     const goalId = goal.id;
-    // Close the dialog first, then navigate away
+    // Mark as deleted in sessionStorage so Goals page hides it immediately
+    const deleted = JSON.parse(sessionStorage.getItem('deletedGoalIds') || '[]');
+    deleted.push(goalId);
+    sessionStorage.setItem('deletedGoalIds', JSON.stringify(deleted));
+    // Close the dialog and navigate away immediately
     setShowDeleteConfirm(false);
     toast({ title: "Goal deleted", description: `"${goalTitle}" has been removed.`, variant: "default", duration: 3000 });
-    setTimeout(() => navigate("/Goals"), 300);
+    navigate("/Goals");
     // Delete in background asynchronously
     base44.functions.invoke('deleteGoalWithNotifications', { goal_id: goalId }).catch(err => console.error("Background deletion failed:", err));
   };
