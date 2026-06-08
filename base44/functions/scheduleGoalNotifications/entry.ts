@@ -424,6 +424,7 @@ Deno.serve(async (req) => {
     const week1Habit =
       steps.find(s => { if (s.is_daily_habit !== true) return false; const p = parsePhase(s.phase); return p && p.month === 1 && p.week === 1; })
       || steps.find(s => s.is_daily_habit === true)
+      || steps.find(s => { const p = parsePhase(s.phase); return p && p.month === 1 && p.week === 1; })
       || null;
 
     if (week1Habit && planStartDate) {

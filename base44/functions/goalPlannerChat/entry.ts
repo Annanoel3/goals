@@ -293,7 +293,14 @@ Deno.serve(async (req) => {
         const targetDate = new Date(startDate); targetDate.setMonth(targetDate.getMonth() + N);
         const totalDays = Math.max(1, (targetDate - startDate) / (1000 * 60 * 60 * 24));
         const T = parsedWeeks.length || 1;
-        const dailyHabit = meta.requires_daily_action === true;
+        // Deterministic safety net: the meta LLM keeps mislabeling reading goals as
+        // category="personal" / requires_daily_action=false. Force them to daily + learning.
+        const _classifyTxt = `${meta.title || ''} ${userText}`.toLowerCase();
+        const _isReadingGoal = /\b(read|reading|book|books|novel|novels|chapter|chapters|page|pages)\b/.test(_classifyTxt);
+        const dailyHabit = meta.requires_daily_action === true || _isReadingGoal;
+        const resolvedCategory = (_isReadingGoal && (!meta.category || meta.category === 'personal' || meta.category === 'other'))
+          ? 'learning'
+          : (meta.category || 'personal');
 
         const steps = parsedWeeks.map((wk, i) => {
           const bullets = wk.bullets.filter(Boolean);
@@ -323,7 +330,7 @@ Deno.serve(async (req) => {
           timeline: `${N} months`,
           target_date: targetDate.toISOString().split('T')[0],
           start_date: startDate.toISOString().split('T')[0],
-          category: meta.category || "personal",
+          category: resolvedCategory,
           notification_frequency: meta.notification_frequency || (dailyHabit ? "daily" : "weekly"),
           requires_daily_action: dailyHabit,
           weekdays_only: meta.weekdays_only === true,
