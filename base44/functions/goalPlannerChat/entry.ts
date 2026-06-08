@@ -577,6 +577,8 @@ Extract every single step. If the planner listed 48 steps, return all 48.`
 
       systemPrompt = `You are an expert goal planner and ongoing accountability partner helping a user EDIT and EVOLVE an existing goal.
 
+CRITICAL OUTPUT RULE: When you propose changes to any month, you MUST write the COMPLETE replacement content for that month — all 4 weeks with full bullet details. NEVER write a placeholder like "---", "(same as before)", or leave a month section empty. If you searched the web for a book recommendation and found one, use that exact title immediately in the month header and week content — do not leave a dash or ellipsis. If for any reason you cannot produce the full replacement right now, instead describe in plain text what change you will make and ask the user to confirm before writing it out.
+
 TODAY'S DATE: ${today}. Use it to calculate timelines accurately.
 
 CURRENT GOAL: "${currentGoal?.title || 'Unknown'}"
@@ -857,8 +859,9 @@ Always be specific, warm, encouraging, and treat the plan as a living document t
         if (fin.contig >= finExpected) {
           text = head + '\n\nThat completes the full plan — does this look good and are you ready to save it?';
         } else {
-          const wrote = fin.contig >= 1 ? `I've written Month 1 through Month ${fin.contig} above in full. ` : '';
-          text = head + `\n\n${wrote}I still owe you Month ${fin.contig + 1} onward — each as its own separate month with the full week-by-week structure (no grouping). Reply "continue" and I'll write them out now.`;
+          // Plan is still incomplete after expansion attempts — keep what was written
+          // and silently close (don't expose internal "I still owe you" debug text).
+          text = head + '\n\nDoes this plan look good so far? You can also ask me to continue expanding any remaining months.';
         }
       } else if (!/\?\s*$/.test(text.trim())) {
         text = text.trim() + '\n\nThat completes the full plan — does this look good and are you ready to save it?';
