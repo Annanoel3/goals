@@ -98,7 +98,7 @@ Deno.serve(async (req) => {
 
     const notificationPayload = {
       app_id: appId,
-      include_aliases: [{ alias_label: 'external_id', alias_value: user.email }],
+      include_aliases: { external_id: [user.email] },
       target_channel: 'push',
       headings: { en: msg.title },
       contents: { en: msg.body },
@@ -132,12 +132,28 @@ Deno.serve(async (req) => {
       habit_notification_id: result.id || null
     });
 
+    // Update goal's preferred_time so all future scheduling uses the new time
+    if (step.goal_id) {
+      try {
+        await base44.entities.Goal.update(step.goal_id, { preferred_time: habitTime });
+      } catch (_) { /* best effort */ }
+    }
+
     // Also save timezone offset on the user profile for future cron runs to use
-    const currentUser = await base44.auth.me();
-    if (currentUser && timezoneOffsetMinutes !== undefined) {
+    if (timezoneOffsetMinutes !== undefined) {
       try {
         await base44.auth.updateMe({ timezone_offset: timezoneOffsetMinutes });
       } catch (_) { /* best effort */ }
+    }
+
+    // Reschedule the entire goal so all existing reminders move to the new time
+    if (step.goal_id) {
+      try {
+        await base44.asServiceRole.functions.invoke('scheduleGoalNotifications', {
+          goal_id: step.goal_id,
+          timezoneOffsetMinutes: timezoneOffsetMinutes || 0
+        });
+      } catch (_) { /* best effort — don't fail the response if reschedule fails */ }
     }
 
     return Response.json({ success: true, notificationId: result.id, sendAt });
