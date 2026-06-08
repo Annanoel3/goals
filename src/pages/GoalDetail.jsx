@@ -111,7 +111,7 @@ export default function GoalDetail() {
     if (totalMonths === 0) return;
 
     let pollCount = 0;
-    const maxPolls = 60; // 60 × 2s = 2 minutes max, then stop spinning
+    const maxPolls = 15; // 15 × 2s = 30s max, then stop spinning
 
     const timer = setInterval(async () => {
       pollCount++;

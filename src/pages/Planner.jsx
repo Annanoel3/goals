@@ -57,7 +57,7 @@ export default function Planner() {
   if (!saved || !pendingGoalId) return;
 
   // Hard 15-second timeout — always unlock regardless
-  const hardTimeout = setTimeout(() => setFirstTwoMonthsReady(true), 15000);
+  const hardTimeout = setTimeout(() => setFirstTwoMonthsReady(true), 10000);
 
   const checkSteps = async () => {
     try {

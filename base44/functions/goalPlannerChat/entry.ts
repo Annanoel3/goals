@@ -145,9 +145,9 @@ function parsePlanWeeks(text) {
   const weeks = [];
   let curMonth = null, curWeek = null, awaitingSubtitle = false;
 
-  const monthRe    = /^#{0,4}\s*Month\s+(\d+)\b\s*(?:[-–—:]\s*(.*\S))?\s*$/i;
-  const weekRe     = /^#{0,4}\s*Week\s+(\d+)\b\s*(?:[-–—:]\s*(.*\S))?\s*$/i;
-  const combinedRe = /^#{0,4}\s*Month\s+(\d+)\s*[,\s]\s*Week\s+(\d+)\b/i;
+  const monthRe    = /^#{0,4}\s*\*{0,2}\s*Month\s+(\d+)\b\s*(?:\*{0,2}\s*[-–—:]\s*(.*\S))?\s*$/i;
+  const weekRe     = /^#{0,4}\s*\*{0,2}\s*Week\s+(\d+)\b\s*(?:\*{0,2}\s*[-–—:]\s*(.*\S))?\s*$/i;
+  const combinedRe = /^#{0,4}\s*\*{0,2}\s*Month\s+(\d+)\s*[,\s]\s*Week\s+(\d+)\b/i;
   const rangeRe    = /Months?\s+\d+\s*(?:[-–—]|to|through|&)\s*\d+/i;
   const bulletRe   = /^(?:[-•*]\s+|\d+\.\s+)(.+\S)\s*$/;
   const dateOnlyRe = /^(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}$/i;
