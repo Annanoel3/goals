@@ -936,7 +936,15 @@ function WeekDropdown({ week }) {
 function MonthDropdown({ month }) {
    const isDark = localStorage.getItem('adhd_theme') === 'dark';
    const [open, setOpen] = React.useState(false);
-   const displayTitle = month.subtitle;
+
+   // Strip AI placeholder pattern: 'Book Recommendation from Search (e.g., "Title" by Author)' → 'Title by Author'
+   const cleanSubtitle = (s) => {
+     if (!s) return s;
+     const m = s.match(/\(e\.g\.,\s*\\?"(.+?)\\?"\s*by\s+(.+?)\)/i);
+     if (m) return `${m[1]} by ${m[2]}`.trim();
+     return s;
+   };
+   const displayTitle = cleanSubtitle(month.subtitle);
 
   return (
     <div className={`rounded-xl mb-2 overflow-hidden ${isDark ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-violet-200'} shadow-sm`}>
