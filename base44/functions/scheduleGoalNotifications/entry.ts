@@ -415,9 +415,10 @@ Deno.serve(async (req) => {
   }
 
   // ── DAILY HABIT NOTIFICATIONS (Week 1, Plan B: AI-personalized, distinct per day) ──
-  // Trigger for: goals with requires_daily_action OR goals with any is_daily_habit steps in Week 1
+  // Trigger for: goals with requires_daily_action OR learning goals OR any is_daily_habit steps in Week 1
+  const isLearningGoal = goal.category === 'learning';
   const hasWeek1DailyHabit = steps.some(s => s.is_daily_habit === true && parsePhase(s.phase)?.month === 1 && parsePhase(s.phase)?.week === 1);
-  if (goal.requires_daily_action || hasWeek1DailyHabit) {
+  if (goal.requires_daily_action || isLearningGoal || hasWeek1DailyHabit) {
     console.log(`[scheduleGoalNotifications] --- Scheduling Week 1 daily reminders (AI-personalized) ---`);
 
     const week1Habit =
