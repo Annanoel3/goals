@@ -36,11 +36,12 @@ export default function HabitCheckInModal({ step, onClose, onCheckedIn }) {
       toast({
         title: didIt ? "🎉 Nice work!" : "No worries!",
         description: didIt ? "Keep that streak alive!" : "Tomorrow's another shot. You've got this!",
+        duration: 3000,
       });
       if (onCheckedIn) onCheckedIn();
       onClose();
     } catch {
-      toast({ title: "Couldn't save check-in", variant: "destructive" });
+      toast({ title: "Couldn't save check-in", variant: "destructive", duration: 3000 });
     } finally {
       setLoading(false);
     }

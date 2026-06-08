@@ -50,10 +50,10 @@ export default function StepDetailsModal({
     setIsSaving(true);
     try {
       await base44.entities.GoalStep.update(step.id, { notes, pictures });
-      toast({ title: "Step updated!" });
+      toast({ title: "Step updated!", duration: 3000 });
       onUpdate?.();
     } catch (err) {
-      toast({ title: "Error saving changes", variant: "destructive" });
+      toast({ title: "Error saving changes", variant: "destructive", duration: 3000 });
     } finally {
       setIsSaving(false);
     }
@@ -66,7 +66,7 @@ export default function StepDetailsModal({
       const res = await base44.integrations.Core.UploadFile({ file });
       setPictures((prev) => [...prev, res.file_url]);
     } catch (err) {
-      toast({ title: "Failed to upload image", variant: "destructive" });
+      toast({ title: "Failed to upload image", variant: "destructive", duration: 3000 });
     }
   };
 
@@ -165,12 +165,12 @@ export default function StepDetailsModal({
             </div>
           )}
 
-          {/* Tips & Guidance */}
+          {/* Tips and Guidance */}
           {step.tips_and_guidance && (
             <div>
               <h3 className="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
                 <Lightbulb className="w-4 h-4 text-amber-600" />
-                Tips & Guidance
+                Tips and Guidance
               </h3>
               <p className="text-sm text-gray-700 leading-relaxed bg-amber-50 border border-amber-100 rounded-lg p-3">
                 {step.tips_and_guidance}
