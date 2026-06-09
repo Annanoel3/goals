@@ -640,14 +640,21 @@ export default function Planner() {
       {/* Input bar */}
       <div className={`fixed bottom-0 left-0 right-0 ${isDark ? 'bg-gray-900/95 border-gray-800' : isColorful ? 'bg-gradient-to-r from-purple-200/95 to-pink-200/95 border-purple-300/50' : 'bg-white/95 border-gray-100'} backdrop-blur-lg border-t px-4 py-3`}
         style={{ paddingBottom: 'max(0.75rem, calc(0.75rem + env(safe-area-inset-bottom)))' }}>
-        <div className="max-w-2xl mx-auto flex items-end gap-2">
-          <button
-            onClick={isRecording ? stopRecording : startRecording}
-            disabled={isChatLoading}
-            className={`w-10 h-10 flex-shrink-0 rounded-full flex items-center justify-center transition-all ${isRecording ? 'bg-red-500 animate-pulse' : 'bg-gray-100 hover:bg-gray-200'} disabled:opacity-40`}
-          >
-            <Mic className={`w-4 h-4 ${isRecording ? 'text-white' : 'text-gray-600'}`} />
-          </button>
+        <div className="max-w-2xl mx-auto">
+          {isLoading && !isChatLoading && (
+            <div className="flex items-center gap-2 mb-2 px-3 py-1.5 rounded-lg w-fit" style={{ backgroundColor: isDark ? 'rgba(139, 92, 246, 0.1)' : 'rgba(139, 92, 246, 0.05)' }}>
+              <Loader2 className={`w-3 h-3 animate-spin ${isDark ? 'text-violet-400' : 'text-violet-600'}`} />
+              <span className={`text-xs font-medium ${isDark ? 'text-violet-400' : 'text-violet-600'}`}>Transcribing audio…</span>
+            </div>
+          )}
+          <div className="flex items-end gap-2">
+            <button
+              onClick={isRecording ? stopRecording : startRecording}
+              disabled={isChatLoading || isLoading}
+              className={`w-10 h-10 flex-shrink-0 rounded-full flex items-center justify-center transition-all ${isRecording ? 'bg-red-500 animate-pulse' : 'bg-gray-100 hover:bg-gray-200'} disabled:opacity-40`}
+            >
+              <Mic className={`w-4 h-4 ${isRecording ? 'text-white' : 'text-gray-600'}`} />
+            </button>
           <Textarea
             value={input}
             onChange={e => setInput(e.target.value)}
@@ -662,18 +669,19 @@ export default function Planner() {
                   : "Continue the conversation…"
             }
             className={`flex-1 min-h-[56px] max-h-64 text-sm resize-none rounded-2xl transition-colors ${isDark ? 'border-gray-700 focus:border-gray-600 bg-gray-800 focus:bg-gray-700 text-white placeholder-gray-500' : 'border-gray-200 focus:border-violet-300 bg-gray-50 focus:bg-white text-gray-900'}`}
-            disabled={isChatLoading}
+            disabled={isChatLoading || isLoading}
             rows={1}
           />
           <button
             onClick={() => sendMessage(input)}
-            disabled={!input.trim() || isChatLoading}
+            disabled={!input.trim() || isChatLoading || isLoading}
             className="w-10 h-10 flex-shrink-0 rounded-full bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-violet-200 hover:shadow-violet-300 transition-all disabled:opacity-40 disabled:shadow-none"
           >
             {isChatLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
           </button>
-        </div>
-      </div>
+          </div>
+          </div>
+          </div>
     </div>
   );
 }
