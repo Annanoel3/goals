@@ -99,41 +99,10 @@ export default function GoalDetail() {
   const [celebrationMonth, setCelebrationMonth] = useState(null);
   const [celebrationSteps, setCelebrationSteps] = useState([]);
   const [celebrationWeek, setCelebrationWeek] = useState(null);
-  const [loadingTimedOut, setLoadingTimedOut] = useState(false);
 
   useEffect(() => { loadData(); }, [id]);
 
-  // Poll every 2s while background months are still being created (max 2 minutes)
-  useEffect(() => {
-    if (loading || !goal) return;
-    const timelineMatch = goal.timeline?.match(/(\d+)\s*month/i);
-    const totalMonths = timelineMatch ? parseInt(timelineMatch[1]) : 0;
-    if (totalMonths === 0) return;
 
-    let pollCount = 0;
-    const maxPolls = 15; // 15 × 2s = 30s max, then stop spinning
-
-    const timer = setInterval(async () => {
-      pollCount++;
-
-      const stepsData = await base44.entities.GoalStep.filter({ goal_id: id }).catch(() => null);
-      if (stepsData) {
-        setSteps(stepsData.sort((a, b) => (a.order_index || 0) - (b.order_index || 0)));
-      }
-
-      // Stop when all months have steps OR timeout reached
-      const monthsWithSteps = new Set(
-        (stepsData || []).map(s => s.phase?.match(/Month\s*(\d+)/i)?.[1]).filter(Boolean)
-      );
-      if (pollCount >= maxPolls) {
-        setLoadingTimedOut(true);
-        clearInterval(timer);
-      } else if (monthsWithSteps.size >= totalMonths) {
-        clearInterval(timer);
-      }
-    }, 2000);
-    return () => clearInterval(timer);
-  }, [loading, goal?.id, id]);
 
   const loadData = async () => {
    try {
@@ -255,14 +224,7 @@ export default function GoalDetail() {
   };
   const sortedMonths = Object.keys(monthsMap).sort(monthSort);
 
-  // Add placeholder entries for months that haven't been created yet (background creation)
-  const timelineMonthsMatch = goal.timeline?.match(/(\d+)\s*month/i);
-  const totalExpectedMonths = timelineMonthsMatch ? parseInt(timelineMonthsMatch[1]) : 0;
-  const loadingMonthPlaceholders = [];
-  for (let m = 1; m <= totalExpectedMonths; m++) {
-    const key = `Month ${m}`;
-    if (!monthsMap[key]) loadingMonthPlaceholders.push(key);
-  }
+
 
   return (
     <div className="min-h-screen pb-32 px-4 pt-6">
@@ -417,29 +379,11 @@ export default function GoalDetail() {
               </div>
             );
           })}
-          {/* Loading placeholders for months not yet created in background */}
-          {!loadingTimedOut && loadingMonthPlaceholders.map(monthKey => (
-            <div key={monthKey} className="rounded-xl border border-gray-200 overflow-hidden">
-              <div className="w-full flex items-center gap-3 px-4 py-3 bg-white">
-                <div className="w-1.5 h-5 bg-violet-200 rounded-full flex-shrink-0" />
-                <div className="flex-1">
-                  <h3 className="text-sm font-bold text-gray-400">{monthKey}</h3>
-                  {monthTitles[monthKey] && (
-                    <p className="text-xs text-violet-300 mt-0.5">— {monthTitles[monthKey]}</p>
-                  )}
-                </div>
-                <Loader2 className="w-4 h-4 text-violet-400 animate-spin flex-shrink-0" />
-              </div>
-              <div className="border-t border-gray-100 bg-gray-50 px-3 py-4 flex items-center justify-center gap-2 text-gray-400">
-                <Loader2 className="w-4 h-4 animate-spin text-violet-400" />
-                <p className="text-xs">Creating plan…</p>
-              </div>
-            </div>
-          ))}
 
-          {steps.length === 0 && loadingMonthPlaceholders.length === 0 && (
+
+          {steps.length === 0 && (
             <Card className="bg-gray-50 border-gray-200">
-              <CardContent className="p-6 text-center text-gray-400">No steps yet. Check back when the plan is created.</CardContent>
+              <CardContent className="p-6 text-center text-gray-400">No steps yet.</CardContent>
             </Card>
           )}
         </div>
