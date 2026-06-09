@@ -90,9 +90,16 @@ Deno.serve(async (req) => {
     due_date: (() => {
       if (goal_start_date) {
         const m = (step.phase || '').match(/Month\s*(\d+)[,\s]+Week\s*(\d+)/i);
-        const wk = m ? (parseInt(m[1]) - 1) * 4 + (parseInt(m[2]) - 1) : i;
+        // 1-indexed cumulative week across the whole plan (Month 1 Week 1 = 1).
+        const weekNum = m ? (parseInt(m[1]) - 1) * 4 + parseInt(m[2]) : (i + 1);
         const d = new Date(goal_start_date + 'T00:00:00Z');
-        d.setUTCDate(d.getUTCDate() + wk * 7);
+        if (weekNum > 1) {
+          // CALENDAR-WEEK alignment: Week 1 = the start date (partial first week, ends that Sunday);
+          // Week 2 = Monday of the NEXT calendar week; Week N = that Monday + (N-2) weeks.
+          const dow = d.getUTCDay();                          // 0=Sun .. 6=Sat
+          const daysToFirstMonday = ((1 - dow + 7) % 7) || 7; // start → next calendar week's Monday
+          d.setUTCDate(d.getUTCDate() + daysToFirstMonday + (weekNum - 2) * 7);
+        }
         return d.toISOString().split('T')[0];
       }
       return step.due_date || "";

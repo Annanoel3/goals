@@ -432,8 +432,12 @@ Deno.serve(async (req) => {
       const weekStartDate = planStartDate <= todayStr ? addDays(todayStr, 1) : planStartDate;
       const include_weekends = goal.include_weekend_reminders !== false;
 
+      // CALENDAR WEEK: only schedule through the END of Week 1's calendar week (its Sunday).
+      // The next calendar week is Week 2 — the rolling cron handles it.
+      const _startDow = new Date(weekStartDate + 'T00:00:00Z').getUTCDay();  // 0=Sun .. 6=Sat
+      const _week1Span = ((7 - _startDow) % 7) + 1;                          // start → that Sunday, inclusive
       const daysToSchedule = [];
-      for (let i = 0; i < 7; i++) {
+      for (let i = 0; i < _week1Span; i++) {
         const dateStr = addDays(weekStartDate, i);
         const dow = new Date(dateStr + 'T00:00:00Z').getUTCDay();
         const isWeekend = dow === 0 || dow === 6;
@@ -516,9 +520,11 @@ Return ONLY JSON: {"messages": ["...", ...]} with exactly ${daysToSchedule.lengt
      }
 
      const sortedDates = [...wData.dates].sort();
-     // Week 1 starts on the earliest due_date of Month 1 Week 1 steps (not 6 days before end)
+     // Week 1 starts on the earliest Month-1-Week-1 due_date, and ENDS on that calendar week's
+     // Sunday — so the recap fires at the week's end, not on day 1.
      const weekStartDate = sortedDates[0];
-     const weekEndDate = sortedDates[sortedDates.length - 1];
+     const _recapDow = new Date(weekStartDate + 'T00:00:00Z').getUTCDay();
+     const weekEndDate = addDays(weekStartDate, (7 - _recapDow) % 7);
      console.log(`[scheduleGoalNotifications] Week 1: startDate=${weekStartDate}, endDate=${weekEndDate}`);
 
      const monthTheme = goal.month_titles?.[wData.month] || goal.month_titles?.[String(wData.month)];
