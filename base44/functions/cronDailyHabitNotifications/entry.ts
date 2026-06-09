@@ -338,12 +338,20 @@ Deno.serve(async (req) => {
        const _cands = steps
          .filter(s => s.is_daily_habit && s.status !== 'completed' && s.due_date)
          .sort((a, b) => a.due_date.localeCompare(b.due_date));
+       // Current week = the latest step whose week has actually STARTED (due on/before today).
+       // No fallback to a not-yet-started step → a future-start goal stays silent until it begins.
        let _current = null;
        for (const s of _cands) { if (s.due_date <= _todayStr) _current = s; }
-       if (!_current) _current = _cands[0] || null;
-       const _cp = _current ? (_current.phase || '').match(/Month\s*(\d+)[,\s]+Week\s*(\d+)/i) : null;
-       const _isWeek1 = _cp && parseInt(_cp[1]) === 1 && parseInt(_cp[2]) === 1;
-       const habitSteps = (_current && !_isWeek1) ? [_current] : [];
+       let habitSteps = [];
+       if (_current) {
+         const _cp = (_current.phase || '').match(/Month\s*(\d+)[,\s]+Week\s*(\d+)/i);
+         const _isWeek1 = _cp && parseInt(_cp[1]) === 1 && parseInt(_cp[2]) === 1;
+         // Skip Week 1 ONLY if scheduleGoalNotifications already scheduled it at creation. If it
+         // couldn't (Week 1 past the 30-day window, or a far-future start), the flag is false and
+         // the cron owns Week 1 too — scheduling it day-by-day now that it's in range.
+         const _week1Done = goal.week1_notifications_scheduled === true;
+         if (!(_isWeek1 && _week1Done)) habitSteps = [_current];
+       }
 
        if (habitSteps.length > 0) {
          const user = (await base44.asServiceRole.entities.User.filter({ id: goal.created_by_id }))[0];

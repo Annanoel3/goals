@@ -414,8 +414,7 @@ Deno.serve(async (req) => {
     console.error(`[scheduleGoalNotifications] 2-days-before heads-up failed (non-fatal): ${_headsUpErr.message}`);
   }
 
-  // ── DAILY HABIT NOTIFICATIONS (Week 1, Plan B: AI-personalized, distinct per day) ──
-  // Trigger for: goals with requires_daily_action OR learning goals OR any is_daily_habit steps in Week 1
+  // ── DAILY HABIT NOTIFICATIONS (Week 1: Plan B + calendar week + 30-day-window guard) ──
   const isLearningGoal = goal.category === 'learning';
   const hasWeek1DailyHabit = steps.some(s => s.is_daily_habit === true && parsePhase(s.phase)?.month === 1 && parsePhase(s.phase)?.week === 1);
   if (goal.requires_daily_action || isLearningGoal || hasWeek1DailyHabit) {
@@ -428,14 +427,12 @@ Deno.serve(async (req) => {
       || null;
 
     if (week1Habit && planStartDate) {
-      const todayStr = now.toISOString().split('T')[0];
       const weekStartDate = planStartDate <= todayStr ? addDays(todayStr, 1) : planStartDate;
       const include_weekends = goal.include_weekend_reminders !== false;
 
-      // CALENDAR WEEK: only schedule through the END of Week 1's calendar week (its Sunday).
-      // The next calendar week is Week 2 — the rolling cron handles it.
-      const _startDow = new Date(weekStartDate + 'T00:00:00Z').getUTCDay();  // 0=Sun .. 6=Sat
-      const _week1Span = ((7 - _startDow) % 7) + 1;                          // start → that Sunday, inclusive
+      // CALENDAR WEEK: only through the END of Week 1's calendar week (its Sunday).
+      const _startDow = new Date(weekStartDate + 'T00:00:00Z').getUTCDay();
+      const _week1Span = ((7 - _startDow) % 7) + 1;
       const daysToSchedule = [];
       for (let i = 0; i < _week1Span; i++) {
         const dateStr = addDays(weekStartDate, i);
@@ -446,9 +443,20 @@ Deno.serve(async (req) => {
       console.log(`[scheduleGoalNotifications] Week 1 daily dates: ${daysToSchedule.join(', ')}`);
 
       const bookTitle = goal.month_titles?.['1'] || goal.month_titles?.[1] || goal.title;
+      const habitTime = week1Habit.habit_time || `${prefHour}:${String(prefMin).padStart(2, '0')}`;
+      const [hh, mm] = habitTime.split(':').map(Number);
 
-      let dailyMessages = [];
-      if (daysToSchedule.length > 0) {
+      // OneSignal can't schedule beyond ~30 days. If ANY Week-1 reminder falls outside that window,
+      // schedule NONE here and let cronDailyHabitNotifications own the whole week day-by-day (no
+      // partial week → no double-scheduling). The flag stays false so the cron knows it's its job.
+      const _horizon = new Date(now.getTime() + 29 * 24 * 60 * 60 * 1000);
+      const _lastSendAt = daysToSchedule.length ? localTimeOnDate(daysToSchedule[daysToSchedule.length - 1], hh, mm, tzOffset) : null;
+      const _week1FitsWindow = daysToSchedule.length > 0 && _lastSendAt && _lastSendAt <= _horizon;
+
+      if (!_week1FitsWindow) {
+        console.log(`[scheduleGoalNotifications] Week 1 is outside the 30-day window (or empty) — deferring it to the rolling cron`);
+      } else {
+        let dailyMessages = [];
         try {
           const llm = await base44.integrations.Core.InvokeLLM({
             prompt: `Write short daily push-notification reminders for someone working on the goal "${goal.title}".
@@ -474,37 +482,39 @@ Return ONLY JSON: {"messages": ["...", ...]} with exactly ${daysToSchedule.lengt
         } catch (genErr) {
           console.error(`[scheduleGoalNotifications] daily message generation failed: ${genErr.message}`);
         }
-      }
 
-      const fallbacks = [
-        `Time to read ${bookTitle} — even a few pages counts.`,
-        `Your daily reading: pick up ${bookTitle} today.`,
-        `Keep the momentum on ${bookTitle} — read a bit now.`,
-        `A little progress in ${bookTitle} today adds up.`,
-        `Reading time! Dive back into ${bookTitle}.`,
-        `Don't break the streak — read ${bookTitle} today.`,
-        `Carve out a few minutes for ${bookTitle}.`,
-      ];
+        const fallbacks = [
+          `Time to read ${bookTitle} — even a few pages counts.`,
+          `Your daily reading: pick up ${bookTitle} today.`,
+          `Keep the momentum on ${bookTitle} — read a bit now.`,
+          `A little progress in ${bookTitle} today adds up.`,
+          `Reading time! Dive back into ${bookTitle}.`,
+          `Don't break the streak — read ${bookTitle} today.`,
+          `Carve out a few minutes for ${bookTitle}.`,
+        ];
 
-      const habitTime = week1Habit.habit_time || `${prefHour}:${String(prefMin).padStart(2, '0')}`;
-      const [hh, mm] = habitTime.split(':').map(Number);
-
-      for (let di = 0; di < daysToSchedule.length; di++) {
-        const dateStr = daysToSchedule[di];
-        const sendAt = localTimeOnDate(dateStr, hh, mm, tzOffset);
-        if (sendAt <= now) continue;
-        const body = dailyMessages[di] || fallbacks[di % fallbacks.length];
-        try {
-          const nid = await scheduleNotification({
-            externalId,
-            title: bookTitle,
-            body,
-            data: { screen: 'GoalDetail', action: 'daily_habit', goal_id: goal.id, step_id: week1Habit.id, date: dateStr },
-            sendAt: sendAt.toISOString(),
-          });
-          if (nid) { goalNotifIds.push(nid); scheduled++; }
-        } catch (nErr) {
-          console.error(`[scheduleGoalNotifications] Failed to schedule daily for ${dateStr}: ${nErr.message}`);
+        let _week1Scheduled = 0;
+        for (let di = 0; di < daysToSchedule.length; di++) {
+          const dateStr = daysToSchedule[di];
+          const sendAt = localTimeOnDate(dateStr, hh, mm, tzOffset);
+          if (sendAt <= now) continue;
+          const body = dailyMessages[di] || fallbacks[di % fallbacks.length];
+          try {
+            const nid = await scheduleNotification({
+              externalId,
+              title: bookTitle,
+              body,
+              data: { screen: 'GoalDetail', action: 'daily_habit', goal_id: goal.id, step_id: week1Habit.id, date: dateStr },
+              sendAt: sendAt.toISOString(),
+            });
+            if (nid) { goalNotifIds.push(nid); scheduled++; _week1Scheduled++; }
+          } catch (nErr) {
+            console.error(`[scheduleGoalNotifications] Failed to schedule daily for ${dateStr}: ${nErr.message}`);
+          }
+        }
+        // Tell the cron Week 1 is handled so it doesn't double-schedule it.
+        if (_week1Scheduled > 0) {
+          try { await base44.entities.Goal.update(goal.id, { week1_notifications_scheduled: true }); } catch (_) {}
         }
       }
     }
