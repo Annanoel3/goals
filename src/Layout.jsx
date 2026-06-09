@@ -44,6 +44,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import OneSignalInit from "./components/shared/OneSignalInit";
+import AdManager from './components/shared/AdManager';
 import {
   Tooltip,
   TooltipProvider,
@@ -191,6 +192,7 @@ function LayoutContent({ children, currentPageName, user, authCheckComplete }) {
       }}
     >
       {user && <OneSignalInit user={user} />}
+      <AdManager />
       {user && <AppOpenHabitCheck user={user} />}
       <EasterEggVideo />
 
