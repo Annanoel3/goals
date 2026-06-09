@@ -164,7 +164,7 @@ export default function GoalDetail() {
     sessionStorage.setItem('deletedGoalIds', JSON.stringify(deleted));
     // Navigate away immediately — don't wait for anything
     navigate("/Goals");
-    toast({ title: "Goal deleted", description: `"${goalTitle}" has been removed.`, duration: 3000 });
+    toast({ title: "Goal deleted", description: `"${goalTitle}" has been removed.` });
     // Delete in background asynchronously
     base44.functions.invoke('deleteGoalWithNotifications', { goal_id: goalId }).catch(err => console.error("Background deletion failed:", err));
   };

@@ -427,7 +427,7 @@ Deno.serve(async (req) => {
       || null;
 
     if (week1Habit && planStartDate) {
-      const weekStartDate = planStartDate <= todayStr ? addDays(todayStr, 1) : planStartDate;
+      const weekStartDate = planStartDate <= todayStr ? todayStr : planStartDate;
       const include_weekends = goal.include_weekend_reminders !== false;
 
       // CALENDAR WEEK: only through the END of Week 1's calendar week (its Sunday).
