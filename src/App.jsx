@@ -14,7 +14,7 @@ import Settings from '@/pages/Settings';
 import GoalDetail from '@/pages/GoalDetail';
 import GoalStepNotification from '@/pages/GoalStepNotification';
 import GoalFollowUp from '@/pages/GoalFollowUp';
-import NotificationSesttings from '@/pages/NotificationSettings';
+import NotificationSettings from '@/pages/NotificationSettings';
 import ReportBug from '@/pages/ReportBug';
 
 // Sentry loaded via CDN in index.html
