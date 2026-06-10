@@ -514,6 +514,40 @@ Extract every single step. If the planner listed 48 steps, return all 48.`
       return Response.json({ success: true, steps_replaced: replaceableSteps.length, steps_created: newSteps.length, completed_kept: completedSteps.length });
     }
 
+    // ── CHAT: main conversational mode ────────────────────────────────────────
+    // Load the user's existing goals (RLS scopes to their own).
+    let existingGoalsList = [];
+    try {
+      existingGoalsList = await base44.entities.Goal.list('-created_date', 50);
+    } catch (_) { /* ignore */ }
+
+    // Load steps for every goal so the AI has full context.
+    let allStepsMap = {};
+    try {
+      for (const g of existingGoalsList) {
+        const steps = await base44.entities.GoalStep.filter({ goal_id: g.id });
+        allStepsMap[g.id] = steps.sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
+      }
+    } catch (_) { /* ignore */ }
+
+    const goalsSummary = existingGoalsList.length > 0
+      ? `The user has these existing goals (with their full step lists):\n${existingGoalsList.map(g => {
+          const steps = allStepsMap[g.id] || [];
+          const phaseMap = {};
+          steps.forEach(s => {
+            const p = s.phase || 'Uncategorized';
+            if (!phaseMap[p]) phaseMap[p] = [];
+            phaseMap[p].push(s.title);
+          });
+          const phaseSummary = Object.entries(phaseMap)
+            .map(([phase, titles]) => `      ${phase}: ${titles.join(', ')}`)
+            .join('\n');
+          return `- ID: ${g.id} | Title: "${g.title}" | Status: ${g.status} | Timeline: ${g.timeline || 'N/A'}\n${phaseSummary || '      (no steps)'}`;
+        }).join('\n\n')}`
+      : 'The user has no existing goals yet.';
+
+    const isEditSession = !!goal_id;
+
     // ── SAFETY CHECK: flag unhealthy, dangerous, or impossible goals ──────────
     if (!isEditSession && mode !== 'extract_plan' && mode !== 'apply_edit') {
       const firstUserMessage = messages.find(m => m.role === 'user')?.content || '';
@@ -554,40 +588,6 @@ Return ONLY the JSON object, no other text.`
         }
       }
     }
-
-    // ── CHAT: main conversational mode ────────────────────────────────────────
-    // Load the user's existing goals (RLS scopes to their own).
-    let existingGoalsList = [];
-    try {
-      existingGoalsList = await base44.entities.Goal.list('-created_date', 50);
-    } catch (_) { /* ignore */ }
-
-    // Load steps for every goal so the AI has full context.
-    let allStepsMap = {};
-    try {
-      for (const g of existingGoalsList) {
-        const steps = await base44.entities.GoalStep.filter({ goal_id: g.id });
-        allStepsMap[g.id] = steps.sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
-      }
-    } catch (_) { /* ignore */ }
-
-    const goalsSummary = existingGoalsList.length > 0
-      ? `The user has these existing goals (with their full step lists):\n${existingGoalsList.map(g => {
-          const steps = allStepsMap[g.id] || [];
-          const phaseMap = {};
-          steps.forEach(s => {
-            const p = s.phase || 'Uncategorized';
-            if (!phaseMap[p]) phaseMap[p] = [];
-            phaseMap[p].push(s.title);
-          });
-          const phaseSummary = Object.entries(phaseMap)
-            .map(([phase, titles]) => `      ${phase}: ${titles.join(', ')}`)
-            .join('\n');
-          return `- ID: ${g.id} | Title: "${g.title}" | Status: ${g.status} | Timeline: ${g.timeline || 'N/A'}\n${phaseSummary || '      (no steps)'}`;
-        }).join('\n\n')}`
-      : 'The user has no existing goals yet.';
-
-    const isEditSession = !!goal_id;
 
     // How many months the plan should span (used to enforce completeness later).
     let planMonths = detectedMonths;
