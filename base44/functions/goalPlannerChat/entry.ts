@@ -514,6 +514,47 @@ Extract every single step. If the planner listed 48 steps, return all 48.`
       return Response.json({ success: true, steps_replaced: replaceableSteps.length, steps_created: newSteps.length, completed_kept: completedSteps.length });
     }
 
+    // ── SAFETY CHECK: flag unhealthy, dangerous, or impossible goals ──────────
+    if (!isEditSession && mode !== 'extract_plan' && mode !== 'apply_edit') {
+      const firstUserMessage = messages.find(m => m.role === 'user')?.content || '';
+      if (firstUserMessage && messages.length <= 2) {
+        const safetyCheck = await openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: [
+            {
+              role: "system",
+              content: `You are a safety reviewer for a goal-planning app. Evaluate the user's goal and return ONLY a JSON object with two fields:
+- "safe": boolean — true if the goal is healthy and appropriate, false if it should be flagged
+- "reason": string — if not safe, a warm, non-judgmental 1-2 sentence explanation of the concern and a suggestion for a healthier alternative. Empty string if safe.
+
+Flag a goal as NOT safe if it:
+1. Involves unhealthy weight loss (more than 1-2 lbs/week, or extreme crash dieting, or "lose X lbs in Y weeks/months" where the rate exceeds safe guidelines)
+2. Involves dangerous physical extremes (extreme fasting, starvation diets, dangerous exercise volume for a beginner)
+3. Is physically impossible in the given timeframe (e.g. "run a 4-minute mile in 2 weeks" for a non-athlete)
+4. Involves illegal activities (drug use, fraud, violence, theft, etc.)
+5. Is self-harmful or promotes harm to others
+6. Involves clearly harmful or predatory behavior
+7. Is deeply offensive or hateful content
+
+Do NOT flag:
+- Ambitious but realistic goals (even if very challenging)
+- Legal activities even if controversial
+- Goals about quitting bad habits
+- Financial or career goals even if difficult
+Return ONLY the JSON object, no other text.`
+            },
+            { role: "user", content: firstUserMessage }
+          ],
+          max_tokens: 200,
+          response_format: { type: "json_object" }
+        });
+        const safety = JSON.parse(safetyCheck.choices[0].message.content);
+        if (!safety.safe && safety.reason) {
+          return Response.json({ message: safety.reason, action: 'safety_flag' });
+        }
+      }
+    }
+
     // ── CHAT: main conversational mode ────────────────────────────────────────
     // Load the user's existing goals (RLS scopes to their own).
     let existingGoalsList = [];
