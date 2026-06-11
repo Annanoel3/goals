@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+import { App as CapApp } from '@capacitor/app';
 import './App.css'
 import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
@@ -80,6 +82,19 @@ const AuthenticatedApp = () => {
 
 
 function App() {
+
+  useEffect(() => {
+    if (!window.Capacitor?.isNativePlatform?.()) return;
+    let listenerHandle;
+    CapApp.addListener('backButton', ({ canGoBack }) => {
+      if (canGoBack) {
+        window.history.back();
+      } else {
+        CapApp.exitApp();
+      }
+    }).then(handle => { listenerHandle = handle; });
+    return () => { listenerHandle?.remove(); };
+  }, []);
 
   return (
     <AuthProvider>
