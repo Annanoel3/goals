@@ -224,6 +224,28 @@ export default function GoalDetail() {
   };
   const sortedMonths = Object.keys(monthsMap).sort(monthSort);
 
+  // Date helpers — derive month/week date ranges from goal.start_date
+  const goalStart = goal.start_date ? new Date(goal.start_date + 'T00:00:00Z') : null;
+  const fmtShort = (d) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+  const monthDateRange = (monthNum) => {
+    if (!goalStart) return null;
+    const start = new Date(goalStart);
+    start.setUTCMonth(start.getUTCMonth() + (monthNum - 1));
+    const end = new Date(start);
+    end.setUTCMonth(end.getUTCMonth() + 1);
+    end.setUTCDate(end.getUTCDate() - 1);
+    return `${fmtShort(start)} – ${fmtShort(end)}`;
+  };
+  const weekDateRange = (monthNum, weekNum) => {
+    if (!goalStart) return null;
+    const start = new Date(goalStart);
+    start.setUTCMonth(start.getUTCMonth() + (monthNum - 1));
+    start.setUTCDate(start.getUTCDate() + (weekNum - 1) * 7);
+    const end = new Date(start);
+    end.setUTCDate(end.getUTCDate() + 6);
+    return `${fmtShort(start)} – ${fmtShort(end)}`;
+  };
+
 
 
   return (
@@ -241,9 +263,14 @@ export default function GoalDetail() {
               <h1 className="text-2xl font-bold text-gray-900 mb-2">{goal.title}</h1>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-violet-100 text-violet-700 capitalize">{goal.category}</span>
+                {goal.start_date && (
+                  <span className="flex items-center gap-1 text-xs text-gray-500">
+                    <Calendar className="w-3 h-3" /> Starts {new Date(goal.start_date + 'T00:00:00Z').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}
+                  </span>
+                )}
                 {goal.timeline && (
                   <span className="flex items-center gap-1 text-xs text-gray-500">
-                    <Calendar className="w-3 h-3" /> {goal.timeline}
+                    <Clock className="w-3 h-3" /> {goal.timeline}
                   </span>
                 )}
                 {goal.status && (
@@ -316,8 +343,13 @@ export default function GoalDetail() {
                   disabled={isLoadingMonth}
                 >
                   <div className="w-1.5 h-5 bg-violet-500 rounded-full flex-shrink-0" />
-                  <div className="flex-1">
-                    <h3 className="text-sm font-bold text-gray-900">{monthKey}</h3>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-baseline gap-2">
+                      <h3 className="text-sm font-bold text-gray-900">{monthKey}</h3>
+                      {monthDateRange(monthNum) && (
+                        <span className="text-[10px] text-gray-400 flex-shrink-0">{monthDateRange(monthNum)}</span>
+                      )}
+                    </div>
                     {monthTitles[monthKey] && (
                       <p className="text-xs text-violet-500 mt-0.5">— {monthTitles[monthKey].replace(/\*+/g, '').trim()}</p>
                     )}
@@ -350,6 +382,7 @@ export default function GoalDetail() {
                       const weekSteps = weeksMap[weekKey];
                       const weekId = `${monthKey}-${weekKey}`;
                       const isWeekOpen = expandedPhases[weekId];
+                      const weekNum = parseInt(weekKey.match(/\d+/)?.[0] || 0);
                       return (
                         <div key={weekKey} className="rounded-lg border border-gray-200 overflow-hidden bg-white">
                           <button
@@ -357,10 +390,15 @@ export default function GoalDetail() {
                             className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 transition-all text-left"
                           >
                             <div className="w-1 h-4 bg-indigo-300 rounded-full flex-shrink-0" />
-                            <div className="flex-1 flex items-baseline gap-2">
-                              <span className="text-xs font-semibold text-gray-700">{weekKey}</span>
-                              {weekTitles[weekId] && (
-                                <span className="text-xs text-gray-500">— {weekTitles[weekId]}</span>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-baseline gap-2">
+                                <span className="text-xs font-semibold text-gray-700">{weekKey}</span>
+                                {weekTitles[weekId] && (
+                                  <span className="text-xs text-gray-500 truncate">— {weekTitles[weekId]}</span>
+                                )}
+                              </div>
+                              {isWeekOpen && weekDateRange(monthNum, weekNum) && (
+                                <span className="text-[10px] text-gray-400">{weekDateRange(monthNum, weekNum)}</span>
                               )}
                             </div>
                             <span className="text-xs text-gray-400 mr-2">{weekSteps.filter(s => s.status === 'completed').length}/{weekSteps.length}</span>
