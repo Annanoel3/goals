@@ -55,24 +55,23 @@ Deno.serve(async (req) => {
     const userByEmail = {};
     for (const u of allUsers) userByEmail[u.email] = u;
 
-    // Helper: check if current UTC time is within a user's quiet hours
-    // quiet_hours_start/end are stored as "HH:MM" in local time
-    // We use timezone_offset_minutes from the goal to convert
+    // Helper: check if current UTC time is within a user's quiet hours.
+    // timezone_offset_minutes is stored as -getTimezoneOffset() on the client,
+    // so CDT (UTC-5) = +300, EST (UTC-5) = +300, IST (UTC+5:30) = -330, etc.
+    // To get local time: UTC + offset_minutes.
     function isInQuietHours(user, timezoneOffsetMinutes) {
       if (!user?.quiet_hours_enabled) return false;
       const start = user.quiet_hours_start || '22:00';
       const end = user.quiet_hours_end || '08:00';
-      // Current local hour:minute for this user
+      // Convert UTC now → user's local time using their stored offset
       const offsetMs = (timezoneOffsetMinutes || 0) * 60 * 1000;
       const localNow = new Date(now.getTime() + offsetMs);
-      const localH = localNow.getUTCHours();
-      const localM = localNow.getUTCMinutes();
-      const localMins = localH * 60 + localM;
+      const localMins = localNow.getUTCHours() * 60 + localNow.getUTCMinutes();
       const [sh, sm] = start.split(':').map(Number);
       const [eh, em] = end.split(':').map(Number);
       const startMins = sh * 60 + sm;
       const endMins = eh * 60 + em;
-      // Handle overnight range (e.g. 22:00 -> 08:00)
+      // Handle overnight range (e.g. 22:00 → 08:00 crosses midnight)
       if (startMins > endMins) {
         return localMins >= startMins || localMins < endMins;
       }
@@ -326,12 +325,8 @@ Deno.serve(async (req) => {
         await sendPush({
           externalId,
           title: `Your goal misses you 💙`,
-          body: `It's been a week since any activity on "${goal.title}". ${nextPending ? `"${nextPending.title}" is still waiting. ` : ''}Want to shift your plan forward a week and start fresh?`,
+          body: `It's been a week since any activity on "${goal.title}". Tap to check in.`,
           data: { screen: 'GoalStepNotification', action: 'inactivity_nudge', goal_id: goal.id, can_shift_week: true },
-          buttons: [
-            { id: 'shift_week', text: '📅 Shift plan +1 week' },
-            { id: 'remind_later', text: '⏰ Remind tomorrow' },
-          ],
         });
         results.inactivity_notifs++;
       }

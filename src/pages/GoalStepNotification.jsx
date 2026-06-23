@@ -33,7 +33,10 @@ export default function GoalStepNotification() {
 
     const allSteps = await base44.entities.GoalStep.filter({ goal_id: goalId });
 
-    if (action === 'goal_step' || action === 'goal_step_followup' || action === 'goal_step_due' || action === 'goal_step_tomorrow' || action === 'habit_checkin' || action === 'inactivity_nudge' || action === 'week_stats' || action === 'month_stats') {
+    if (action === 'inactivity_nudge') {
+      const nextPending = allSteps.find(s => s.status === 'pending');
+      setData({ type: 'inactivity', goal, nextPending });
+    } else if (action === 'goal_step' || action === 'goal_step_followup' || action === 'goal_step_due' || action === 'goal_step_tomorrow' || action === 'habit_checkin' || action === 'week_stats' || action === 'month_stats') {
       const step = stepId ? allSteps.find(s => s.id === stepId) : null;
       const isFollowUp = action === 'goal_step_followup' || action === 'goal_step_tomorrow';
       const isHabit = action === 'habit_checkin';
@@ -55,6 +58,35 @@ export default function GoalStepNotification() {
     }
 
     setLoading(false);
+  };
+
+  const [shifting, setShifting] = useState(false);
+
+  const shiftPlanOneWeek = async (goalId) => {
+    setShifting(true);
+    try {
+      // Extend start_date and target_date by 7 days
+      const goals = await base44.entities.Goal.list();
+      const goal = goals.find(g => g.id === goalId);
+      if (goal) {
+        const addWeek = (dateStr) => {
+          if (!dateStr) return dateStr;
+          const d = new Date(dateStr + 'T00:00:00Z');
+          d.setUTCDate(d.getUTCDate() + 7);
+          return d.toISOString().split('T')[0];
+        };
+        await base44.entities.Goal.update(goalId, {
+          start_date: addWeek(goal.start_date),
+          target_date: addWeek(goal.target_date),
+        });
+      }
+      toast({ title: "Plan shifted one week! 📅" });
+      navigate(`/goal/${goalId}`);
+    } catch {
+      toast({ title: "Couldn't shift plan", variant: "destructive" });
+    } finally {
+      setShifting(false);
+    }
   };
 
   const completeStep = async (step) => {
@@ -90,10 +122,45 @@ export default function GoalStepNotification() {
             <Sparkles className="w-8 h-8 text-white" />
           </div>
           <p className={`text-xs font-semibold uppercase tracking-wide mb-1 ${isDark ? 'text-gray-400' : 'text-violet-500'}`}>
-            {data.type === 'month' ? 'Month Preview' : data.type === 'week' ? 'Week Preview' : data.isFollowUp ? 'Missed Step' : "Today's Step"}
+            {data.type === 'inactivity' ? 'Check In' : data.type === 'month' ? 'Month Preview' : data.type === 'week' ? 'Week Preview' : data.isFollowUp ? 'Missed Step' : "Today's Step"}
           </p>
           <h1 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{data.goal.title}</h1>
         </div>
+
+        {/* INACTIVITY view */}
+        {data.type === 'inactivity' && (
+          <>
+            <div className={`rounded-2xl p-5 mb-4 ${isDark ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-violet-100 shadow-sm'}`}>
+              <p className={`text-base font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-800'}`}>It's been a week 💙</p>
+              <p className={`text-sm leading-relaxed ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                No activity on <strong>"{data.goal.title}"</strong> in the last 7 days.
+                {data.nextPending ? ` "${data.nextPending.title}" is still waiting for you.` : ''}
+              </p>
+            </div>
+            <Button
+              onClick={() => shiftPlanOneWeek(data.goal.id)}
+              disabled={shifting}
+              className="w-full h-12 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white rounded-2xl font-semibold mb-3"
+            >
+              {shifting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Calendar className="w-4 h-4 mr-2" />}
+              Shift plan forward 1 week
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => navigate(`/goal/${data.goal.id}`)}
+              className={`w-full h-11 rounded-2xl font-semibold mb-3 ${isDark ? 'border-gray-700 text-gray-300 bg-transparent hover:bg-gray-800' : ''}`}
+            >
+              <Target className="w-4 h-4 mr-2" />
+              View Goal & Resume
+            </Button>
+            <button
+              onClick={() => navigate('/Goals')}
+              className={`w-full text-sm text-center ${isDark ? 'text-gray-500' : 'text-gray-400'} hover:opacity-80`}
+            >
+              Dismiss
+            </button>
+          </>
+        )}
 
         {/* STEP view */}
         {data.type === 'step' && !data.step && (
