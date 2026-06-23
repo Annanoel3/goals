@@ -55,6 +55,30 @@ Deno.serve(async (req) => {
     const userByEmail = {};
     for (const u of allUsers) userByEmail[u.email] = u;
 
+    // Helper: check if current UTC time is within a user's quiet hours
+    // quiet_hours_start/end are stored as "HH:MM" in local time
+    // We use timezone_offset_minutes from the goal to convert
+    function isInQuietHours(user, timezoneOffsetMinutes) {
+      if (!user?.quiet_hours_enabled) return false;
+      const start = user.quiet_hours_start || '22:00';
+      const end = user.quiet_hours_end || '08:00';
+      // Current local hour:minute for this user
+      const offsetMs = (timezoneOffsetMinutes || 0) * 60 * 1000;
+      const localNow = new Date(now.getTime() + offsetMs);
+      const localH = localNow.getUTCHours();
+      const localM = localNow.getUTCMinutes();
+      const localMins = localH * 60 + localM;
+      const [sh, sm] = start.split(':').map(Number);
+      const [eh, em] = end.split(':').map(Number);
+      const startMins = sh * 60 + sm;
+      const endMins = eh * 60 + em;
+      // Handle overnight range (e.g. 22:00 -> 08:00)
+      if (startMins > endMins) {
+        return localMins >= startMins || localMins < endMins;
+      }
+      return localMins >= startMins && localMins < endMins;
+    }
+
     const goals = await base44.asServiceRole.entities.Goal.list();
     const results = {
       month_notifs: 0, week_notifs: 0, step_notifs: 0,
@@ -71,6 +95,21 @@ Deno.serve(async (req) => {
       const user = userByEmail[goal.created_by];
       if (!user) continue;
       const externalId = user.email;
+
+      // Skip if goal hasn't started yet
+      if (goal.start_date && goal.start_date > todayStr) {
+        // Still group for inactivity but skip all notifications
+        if (!goalsByUser[externalId]) goalsByUser[externalId] = [];
+        goalsByUser[externalId].push(goal);
+        continue;
+      }
+
+      // Skip if currently in user's quiet hours
+      if (isInQuietHours(user, goal.timezone_offset_minutes)) {
+        if (!goalsByUser[externalId]) goalsByUser[externalId] = [];
+        goalsByUser[externalId].push(goal);
+        continue;
+      }
 
       // Group for inactivity check later
       if (!goalsByUser[externalId]) goalsByUser[externalId] = [];
@@ -260,10 +299,20 @@ Deno.serve(async (req) => {
 
     // ── 9. PER-USER INACTIVITY CHECK (7 days no activity) ─────────────────────
     for (const [externalId, userGoals] of Object.entries(goalsByUser)) {
+      const user = userByEmail[externalId];
+
+      // Skip if currently in quiet hours
+      const tzOffset = userGoals[0]?.timezone_offset_minutes || 0;
+      if (isInQuietHours(user, tzOffset)) continue;
+
+      // Only consider goals that have actually started
+      const startedGoals = userGoals.filter(g => !g.start_date || g.start_date <= todayStr);
+      if (startedGoals.length === 0) continue;
+
       const sevenDaysAgo = daysAgo(todayStr, 7);
-      // Load all steps for this user's goals
+      // Load all steps for this user's started goals
       let allUserSteps = [];
-      for (const g of userGoals) {
+      for (const g of startedGoals) {
         const s = await base44.asServiceRole.entities.GoalStep.filter({ goal_id: g.id });
         allUserSteps = allUserSteps.concat(s);
       }
@@ -272,7 +321,7 @@ Deno.serve(async (req) => {
         (s.updated_date && s.updated_date.split('T')[0] >= sevenDaysAgo && s.status !== 'pending')
       );
       if (!hadRecentActivity && allUserSteps.length > 0) {
-        const goal = userGoals[0];
+        const goal = startedGoals[0];
         const nextPending = allUserSteps.find(s => s.status === 'pending' && s.goal_id === goal.id);
         await sendPush({
           externalId,

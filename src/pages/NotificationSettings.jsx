@@ -12,6 +12,9 @@ export default function NotificationSettings() {
   const [theme] = useState(() => localStorage.getItem('adhd_theme') || 'minimalist');
   const [notificationTime, setNotificationTime] = useState('10:00');
   const [notificationFrequency, setNotificationFrequency] = useState('daily');
+  const [quietHoursStart, setQuietHoursStart] = useState('22:00');
+  const [quietHoursEnd, setQuietHoursEnd] = useState('08:00');
+  const [quietHoursEnabled, setQuietHoursEnabled] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -19,13 +22,22 @@ export default function NotificationSettings() {
     base44.auth.me().then(user => {
       if (user?.preferred_notification_time) setNotificationTime(user.preferred_notification_time);
       if (user?.notification_frequency) setNotificationFrequency(user.notification_frequency);
+      if (user?.quiet_hours_start) setQuietHoursStart(user.quiet_hours_start);
+      if (user?.quiet_hours_end) setQuietHoursEnd(user.quiet_hours_end);
+      if (user?.quiet_hours_enabled !== undefined) setQuietHoursEnabled(user.quiet_hours_enabled);
     }).catch(console.error).finally(() => setIsLoading(false));
   }, []);
 
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      await base44.auth.updateMe({ preferred_notification_time: notificationTime, notification_frequency: notificationFrequency });
+      await base44.auth.updateMe({
+        preferred_notification_time: notificationTime,
+        notification_frequency: notificationFrequency,
+        quiet_hours_enabled: quietHoursEnabled,
+        quiet_hours_start: quietHoursStart,
+        quiet_hours_end: quietHoursEnd,
+      });
       await base44.functions.invoke('rescheduleAllGoalNotifications', {});
       toast({ title: "Notification settings saved!" });
     } catch (err) {
@@ -87,6 +99,45 @@ export default function NotificationSettings() {
                   <option value="2x_per_week">2x per week</option>
                   <option value="once_per_week">Once per week</option>
                 </select>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <label className={`text-sm font-medium ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>
+                    Quiet hours
+                  </label>
+                  <button
+                    onClick={() => setQuietHoursEnabled(v => !v)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${quietHoursEnabled ? 'bg-violet-600' : isDark ? 'bg-gray-600' : 'bg-gray-300'}`}
+                  >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${quietHoursEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </button>
+                </div>
+                {quietHoursEnabled && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className={`block text-xs mb-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>From</label>
+                      <input
+                        type="time"
+                        value={quietHoursStart}
+                        onChange={e => setQuietHoursStart(e.target.value)}
+                        className={`w-full px-3 py-2 rounded-lg border text-sm ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+                      />
+                    </div>
+                    <div>
+                      <label className={`block text-xs mb-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>To</label>
+                      <input
+                        type="time"
+                        value={quietHoursEnd}
+                        onChange={e => setQuietHoursEnd(e.target.value)}
+                        className={`w-full px-3 py-2 rounded-lg border text-sm ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+                      />
+                    </div>
+                  </div>
+                )}
+                <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                  No notifications will be sent during this window.
+                </p>
               </div>
 
               <Button onClick={handleSave} disabled={isSaving} className="w-full bg-violet-600 hover:bg-violet-700 text-white">
