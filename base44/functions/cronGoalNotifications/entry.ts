@@ -270,7 +270,7 @@ Deno.serve(async (req) => {
             externalId,
             title: `Week wrap-up ${emoji}`,
             body: `You finished ${completedThisWeek.length}/${dueThisWeek.length} steps on "${goal.title}" this week (${pct}%). ${msg}`,
-            data: { screen: 'GoalStepNotification', action: 'goal_step', goal_id: goal.id },
+            data: { screen: 'GoalStepNotification', action: 'week_stats', goal_id: goal.id, completed: completedThisWeek.length, total: dueThisWeek.length, pct },
           });
           results.week_stats_notifs++;
         }
@@ -289,7 +289,7 @@ Deno.serve(async (req) => {
             externalId,
             title: `Month complete! ${emoji}`,
             body: `This month on "${goal.title}": ${completedThisMonth.length}/${dueThisMonth.length} steps (${pct}%). ${msg}`,
-            data: { screen: 'GoalStepNotification', action: 'goal_step', goal_id: goal.id },
+            data: { screen: 'GoalStepNotification', action: 'month_stats', goal_id: goal.id, completed: completedThisMonth.length, total: dueThisMonth.length, pct },
           });
           results.month_stats_notifs++;
         }
