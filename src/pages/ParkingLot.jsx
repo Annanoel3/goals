@@ -494,20 +494,30 @@ Return ONLY the category name, nothing else.`;
             Brain dump your ideas here - they're safe until you're ready!
           </p>
         </div>
-        <Button
-          onClick={() => {
-            if (window.triggerEasterEgg) {
-              window.triggerEasterEgg('ideas');
-            }
-          }}
-          variant="ghost"
-          size="sm"
-          className={`text-xs opacity-40 hover:opacity-100 transition-opacity ${
-            theme === 'dark' ? 'text-gray-500' : 'text-gray-400'
-          }`}
-        >
-          💡 Too many ideas? 💡
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={() => setShowQuickAdd(true)}
+            size="sm"
+            className="flex items-center gap-1.5"
+          >
+            <Plus className="w-4 h-4" />
+            Add Idea
+          </Button>
+          <Button
+            onClick={() => {
+              if (window.triggerEasterEgg) {
+                window.triggerEasterEgg('ideas');
+              }
+            }}
+            variant="ghost"
+            size="sm"
+            className={`text-xs opacity-40 hover:opacity-100 transition-opacity ${
+              theme === 'dark' ? 'text-gray-500' : 'text-gray-400'
+            }`}
+          >
+            💡 Too many ideas? 💡
+          </Button>
+        </div>
       </div>
 
       {/* Quick Add Modal */}
