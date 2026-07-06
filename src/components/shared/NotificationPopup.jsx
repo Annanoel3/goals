@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Target, MessageCircle, Sparkles, Loader2 } from "lucide-react";
+import { Target, MessageCircle, Sparkles } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 
 export default function NotificationPopup() {
@@ -64,16 +64,31 @@ export default function NotificationPopup() {
 
   const title = notifData?.title || (goal ? goal.title : "Goal Update");
   const body = notifData?.body || (goal
-    ? `You have an update on "${goal.title}". What would you like to do?`
-    : "You have a goal update. What would you like to do?");
+    ? `You have an update on "${goal.title}".`
+    : "You have a goal update.");
+
+  // Smart routing: struggling → Go to Chat; just a reminder → Go to Goal
+  const action = notifData?.action;
+  const needsPlanAdjustment = [
+    'goal_plan_nudge',
+    'inactivity_nudge',
+    'inactivity_monthly',
+    'goal_step_followup',
+  ].includes(action);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <div className="flex items-center gap-3 mb-1">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center flex-shrink-0">
-              <Sparkles className="w-5 h-5 text-white" />
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
+              needsPlanAdjustment
+                ? 'bg-gradient-to-br from-amber-500 to-orange-600'
+                : 'bg-gradient-to-br from-violet-500 to-indigo-600'
+            }`}>
+              {needsPlanAdjustment
+                ? <MessageCircle className="w-5 h-5 text-white" />
+                : <Sparkles className="w-5 h-5 text-white" />}
             </div>
             <DialogTitle className="text-lg">
               {loadingGoal ? "Loading..." : title}
@@ -85,15 +100,18 @@ export default function NotificationPopup() {
             {body}
           </p>
         </div>
-        <DialogFooter className="flex-col gap-2 sm:flex-col">
-          <Button onClick={handleGoToGoal} className="w-full">
-            <Target className="w-4 h-4 mr-2" />
-            Go to Goal
-          </Button>
-          <Button onClick={handleGoToChat} variant="outline" className="w-full">
-            <MessageCircle className="w-4 h-4 mr-2" />
-            Go to Chat
-          </Button>
+        <DialogFooter>
+          {needsPlanAdjustment ? (
+            <Button onClick={handleGoToChat} className="w-full">
+              <MessageCircle className="w-4 h-4 mr-2" />
+              Adjust Your Plan
+            </Button>
+          ) : (
+            <Button onClick={handleGoToGoal} className="w-full">
+              <Target className="w-4 h-4 mr-2" />
+              Go to Goal
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
