@@ -13,28 +13,22 @@ function handleNotificationData(data, navigate) {
   const taskId = data.taskId || data.task_id;
   const screen = data.screen;
 
-  // Goal plan nudge → open Planner with pre-loaded AI message
-  if (data.action === 'goal_plan_nudge') {
-    const params = new URLSearchParams();
-    if (data.goal_id) params.set('nudge', data.goal_id);
-    if (data.nudge_message) params.set('message', encodeURIComponent(data.nudge_message));
-    navigate(`/Planner?${params.toString()}`);
+  // Goal-related notifications → show in-app popup with Go to Goal / Go to Chat
+  if (screen === 'GoalStepNotification' || data.action === 'goal_plan_nudge' || data.goal_id) {
+    window.dispatchEvent(new CustomEvent('show-notification-popup', {
+      detail: {
+        goal_id: data.goal_id,
+        action: data.action,
+        step_id: data.step_id,
+        title: data._title,
+        body: data._body,
+        nudge_message: data.nudge_message,
+      }
+    }));
     return;
   }
 
-  // Goal step/week/month notifications
-  if (screen === 'GoalStepNotification') {
-    const params = new URLSearchParams();
-    params.set('action', data.action || 'goal_step');
-    if (data.goal_id) params.set('goal_id', data.goal_id);
-    if (data.step_id) params.set('step_id', data.step_id);
-    if (data.week_label) params.set('week_label', data.week_label);
-    if (data.month_label) params.set('month_label', data.month_label);
-    navigate(`/GoalStepNotification?${params.toString()}`);
-    return;
-  }
-
-  // Task notifications
+  // Task notifications → keep existing behavior
   if (taskId && (screen === '/TaskNotification' || screen === 'TaskNotification')) {
     navigate(`/TaskNotification?taskId=${taskId}`);
   }
@@ -65,12 +59,19 @@ export default function OneSignalInit({ user }) {
           const data = event?.notification?.data || event?.data;
           const actionId = event?.actionId || event?.action?.actionId;
           if (actionId && data && data.step_id) { handleButtonAction(actionId, data); return; }
+          if (data) {
+            data._title = event?.notification?.title;
+            data._body = event?.notification?.body;
+          }
           handleNotificationData(data, navigate);
         });
         // Also check for launch notification
         NotifyBridge.getLaunchNotification?.().then((result) => {
           if (result?.notification?.data) {
-            handleNotificationData(result.notification.data, navigate);
+            const data = result.notification.data;
+            data._title = result.notification?.title;
+            data._body = result.notification?.body;
+            handleNotificationData(data, navigate);
           }
         }).catch(() => {});
       }
@@ -139,6 +140,10 @@ export default function OneSignalInit({ user }) {
               const data = event?.notification?.data;
               const actionId = event?.actionSelected || event?.actionId;
               if (actionId && data && data.step_id) { handleButtonAction(actionId, data); return; }
+              if (data) {
+                data._title = event?.notification?.title || event?.notification?.heading;
+                data._body = event?.notification?.body || event?.notification?.content;
+              }
               handleNotificationData(data, navigate);
             });
           });

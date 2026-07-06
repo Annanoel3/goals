@@ -118,6 +118,52 @@ Deno.serve(async (req) => {
       const steps = await base44.asServiceRole.entities.GoalStep.filter({ goal_id: goal.id });
       const pendingSteps = steps.filter(s => s.status !== 'completed' && s.status !== 'skipped');
 
+      // ── 2-WEEK INACTIVITY THROTTLE ──────────────────────────────────────────
+      // After 14 days of no activity, suppress ALL notifications except 1 monthly
+      const fourteenDaysAgoStr = daysAgo(todayStr, 14);
+      const hadRecentActivity = steps.some(s =>
+        (s.completed_at && s.completed_at.split('T')[0] >= fourteenDaysAgoStr) ||
+        (s.last_habit_checkin_date && s.last_habit_checkin_date >= fourteenDaysAgoStr) ||
+        (s.updated_date && s.updated_date.split('T')[0] >= fourteenDaysAgoStr && s.status !== 'pending')
+      ) || (goal.updated_date && goal.updated_date.split('T')[0] >= fourteenDaysAgoStr);
+
+      const goalCreatedStr = new Date(goal.created_date).toISOString().split('T')[0];
+      const isTwoWeekInactive = goalCreatedStr < fourteenDaysAgoStr && !hadRecentActivity;
+
+      if (isTwoWeekInactive) {
+        // Only send 1 smart monthly reminder for inactive goals
+        if (isFirstOfMonth) {
+          let title = `Thinking about "${goal.title}"? 💙`;
+          let body = `It's been a while since you checked in on this goal. No pressure — whenever you're ready, we're here to help you pick back up or adjust your plan.`;
+
+          try {
+            const llmResponse = await base44.asServiceRole.integrations.Core.InvokeLLM({
+              prompt: `Write a short, compassionate push notification for someone who hasn't engaged with their goal "${goal.title}" in over 2 weeks. Goal description: ${goal.description || 'N/A'}. Be warm, non-judgmental, and encouraging. Under 2 sentences. No guilt trips. Suggest they can adjust their plan if needed. Return JSON with "title" (short, 3-6 words, may include one emoji) and "body" (1-2 sentences).`,
+              response_json_schema: {
+                type: "object",
+                properties: {
+                  title: { type: "string" },
+                  body: { type: "string" }
+                }
+              }
+            });
+            if (llmResponse?.title) title = llmResponse.title;
+            if (llmResponse?.body) body = llmResponse.body;
+          } catch (e) {
+            // Fall back to default message
+          }
+
+          await sendPush({
+            externalId,
+            title,
+            body,
+            data: { screen: 'GoalStepNotification', action: 'inactivity_monthly', goal_id: goal.id }
+          });
+          results.month_notifs++;
+        }
+        continue; // Skip all other notifications for this inactive goal
+      }
+
       // ── 1. MONTH START: first of month → summarize upcoming month ────────────
       if (isFirstOfMonth) {
         const createdDate = new Date(goal.created_date);
@@ -309,6 +355,7 @@ Deno.serve(async (req) => {
       if (startedGoals.length === 0) continue;
 
       const sevenDaysAgo = daysAgo(todayStr, 7);
+      const fourteenDaysAgoUser = daysAgo(todayStr, 14);
       // Load all steps for this user's started goals
       let allUserSteps = [];
       for (const g of startedGoals) {
@@ -319,7 +366,13 @@ Deno.serve(async (req) => {
         (s.status === 'completed' && s.completed_at && s.completed_at.split('T')[0] >= sevenDaysAgo) ||
         (s.updated_date && s.updated_date.split('T')[0] >= sevenDaysAgo && s.status !== 'pending')
       );
-      if (!hadRecentActivity && allUserSteps.length > 0) {
+      // If user has been inactive 14+ days, skip 7-day nudge — monthly reminder handles it
+      const hadActivityLastTwoWeeks = allUserSteps.some(s =>
+        (s.completed_at && s.completed_at.split('T')[0] >= fourteenDaysAgoUser) ||
+        (s.last_habit_checkin_date && s.last_habit_checkin_date >= fourteenDaysAgoUser) ||
+        (s.updated_date && s.updated_date.split('T')[0] >= fourteenDaysAgoUser && s.status !== 'pending')
+      );
+      if (!hadRecentActivity && hadActivityLastTwoWeeks && allUserSteps.length > 0) {
         const goal = startedGoals[0];
         const nextPending = allUserSteps.find(s => s.status === 'pending' && s.goal_id === goal.id);
         await sendPush({
