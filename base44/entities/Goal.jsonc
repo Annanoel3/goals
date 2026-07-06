@@ -206,6 +206,12 @@
       "type": "boolean",
       "default": false,
       "description": "Whether scheduleGoalNotifications successfully scheduled Week 1 dailies at creation (true = cron skips Week 1; false = cron owns it)"
+    },
+    "last_cron_notification_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date of the last notification sent by cronGoalNotifications for this goal (prevents multiple notifications per day)",
+      "default": null
     }
   },
   "required": [

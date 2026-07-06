@@ -88,6 +88,9 @@ Deno.serve(async (req) => {
     // Group goals by user for inactivity check
     const goalsByUser = {};
 
+    // Track goals already notified this run (1 notification per goal per day)
+    const notifiedGoalIds = new Set();
+
     for (const goal of goals) {
       if (goal.status !== 'active') continue;
 
@@ -132,6 +135,8 @@ Deno.serve(async (req) => {
 
       if (isTwoWeekInactive) {
         // Only send 1 smart monthly reminder for inactive goals
+        // Skip if already notified today (cross-run dedup)
+        if (goal.last_cron_notification_date === todayStr) continue;
         if (isFirstOfMonth) {
           let title = `Thinking about "${goal.title}"? 💙`;
           let body = `It's been a while since you checked in on this goal. No pressure — whenever you're ready, we're here to help you pick back up or adjust your plan.`;
@@ -164,6 +169,9 @@ Deno.serve(async (req) => {
         continue; // Skip all other notifications for this inactive goal
       }
 
+      // One notification per goal per day (cross-run dedup)
+      if (goal.last_cron_notification_date === todayStr || notifiedGoalIds.has(goal.id)) continue;
+
       // ── 1. MONTH START: first of month → summarize upcoming month ────────────
       if (isFirstOfMonth) {
         const createdDate = new Date(goal.created_date);
@@ -185,11 +193,14 @@ Deno.serve(async (req) => {
             data: { screen: 'GoalStepNotification', action: 'goal_month', goal_id: goal.id, month_label: currentMonthLabel }
           });
           results.month_notifs++;
+          notifiedGoalIds.add(goal.id);
+          await base44.asServiceRole.entities.Goal.update(goal.id, { last_cron_notification_date: todayStr });
+          continue;
         }
       }
 
       // ── 2. WEEK START: Monday → summarize upcoming week ───────────────────────
-      if (isMonday) {
+      if (!notifiedGoalIds.has(goal.id) && isMonday) {
         const createdDate = new Date(goal.created_date);
         const weeksElapsed = Math.floor((now - createdDate) / (1000 * 60 * 60 * 24 * 7));
         const currentWeekNum = (weeksElapsed % 4) + 1;
@@ -212,10 +223,14 @@ Deno.serve(async (req) => {
             data: { screen: 'GoalStepNotification', action: 'goal_week', goal_id: goal.id, week_label: currentWeekLabel }
           });
           results.week_notifs++;
+          notifiedGoalIds.add(goal.id);
+          await base44.asServiceRole.entities.Goal.update(goal.id, { last_cron_notification_date: todayStr });
+          continue;
         }
       }
 
       // ── 3. MORNING REMINDER: step due today ───────────────────────────────────
+      if (!notifiedGoalIds.has(goal.id)) {
       const todaySteps = pendingSteps.filter(s => s.due_date === todayStr);
       for (const step of todaySteps) {
         const alreadySent = step.onesignal_notification_ids?.length > 0;
@@ -241,10 +256,15 @@ Deno.serve(async (req) => {
             onesignal_notification_ids: [...existing, notifId]
           });
           results.step_notifs++;
+          notifiedGoalIds.add(goal.id);
+          await base44.asServiceRole.entities.Goal.update(goal.id, { last_cron_notification_date: todayStr });
+          break;
         }
+      }
       }
 
       // ── 4. DAY-1 FOLLOW-UP: step due yesterday, still pending ────────────────
+      if (!notifiedGoalIds.has(goal.id)) {
       const oneDayAgoStr = daysAgo(todayStr, 1);
       const overdueDayOne = pendingSteps.filter(s => s.due_date === oneDayAgoStr);
       for (const step of overdueDayOne) {
@@ -260,9 +280,14 @@ Deno.serve(async (req) => {
           ],
         });
         results.followup_day1++;
+        notifiedGoalIds.add(goal.id);
+        await base44.asServiceRole.entities.Goal.update(goal.id, { last_cron_notification_date: todayStr });
+        break;
+      }
       }
 
       // ── 5. DAY-3 FOLLOW-UP: step due 3 days ago, still pending ───────────────
+      if (!notifiedGoalIds.has(goal.id)) {
       const threeDaysAgoStr = daysAgo(todayStr, 3);
       const overdueDay3 = pendingSteps.filter(s => s.due_date === threeDaysAgoStr);
       for (const step of overdueDay3) {
@@ -273,10 +298,14 @@ Deno.serve(async (req) => {
           data: { screen: 'GoalStepNotification', action: 'goal_step_followup', goal_id: goal.id, step_id: step.id }
         });
         results.followup_day3++;
+        notifiedGoalIds.add(goal.id);
+        await base44.asServiceRole.entities.Goal.update(goal.id, { last_cron_notification_date: todayStr });
+        break;
+      }
       }
 
       // ── 6. 2-WEEK ENGAGEMENT CHECK: Monday only ───────────────────────────────
-      if (isMonday) {
+      if (!notifiedGoalIds.has(goal.id) && isMonday) {
         const fourteenDaysAgoStr = daysAgo(todayStr, 14);
         const recentDueSteps = steps.filter(s =>
           s.due_date >= fourteenDaysAgoStr &&
@@ -298,11 +327,14 @@ Deno.serve(async (req) => {
             }
           });
           results.engagement_notifs++;
+          notifiedGoalIds.add(goal.id);
+          await base44.asServiceRole.entities.Goal.update(goal.id, { last_cron_notification_date: todayStr });
+          continue;
         }
       }
 
       // ── 7. END-OF-WEEK STATS: Sunday ─────────────────────────────────────────
-      if (isSunday) {
+      if (!notifiedGoalIds.has(goal.id) && isSunday) {
         const weekStart = new Date(todayUTC);
         weekStart.setDate(todayUTC.getDate() - 6);
         const weekStartStr = weekStart.toISOString().split('T')[0];
@@ -319,11 +351,14 @@ Deno.serve(async (req) => {
             data: { screen: 'GoalStepNotification', action: 'week_stats', goal_id: goal.id, completed: completedThisWeek.length, total: dueThisWeek.length, pct },
           });
           results.week_stats_notifs++;
+          notifiedGoalIds.add(goal.id);
+          await base44.asServiceRole.entities.Goal.update(goal.id, { last_cron_notification_date: todayStr });
+          continue;
         }
       }
 
       // ── 8. END-OF-MONTH STATS ─────────────────────────────────────────────────
-      if (isLastOfMonth) {
+      if (!notifiedGoalIds.has(goal.id) && isLastOfMonth) {
         const monthStart = `${todayStr.slice(0, 7)}-01`;
         const dueThisMonth = steps.filter(s => s.due_date >= monthStart && s.due_date <= todayStr);
         const completedThisMonth = dueThisMonth.filter(s => s.status === 'completed');
@@ -338,6 +373,9 @@ Deno.serve(async (req) => {
             data: { screen: 'GoalStepNotification', action: 'month_stats', goal_id: goal.id, completed: completedThisMonth.length, total: dueThisMonth.length, pct },
           });
           results.month_stats_notifs++;
+          notifiedGoalIds.add(goal.id);
+          await base44.asServiceRole.entities.Goal.update(goal.id, { last_cron_notification_date: todayStr });
+          continue;
         }
       }
     }
