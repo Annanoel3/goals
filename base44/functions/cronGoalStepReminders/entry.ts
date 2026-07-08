@@ -26,6 +26,10 @@ Deno.serve(async (req) => {
       const goal = goalResults[0];
       if (!goal) continue;
 
+      // One notification per goal per day (cross-cron dedup)
+      const todayStr = new Date().toISOString().split('T')[0];
+      if (goal.last_cron_notification_date === todayStr) continue;
+
       // Look up user by email (created_by stores email)
       const users = await base44.asServiceRole.entities.User.filter({ email: goal.created_by });
       const user = users[0];
@@ -46,10 +50,6 @@ Deno.serve(async (req) => {
           step_id: step.id,
           goal_id: goal.id,
         },
-        buttons: [
-          { id: 'complete', text: "✅ I've done this" },
-          { id: 'remind_later', text: "⏰ Remind in 3h" }
-        ]
       };
 
       const response = await fetch('https://onesignal.com/api/v1/notifications', {
@@ -68,6 +68,10 @@ Deno.serve(async (req) => {
       if (notificationId) {
         await base44.asServiceRole.entities.GoalStep.update(step.id, {
           onesignal_notification_ids: [notificationId]
+        });
+        // Mark goal as notified today (cross-cron dedup)
+        await base44.asServiceRole.entities.Goal.update(goal.id, {
+          last_cron_notification_date: todayStr,
         });
         // Store pending notification for in-app popup on next app open
         try {

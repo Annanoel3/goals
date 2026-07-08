@@ -262,11 +262,6 @@ Deno.serve(async (req) => {
             ? `${step.description.slice(0, 100)}${step.description.length > 100 ? '…' : ''}`
             : `Tap to view details and mark complete.`,
           data: { screen: 'GoalStepNotification', action: 'goal_step', goal_id: goal.id, step_id: step.id },
-          buttons: [
-            { id: 'complete', text: '✓ Done' },
-            { id: 'remind_later', text: '⏰ Remind in 3h' },
-            { id: 'delegate', text: '📅 Move it' },
-          ],
         });
 
         if (notifId) {
@@ -292,11 +287,6 @@ Deno.serve(async (req) => {
           title: `"${step.title}" is 1 day overdue ⚠️`,
           body: `You missed this step yesterday — want to mark it done or reschedule?`,
           data: { screen: 'GoalStepNotification', action: 'goal_step_followup', goal_id: goal.id, step_id: step.id },
-          buttons: [
-            { id: 'complete', text: '✓ Done' },
-            { id: 'remind_later', text: '⏰ Remind in 3h' },
-            { id: 'delegate', text: '📅 Move it' },
-          ],
         });
         results.followup_day1++;
         notifiedGoalIds.add(goal.id);
@@ -431,13 +421,15 @@ Deno.serve(async (req) => {
       );
       if (!hadRecentActivity && hadActivityLastTwoWeeks && allUserSteps.length > 0) {
         const goal = startedGoals[0];
-        const nextPending = allUserSteps.find(s => s.status === 'pending' && s.goal_id === goal.id);
+        // One notification per goal per day (cross-cron dedup)
+        if (goal.last_cron_notification_date === todayStr) continue;
         await sendPush({ base44, goalId: goal.id,
           externalId,
           title: `Your goal misses you 💙`,
           body: `It's been a week since any activity on "${goal.title}". Tap to check in.`,
           data: { screen: 'GoalStepNotification', action: 'inactivity_nudge', goal_id: goal.id, can_shift_week: true },
         });
+        await base44.asServiceRole.entities.Goal.update(goal.id, { last_cron_notification_date: todayStr });
         results.inactivity_notifs++;
       }
     }

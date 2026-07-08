@@ -13,8 +13,13 @@ Deno.serve(async (req) => {
     const goals = await base44.asServiceRole.entities.Goal.list();
     const results = [];
 
+    const todayStr = new Date().toISOString().split('T')[0];
+
     for (const goal of goals) {
       if (goal.status !== 'active') continue;
+
+      // One notification per goal per day (cross-cron dedup)
+      if (goal.last_cron_notification_date === todayStr) continue;
 
       // Get all steps for this goal, grouped by phase
       const steps = await base44.asServiceRole.entities.GoalStep.filter({
@@ -73,6 +78,10 @@ Deno.serve(async (req) => {
               });
 
               if (response.ok) {
+                // Mark goal as notified today (cross-cron dedup)
+                await base44.asServiceRole.entities.Goal.update(goal.id, {
+                  last_cron_notification_date: todayStr,
+                });
                 // Store pending notification for in-app popup on next app open
                 try {
                   await base44.asServiceRole.entities.Goal.update(goal.id, {
