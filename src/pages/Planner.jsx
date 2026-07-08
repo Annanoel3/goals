@@ -498,7 +498,7 @@ export default function Planner() {
         ) : (
           <>
             {messages.map((msg, i) => (
-              <MessageBubble key={i} msg={msg} onExampleClick={i === 0 ? sendMessage : null} />
+              <MessageBubble key={i} msg={msg} onExampleClick={i === 0 ? sendMessage : null} startDate={editingGoal?.start_date} />
             ))}
 
             {isChatLoading && <TypingIndicator isDrafting={isDraftingFirstPlan} />}
@@ -948,7 +948,19 @@ function WeekDropdown({ week }) {
 }
 
 
-function MonthDropdown({ month }) {
+function parseStartDateFromText(text) {
+  if (!text) return null;
+  const monthNames = ['january','february','march','april','may','june','july','august','september','october','november','december'];
+  const match = text.match(/start(?:ing|s)?\s+(?:in\s+)?(january|february|march|april|may|june|july|august|september|october|november|december)\s*(\d{4})?/i);
+  if (match) {
+    const mIdx = monthNames.indexOf(match[1].toLowerCase());
+    const year = match[2] ? parseInt(match[2]) : new Date().getFullYear();
+    return new Date(year, mIdx, 1);
+  }
+  return null;
+}
+
+function MonthDropdown({ month, startDate }) {
    const isDark = localStorage.getItem('adhd_theme') === 'dark';
    const [open, setOpen] = React.useState(false);
 
@@ -960,6 +972,22 @@ function MonthDropdown({ month }) {
      return s;
    };
    const displayTitle = cleanSubtitle(month.subtitle);
+
+   // Compute date range for this month based on start date and month index
+   const monthNum = parseInt(month.title.match(/\d+/)?.[0] || '1');
+   const monthIndex = monthNum - 1;
+   let dateRange = null;
+   if (startDate) {
+     const start = typeof startDate === 'string' ? new Date(startDate + 'T00:00:00') : new Date(startDate);
+     if (!isNaN(start.getTime())) {
+       const monthStart = new Date(start);
+       monthStart.setDate(monthStart.getDate() + (monthIndex * 28));
+       const monthEnd = new Date(monthStart);
+       monthEnd.setDate(monthEnd.getDate() + 27);
+       const fmt = (d) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+       dateRange = `${fmt(monthStart)} - ${fmt(monthEnd)}`;
+     }
+   }
 
   return (
     <div className={`rounded-xl mb-2 overflow-hidden ${isDark ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-violet-200'} shadow-sm`}>
@@ -975,7 +1003,9 @@ function MonthDropdown({ month }) {
               <span className={`text-sm font-medium ${isDark ? 'text-violet-400' : 'text-violet-600'}`}>— {displayTitle}</span>
             )}
           </div>
-          <p className={`text-xs mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{month.weeks.length} weeks</p>
+          <p className={`text-xs mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+            {month.weeks.length} weeks{dateRange && <span className="ml-1">· {dateRange}</span>}
+          </p>
         </div>
         <ChevronDown className={`w-4 h-4 flex-shrink-0 transition-transform ${isDark ? 'text-gray-500' : 'text-gray-400'} ${open ? 'rotate-180' : ''}`} />
       </button>
@@ -989,11 +1019,12 @@ function MonthDropdown({ month }) {
   );
 }
 
-function PlanView({ text, goalMonthTitles = {} }) {
+function PlanView({ text, goalMonthTitles = {}, startDate }) {
    const isDark = localStorage.getItem('adhd_theme') === 'dark';
    const [showMarkdown, setShowMarkdown] = React.useState(false);
    const { months, preamble } = parsePlanHierarchy(text, goalMonthTitles);
   const cleanedPreamble = preamble ? renderPreamble(preamble) : '';
+  const resolvedStartDate = startDate || parseStartDateFromText(preamble) || parseStartDateFromText(text);
 
   if (showMarkdown) {
     return (
@@ -1023,7 +1054,7 @@ function PlanView({ text, goalMonthTitles = {} }) {
         <p className={`text-sm leading-relaxed mb-3 whitespace-pre-wrap ${isDark ? 'text-gray-300' : 'text-gray-800'}`}>{renderInlineText(cleanedPreamble)}</p>
       )}
       {months.length > 0 ? (
-         months.map((month, i) => <MonthDropdown key={i} month={month} />)
+         months.map((month, i) => <MonthDropdown key={i} month={month} startDate={resolvedStartDate} />)
        ) : (
         <span className={`whitespace-pre-wrap text-sm ${isDark ? 'text-gray-300' : 'text-gray-800'}`}>{renderInlineText(text)}</span>
       )}
@@ -1031,7 +1062,7 @@ function PlanView({ text, goalMonthTitles = {} }) {
   );
 }
 
-function MessageBubble({ msg, onExampleClick }) {
+function MessageBubble({ msg, onExampleClick, startDate }) {
   const isUser = msg.role === "user";
   const isDark = localStorage.getItem('adhd_theme') === 'dark';
 
@@ -1097,7 +1128,7 @@ function MessageBubble({ msg, onExampleClick }) {
         }`}>
           {isUser ? renderInlineText(msg.content) : (
             isPlanMessage(msg.content) ? (
-              <PlanView text={msg.content} goalMonthTitles={msg.goalMonthTitles || {}} />
+              <PlanView text={msg.content} goalMonthTitles={msg.goalMonthTitles || {}} startDate={startDate} />
             ) : (
               renderMarkdown(msg.content)
             )
