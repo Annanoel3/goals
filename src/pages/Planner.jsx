@@ -164,6 +164,8 @@ export default function Planner() {
       setPendingAction(null);
     }
     setSaved(false);
+    setPendingGoalId(null);
+    setShowApprovalModal(false);
   };
 
   const handleNewPlan = () => {
@@ -548,7 +550,7 @@ export default function Planner() {
             {pendingAction === 'plan_proposed' && !isChatLoading && !isLoading && !saved && editingGoal && !showCelebration && (
               <div className="flex flex-col items-center gap-3 pt-4 pb-4">
                 <Button
-                  onClick={() => { setShowCelebration(true); handleApplyEdits(); }}
+                  onClick={() => { setPendingGoalId(editingGoal.id); setShowCelebration(true); handleApplyEdits(); }}
                   className={`rounded-2xl px-6 py-2.5 font-semibold ${isDark ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-900/30' : 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-lg shadow-emerald-100'}`}
                 >
                   <Check className="w-4 h-4 mr-2" />
@@ -592,7 +594,7 @@ export default function Planner() {
                   <SavingProgressBar isEdit />
                 ) : (
                   <Button
-                    onClick={() => { setShowCelebration(true); handleApplyEdits(); }}
+                    onClick={() => { setPendingGoalId(editingGoal?.id || pendingGoalId); setShowCelebration(true); handleApplyEdits(); }}
                     className={`rounded-2xl px-6 py-2.5 font-semibold ${isDark ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-900/30' : 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-lg shadow-emerald-100'}`}
                   >
                     <Check className="w-4 h-4 mr-2" />Looks good! Apply changes
@@ -603,12 +605,19 @@ export default function Planner() {
 
             {saved && (
               <div className="flex flex-col items-center gap-3 py-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                {pendingAction === 'edit_approved' ? (
+                {(pendingAction === 'edit_approved' || editingGoal) ? (
                   <>
                     <div className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-semibold border ${isDark ? 'bg-green-900/30 text-green-400 border-green-700' : 'bg-green-50 text-green-700 border-green-200'}`}>
                       <Check className="w-4 h-4" />
                       Changes applied!
                     </div>
+                    <Button
+                      size="sm"
+                      className={`rounded-xl text-xs font-semibold ${isDark ? 'bg-violet-600 hover:bg-violet-700 text-white' : 'bg-violet-600 hover:bg-violet-700 text-white'}`}
+                      onClick={() => navigate(`/goal/${pendingGoalId || editingGoal?.id}`)}
+                    >
+                      Go to Goal →
+                    </Button>
                   </>
                 ) : (
                   <>
