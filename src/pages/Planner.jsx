@@ -961,6 +961,20 @@ function MonthDropdown({ month }) {
    };
    const displayTitle = cleanSubtitle(month.subtitle);
 
+   // Derive date range from month name in subtitle, e.g. "(August)" → Aug 1 - Aug 28
+   const monthNames = ['january','february','march','april','may','june','july','august','september','october','november','december'];
+   const monthMatch = month.subtitle?.match(/\((january|february|march|april|may|june|july|august|september|october|november|december)\s*(\d{4})?\)/i);
+   let dateRange = null;
+   if (monthMatch) {
+     const mIdx = monthNames.indexOf(monthMatch[1].toLowerCase());
+     const year = monthMatch[2] ? parseInt(monthMatch[2]) : new Date().getFullYear();
+     const start = new Date(year, mIdx, 1);
+     const end = new Date(start);
+     end.setDate(end.getDate() + 27);
+     const fmt = (d) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+     dateRange = `${fmt(start)} - ${fmt(end)}`;
+   }
+
   return (
     <div className={`rounded-xl mb-2 overflow-hidden ${isDark ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-violet-200'} shadow-sm`}>
       <button
@@ -975,7 +989,7 @@ function MonthDropdown({ month }) {
               <span className={`text-sm font-medium ${isDark ? 'text-violet-400' : 'text-violet-600'}`}>— {displayTitle}</span>
             )}
           </div>
-          <p className={`text-xs mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{month.weeks.length} weeks</p>
+          <p className={`text-xs mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{month.weeks.length} weeks{dateRange && <span className="ml-1">· {dateRange}</span>}</p>
         </div>
         <ChevronDown className={`w-4 h-4 flex-shrink-0 transition-transform ${isDark ? 'text-gray-500' : 'text-gray-400'} ${open ? 'rotate-180' : ''}`} />
       </button>
