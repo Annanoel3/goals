@@ -3,7 +3,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 const ONESIGNAL_APP_ID = Deno.env.get("ONESIGNAL_APP_ID");
 const ONESIGNAL_REST_API_KEY = Deno.env.get("ONESIGNAL_REST_API_KEY");
 
-async function sendPush({ externalId, title, body, data, buttons }) {
+async function sendPush({ externalId, title, body, data, buttons, base44, goalId }) {
   const payload = {
     app_id: ONESIGNAL_APP_ID,
     include_aliases: { external_id: [String(externalId)] },
@@ -22,7 +22,26 @@ async function sendPush({ externalId, title, body, data, buttons }) {
     body: JSON.stringify(payload)
   });
   const json = await res.json();
-  return json?.id || null;
+  const notifId = json?.id || null;
+
+  // Store pending notification on the goal so the in-app popup shows on next app open
+  if (notifId && goalId && base44) {
+    try {
+      await base44.asServiceRole.entities.Goal.update(goalId, {
+        pending_notification: {
+          title,
+          body,
+          action: data?.action || null,
+          goal_id: goalId,
+          step_id: data?.step_id || null,
+          nudge_message: data?.nudge_message || null,
+          stored_at: new Date().toISOString()
+        }
+      });
+    } catch (_) { /* best effort — don't block the push */ }
+  }
+
+  return notifId;
 }
 
 function daysAgo(dateStr, n) {
@@ -158,7 +177,7 @@ Deno.serve(async (req) => {
             // Fall back to default message
           }
 
-          await sendPush({
+          await sendPush({ base44, goalId: goal.id,
             externalId,
             title,
             body,
@@ -186,7 +205,7 @@ Deno.serve(async (req) => {
         if (monthSteps.length > 0) {
           const stepTitles = monthSteps.slice(0, 3).map(s => `• ${s.title}`).join('\n');
           const more = monthSteps.length > 3 ? `\n+ ${monthSteps.length - 3} more` : '';
-          await sendPush({
+          await sendPush({ base44, goalId: goal.id,
             externalId,
             title: `${currentMonthLabel} starts today! 🗓️`,
             body: `Here's what's coming up for "${goal.title}":\n${stepTitles}${more}`,
@@ -216,7 +235,7 @@ Deno.serve(async (req) => {
         if (weekSteps.length > 0) {
           const stepTitles = weekSteps.slice(0, 4).map(s => `• ${s.title}`).join('\n');
           const more = weekSteps.length > 4 ? `\n+ ${weekSteps.length - 4} more` : '';
-          await sendPush({
+          await sendPush({ base44, goalId: goal.id,
             externalId,
             title: `New week, new steps! 💪`,
             body: `${currentWeekLabel} of "${goal.title}":\n${stepTitles}${more}`,
@@ -236,7 +255,7 @@ Deno.serve(async (req) => {
         const alreadySent = step.onesignal_notification_ids?.length > 0;
         if (alreadySent) continue;
 
-        const notifId = await sendPush({
+        const notifId = await sendPush({ base44, goalId: goal.id,
           externalId,
           title: `Today: ${step.title}`,
           body: step.description
@@ -268,7 +287,7 @@ Deno.serve(async (req) => {
       const oneDayAgoStr = daysAgo(todayStr, 1);
       const overdueDayOne = pendingSteps.filter(s => s.due_date === oneDayAgoStr);
       for (const step of overdueDayOne) {
-        await sendPush({
+        await sendPush({ base44, goalId: goal.id,
           externalId,
           title: `"${step.title}" is 1 day overdue ⚠️`,
           body: `You missed this step yesterday — want to mark it done or reschedule?`,
@@ -291,7 +310,7 @@ Deno.serve(async (req) => {
       const threeDaysAgoStr = daysAgo(todayStr, 3);
       const overdueDay3 = pendingSteps.filter(s => s.due_date === threeDaysAgoStr);
       for (const step of overdueDay3) {
-        await sendPush({
+        await sendPush({ base44, goalId: goal.id,
           externalId,
           title: `Still on your list: "${step.title}"`,
           body: `This step has been waiting 3 days. Want to mark it done, adjust it, or move on? Your call.`,
@@ -315,7 +334,7 @@ Deno.serve(async (req) => {
         const totalRecentDue = recentDueSteps.length;
 
         if (totalRecentDue >= 3 && completedRecently / totalRecentDue < 0.3) {
-          await sendPush({
+          await sendPush({ base44, goalId: goal.id,
             externalId,
             title: `Let's recalibrate your plan 🔄`,
             body: `You've had a tough couple of weeks on "${goal.title}" — and that's okay. Life happens. Your AI coach has some ideas to get things flowing again. Tap to chat.`,
@@ -344,7 +363,7 @@ Deno.serve(async (req) => {
           const pct = Math.round((completedThisWeek.length / dueThisWeek.length) * 100);
           const emoji = pct >= 80 ? '🌟' : pct >= 50 ? '💪' : '🔄';
           const msg = pct >= 80 ? 'Incredible week!' : pct >= 50 ? 'Good progress — keep going!' : 'Next week is a fresh start.';
-          await sendPush({
+          await sendPush({ base44, goalId: goal.id,
             externalId,
             title: `Week wrap-up ${emoji}`,
             body: `You finished ${completedThisWeek.length}/${dueThisWeek.length} steps on "${goal.title}" this week (${pct}%). ${msg}`,
@@ -366,7 +385,7 @@ Deno.serve(async (req) => {
           const pct = Math.round((completedThisMonth.length / dueThisMonth.length) * 100);
           const emoji = pct >= 80 ? '🏆' : pct >= 50 ? '📈' : '💡';
           const msg = pct >= 80 ? "You crushed it!" : pct >= 50 ? "Solid month — let's build on it!" : "New month, fresh energy — you've got this!";
-          await sendPush({
+          await sendPush({ base44, goalId: goal.id,
             externalId,
             title: `Month complete! ${emoji}`,
             body: `This month on "${goal.title}": ${completedThisMonth.length}/${dueThisMonth.length} steps (${pct}%). ${msg}`,
@@ -413,7 +432,7 @@ Deno.serve(async (req) => {
       if (!hadRecentActivity && hadActivityLastTwoWeeks && allUserSteps.length > 0) {
         const goal = startedGoals[0];
         const nextPending = allUserSteps.find(s => s.status === 'pending' && s.goal_id === goal.id);
-        await sendPush({
+        await sendPush({ base44, goalId: goal.id,
           externalId,
           title: `Your goal misses you 💙`,
           body: `It's been a week since any activity on "${goal.title}". Tap to check in.`,

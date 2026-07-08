@@ -73,6 +73,20 @@ Deno.serve(async (req) => {
               });
 
               if (response.ok) {
+                // Store pending notification for in-app popup on next app open
+                try {
+                  await base44.asServiceRole.entities.Goal.update(goal.id, {
+                    pending_notification: {
+                      title: `Big milestone coming! 🎉`,
+                      body: `"${goal.title}" - ${phase} is almost done. You're so close!`,
+                      action: 'milestone_upcoming',
+                      goal_id: goal.id,
+                      step_id: null,
+                      nudge_message: null,
+                      stored_at: new Date().toISOString()
+                    }
+                  });
+                } catch (_) { /* best effort */ }
                 results.push({
                   goal_id: goal.id,
                   phase,

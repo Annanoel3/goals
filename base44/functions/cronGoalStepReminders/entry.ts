@@ -69,6 +69,20 @@ Deno.serve(async (req) => {
         await base44.asServiceRole.entities.GoalStep.update(step.id, {
           onesignal_notification_ids: [notificationId]
         });
+        // Store pending notification for in-app popup on next app open
+        try {
+          await base44.asServiceRole.entities.Goal.update(goal.id, {
+            pending_notification: {
+              title: `${step.title} is overdue`,
+              body: `You have a step overdue in "${goal.title}". Tap to reschedule or mark complete.`,
+              action: 'goal_step_followup',
+              goal_id: goal.id,
+              step_id: step.id,
+              nudge_message: null,
+              stored_at: new Date().toISOString()
+            }
+          });
+        } catch (_) { /* best effort */ }
         results.push({ step_id: step.id, notified: true });
       }
     }

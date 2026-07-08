@@ -212,6 +212,36 @@
       "format": "date",
       "description": "Date of the last notification sent by cronGoalNotifications for this goal (prevents multiple notifications per day)",
       "default": null
+    },
+    "pending_notification": {
+      "type": "object",
+      "description": "Latest unshown notification for this goal. Set when a push is sent, cleared when the user sees the in-app popup.",
+      "default": null,
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "body": {
+          "type": "string"
+        },
+        "action": {
+          "type": "string",
+          "description": "Notification type: goal_plan_nudge, inactivity_nudge, goal_step, goal_step_followup, week_stats, month_stats, goal_month, goal_week, milestone_upcoming, etc."
+        },
+        "goal_id": {
+          "type": "string"
+        },
+        "step_id": {
+          "type": "string"
+        },
+        "nudge_message": {
+          "type": "string"
+        },
+        "stored_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
     }
   },
   "required": [
