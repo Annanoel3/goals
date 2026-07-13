@@ -30,9 +30,8 @@ Deno.serve(async (req) => {
       const todayStr = new Date().toISOString().split('T')[0];
       if (goal.last_cron_notification_date === todayStr) continue;
 
-      // Look up user by email (created_by stores email)
-      const users = await base44.asServiceRole.entities.User.filter({ email: goal.created_by });
-      const user = users[0];
+      // Look up user by ID (Goal entity stores created_by_id = user ID)
+      const user = await base44.asServiceRole.entities.User.get(goal.created_by_id);
       if (!user) continue;
 
       // Use external user ID (email) for targeting

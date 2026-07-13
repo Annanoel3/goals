@@ -69,10 +69,14 @@ Deno.serve(async (req) => {
     nextDay.setDate(todayUTC.getDate() + 1);
     const isLastOfMonth = nextDay.getDate() === 1;
 
-    // Pre-load all users once
+    // Pre-load all users once — Goal entity stores created_by_id (user ID), not email
     const allUsers = await base44.asServiceRole.entities.User.list();
+    const userById = {};
     const userByEmail = {};
-    for (const u of allUsers) userByEmail[u.email] = u;
+    for (const u of allUsers) {
+      userById[u.id] = u;
+      userByEmail[u.email] = u;
+    }
 
     // Helper: check if current UTC time is within a user's quiet hours.
     // timezone_offset_minutes is stored as -getTimezoneOffset() on the client,
@@ -113,7 +117,7 @@ Deno.serve(async (req) => {
     for (const goal of goals) {
       if (goal.status !== 'active') continue;
 
-      const user = userByEmail[goal.created_by];
+      const user = userById[goal.created_by_id];
       if (!user) continue;
       const externalId = user.email;
 

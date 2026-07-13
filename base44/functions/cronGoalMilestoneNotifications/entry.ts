@@ -53,15 +53,18 @@ Deno.serve(async (req) => {
             
             // Check if due date is tomorrow (24h ahead)
             if (dueDate >= now && dueDate <= tomorrow) {
-              // Send milestone upcoming notification
-              const user = await base44.asServiceRole.entities.User.get(goal.created_by);
+              // Look up user by ID (Goal entity stores created_by_id = user ID)
+              const user = await base44.asServiceRole.entities.User.get(goal.created_by_id);
               if (!user) continue;
 
               const payload = {
-                include_external_user_ids: [user.email],
+                app_id: ONESIGNAL_APP_ID,
+                include_aliases: { external_id: [String(user.email)] },
+                target_channel: 'push',
                 headings: { en: `Big milestone coming! 🎉` },
                 contents: { en: `"${goal.title}" - ${phase} is almost done. You're so close!` },
                 data: {
+                  screen: 'GoalStepNotification',
                   goal_id: goal.id,
                   action: 'milestone_upcoming',
                   phase
